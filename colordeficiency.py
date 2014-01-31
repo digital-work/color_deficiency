@@ -8,7 +8,7 @@ import colour
 
 simulation_types = ["vienot", "vienot-adjusted"]
 coldef_types = ["d","p","t"]
-img_in = Image.open("test.jpg")
+img_in = Image.open("test1.jpg")
 
 def makeLMSDeficientMatrix(rgb2lms, coldef_type):
     """
@@ -68,12 +68,13 @@ def makeLMSDeficientMatrix(rgb2lms, coldef_type):
     
 #print makeLMSDeficientMatrix(rgb2lms_vienot,"d")   
 
-def simulation_vienot(img_in, coldef_type):
+def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
     """
     This is a colour deficiency simulation for deuteranopes and protanopes based on 'Computerized ...' by Francoise Vienot et al.
-    Input values:    img_in - original PIL image
-                     coldef_type - type of color deficiency. d for deuteranopia, p for protanopia
-    Output values:   img_out - simulated PIL image 
+    Input:  img_in -          Original PIL image
+            coldef_type -     Type of color deficiency. Either p for protanopes, d for deuteranopes, or t for tritanopes.
+            coldef_strength - Severity of color deficiency where 1.0 are completely and 0.0 is nothing. OBS: This algorithm only allows full severity!
+    Output: img_out -         Simulated PIL image
     """
     
     img_in = img_in.convert('RGB')
@@ -130,24 +131,23 @@ def simulation_vienot(img_in, coldef_type):
     
     return img_out
 
-def simulation_vienot_adjusted(img_in, coldef_type):
+def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
     """
     This is a colour deficiency simulation for deuteranopes and protanopes based on 'Computerized ...' by Francoise Vienot et al.
     Some variations have been made: instead of using the gamma correction proposed in the paper, we use the standard sRGB conversion from sRGB to XYZ and we used an adjusted XYZ to LMS matrix.
-    Input values:    img_in - original PIL image
-                     coldef_type - type of color deficiency. d for deuteranopia, p for protanopia
-    Output values:   img_out - simulated PIL image 
+    Input:  img_in -          Original PIL image
+            coldef_type -     Type of color deficiency. Either p for protanopes, d for deuteranopes, or t for tritanopes.
+            coldef_strength - Severity of color deficiency where 1.0 are completely and 0.0 is nothing. OBS: This algorithm only allows full severity!
+    Output: img_out -         Simulated PIL image
     """
+    
+    if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
+        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        return img_in
     
     img_in = img_in.convert('RGB')
     img_array = numpy.asarray(img_in, dtype=float)/255.
     m,n,dim = numpy.shape(img_array)
-    
-    if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
-        
-        return img_in
-    
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
     xyz2rgb = numpy.array([[ 3.2404542, -1.5371385, -0.4985314],
@@ -165,9 +165,6 @@ def simulation_vienot_adjusted(img_in, coldef_type):
     
     rgb2lms = numpy.dot(xyz2lms,rgb2xyz)*100.
     lms2lms_deficient = makeLMSDeficientMatrix(rgb2lms, coldef_type)
-    print rgb2lms
-    print lms2lms_deficient
-    
     
     # This is the actual simulation
     lmsOriginal_vector = numpy.reshape(lmsOriginal_arr,(m*n,3))
@@ -181,35 +178,72 @@ def simulation_vienot_adjusted(img_in, coldef_type):
     
     return img_out
 
-def simulate(img_in, coldef_type, simulation_type):
+#simulate(img_in,"d","videnot").show()
+
+def simulation_IPT(img_in, coldef_type, coldef_strength=1.0):
     """
     Function to simulate color deficiency for vienot, vienot adjusted.
-    Input:  img_in -          Original PIL image
+    Input:  simulation_type - Type of simulation as defined in simulation_types
+            img_in -          Original PIL image
             coldef_type -     Type of color deficiency. Either p for protanopes, d for deuteranopes, or t for tritanopes.
-            simulation_type - 
+            coldef_strength - Severity of color deficiency where 1.0 are completely and 0.0 is nothing. 
+    Output: img_out -         Simulated PIL image
+    """
+    
+    if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
+        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        return img_in
+    
+    img_in = img_in.convert('RGB')
+    img_array = numpy.asarray(img_in, dtype=float)/255.
+    
+    sRGBOriginal_arr = colour.data.Data(colour.space.srgb,img_array)
+    iptOriginal_arr = sRGBOriginal_arr.get(colour.space.ipt)
+    if (coldef_type == "p" or coldef_type == "d"):
+        iptSimulated_arr = iptOriginal_arr
+        iptSimulated_arr[:,:,1] = iptOriginal_arr[:,:,1]*(1.0-coldef_strength)
+    else:
+        iptSimulated_arr = iptOriginal_arr
+        iptSimulated_arr[:,:,2] = iptOriginal_arr[:,:,2]*(1.0-coldef_strength)
+    iptSimulated_arr = colour.data.Data(colour.space.ipt,iptSimulated_arr)
+    sRGBSimulated_arr = iptSimulated_arr.get(colour.space.srgb)*255.
+    
+    img_array = numpy.uint8(sRGBSimulated_arr)
+    img_out = Image.fromarray(img_array)
+    
+    return img_out
+
+def simulate( simulation_type, img_in, coldef_type, coldef_strength=1.0):
+    """
+    Function to simulate color deficiency.
+    Input:  simulation_type - Type of simulation as defined in simulation_types
+            img_in -          Original PIL image
+            coldef_type -     Type of color deficiency. Either p for protanopes, d for deuteranopes, or t for tritanopes.
+            coldef_strength - Severity of color deficiency where 1.0 are completely and 0.0 is nothing. OBS: Some algorithms only allow full severity!
     Output: img_out -         Simulated PIL image
     """
     img_out = img_in
     
     if simulation_type == "vienot":
-        img_out = simulation_vienot(img_in, coldef_type)
+        img_out = simulation_vienot(img_in, coldef_type,coldef_strength)
     elif simulation_type == "vienot-adjusted":
-        img_out = simulation_vienot_adjusted(img_in, coldef_type)
+        img_out = simulation_vienot_adjusted(img_in, coldef_type,coldef_strength)
+    elif simulation_type == "IPT":
+        img_out = simulation_IPT(img_in, coldef_type,coldef_strength)
     else:
         print 'Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(simulation_types)+'".'
     return img_out
 
-#simulate(img_in,"d","videnot").show()
-
 def test():
-    name = "test4"
+    name = "test2"
     
     im = Image.open(name+".jpg")
     #im.show()
-    simulation_type = "vienot-adjusted"
+    simulation_type = "IPT"
+    coldef_strength = 1.0
     
     for coldef_type in coldef_types:
-        im_sim = simulate(im, coldef_type,simulation_type)
+        im_sim = simulate(simulation_type,im,coldef_type,coldef_strength)
         #im_sim.show()
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"    
