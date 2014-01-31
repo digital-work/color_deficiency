@@ -6,7 +6,7 @@ from PIL import Image
 import numpy
 import colour
 
-simulation_types = ["vienot", "vienot adjusted"]
+simulation_types = ["vienot", "vienot-adjusted"]
 coldef_types = ["d","p","t"]
 img_in = Image.open("test.jpg")
 
@@ -154,25 +154,20 @@ def simulation_vienot_adjusted(img_in, coldef_type):
                            [-0.9692660,  1.8760108,  0.0415560],
                            [ 0.0556434, -0.2040259,  1.0572252]])
     rgb2xyz = numpy.linalg.inv(xyz2rgb)
-    
-    
-    
-    #     numpy.array([[40.9568, 35.5041,17.9167],
-    #                            [21.3389, 70.6743, 7.9868],
-    #                            [ 1.86297,11.462, 91.2367]])
-    #vienotRGBSpaceLinear = colour.space.TransformLinear(colour.space.xyz,numpy.linalg.inv(rgb2xyz))
-    #vienotRGBOriginal_arr = colour.data.Data(vienotRGBSpaceLinear, img_array)
-    #XYZOriginal_arr = colour.data.Data(colour.space.xyz,vienotRGBOriginal_arr.get(colour.space.xyz))
-        
+    sRGBOriginal_arr = colour.data.Data(colour.space.srgb, img_array)
+       
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
                            [0, 0, .00801]])
     lmsSpace = colour.space.TransformLinear(colour.space.xyz,xyz2lms) #.01608 .00801
-    lmsOriginal_arr = XYZOriginal_arr.get(lmsSpace)
+    lmsOriginal_arr = sRGBOriginal_arr.get(lmsSpace)
     
-    rgb2lms = numpy.dot(xyz2lms,rgb2xyz)
+    rgb2lms = numpy.dot(xyz2lms,rgb2xyz)*100.
     lms2lms_deficient = makeLMSDeficientMatrix(rgb2lms, coldef_type)
+    print rgb2lms
+    print lms2lms_deficient
+    
     
     # This is the actual simulation
     lmsOriginal_vector = numpy.reshape(lmsOriginal_arr,(m*n,3))
@@ -180,13 +175,8 @@ def simulation_vienot_adjusted(img_in, coldef_type):
     lmsSimulated_arr = colour.data.Data(lmsSpace, numpy.reshape(lmsSimulated_vector, (m,n,3)))
     
     # We propose this gamut clipping instead for hte one proposed by vienot
-    rgbVienot_arr = lmsSimulated_arr.get(vienotRGBSpaceLinear)
-    rgbVienot_arr[rgbVienot_arr<0] = 0
-    rgbVienot_arr[rgbVienot_arr>1] = 1
-    
-    vienotRGBSimulated_arr = (rgbVienot_arr**(1/2.2))*255.
-    img_array = numpy.uint8(vienotRGBSimulated_arr)
-    
+    sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)*255.
+    img_array = numpy.uint8(sRGBSimulated_arr)
     img_out = Image.fromarray(img_array)
     
     return img_out
@@ -203,24 +193,25 @@ def simulate(img_in, coldef_type, simulation_type):
     
     if simulation_type == "vienot":
         img_out = simulation_vienot(img_in, coldef_type)
-    elif simulation_type == "vienot_adjusted":
+    elif simulation_type == "vienot-adjusted":
         img_out = simulation_vienot_adjusted(img_in, coldef_type)
     else:
         print 'Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(simulation_types)+'".'
     return img_out
 
-simulate(img_in,"d","videnot").show()
+#simulate(img_in,"d","videnot").show()
 
 def test():
-    name = "test3"
+    name = "test4"
     
     im = Image.open(name+".jpg")
     #im.show()
+    simulation_type = "vienot-adjusted"
     
     for coldef_type in coldef_types:
-        im_sim = simulation_vienot(im, coldef_type)
+        im_sim = simulate(im, coldef_type,simulation_type)
         #im_sim.show()
-        im_sim.save(name+"-"+coldef_type+".jpg")
+        im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"    
 
-#test()
+test()
