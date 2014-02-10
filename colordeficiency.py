@@ -235,7 +235,7 @@ def simulate( simulation_type, img_in, coldef_type, coldef_strength=1.0):
     return img_out
 
 def test():
-    name = "test2"
+    name = "test1"
     
     im = Image.open(name+".jpg")
     #im.show()
