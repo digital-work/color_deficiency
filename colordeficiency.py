@@ -4,9 +4,11 @@
 
 from PIL import Image
 import numpy
+import scipy.io
 import colour
 
-simulation_types = ["vienot", "vienot-adjusted"]
+simulation_types = ["vienot", "vienot-adjusted", "IPT"]
+daltonization_types = ["anagnostopoulos", "kotera"]
 coldef_types = ["d","p","t"]
 img_in = Image.open("test1.jpg")
 
@@ -112,6 +114,7 @@ def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
     lmsOriginal_arr = XYZOriginal_arr.get(lmsSpace)
     
     rgb2lms = numpy.dot(xyz2lms,rgb2xyz)
+    print rgb2lms
     lms2lms_deficient = makeLMSDeficientMatrix(rgb2lms, coldef_type)
     
     # This is the actual simulation
@@ -159,7 +162,7 @@ def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
-                           [0, 0, .00801]])
+                           [0., 0., .00801]])
     lmsSpace = colour.space.TransformLinear(colour.space.xyz,xyz2lms) #.01608 .00801
     lmsOriginal_arr = sRGBOriginal_arr.get(lmsSpace)
     
@@ -232,14 +235,103 @@ def simulate( simulation_type, img_in, coldef_type, coldef_strength=1.0):
         img_out = simulation_IPT(img_in, coldef_type,coldef_strength)
     else:
         print 'Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(simulation_types)+'".'
+        img_out = img_in
     return img_out
 
-def test():
-    name = "test1"
+def daltonization_anagnostopoulos(img_in, coldef_type):
+    """
+    """
+    if not (coldef_type == "p" or coldef_type == "d"):
+        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes."
+        return img_in
+    
+    sRGBOriginal_arr = numpy.asarray(img_in.convert('RGB'), dtype=float)
+    sRGBSimulated_arr = numpy.asarray(simulation_vienot_adjusted(img_in, coldef_type))
+    m,n,dim = numpy.shape(sRGBOriginal_arr)
+    
+    # This is the actual simulation
+    
+    #Computing error image
+    err2mod = numpy.array([[0,0,0],
+                           [0.7,1,0],
+                           [0.7,0,1]])
+    sRGBOriginal_vector = numpy.reshape(sRGBOriginal_arr,(m*n,3))
+    sRGBSimulated_vector = numpy.reshape(sRGBSimulated_arr, (m*n,3))
+    sRGBError_vector = sRGBOriginal_vector - sRGBSimulated_vector
+    
+    #Distributing error
+    sRGBErrorAdjusted_vector = numpy.dot(sRGBError_vector,err2mod.transpose())
+    #print numpy.shape(sRGBError_vector)
+    #sRGBErrorAdjusted_vector = numpy.dot(err2mod,sRGBError_vector.transpose())
+    sRGBDaltonized_vector = sRGBOriginal_vector + sRGBErrorAdjusted_vector
+    
+    
+    sRGBDaltonized_array = numpy.reshape(sRGBDaltonized_vector, (m,n,3))
+    sRGBDaltonized_array[sRGBDaltonized_array<0.] = 0.
+    sRGBDaltonized_array[sRGBDaltonized_array>255.] = 255.
+        
+    img_array = numpy.uint8(sRGBDaltonized_array)
+    img_out = Image.fromarray(img_array)
+    
+    return img_out
+    
+def daltonization_kotera(img_in, coldef_type):
+    """
+    """
+    if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
+        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        return img_in
+    
+    #Load 2 degree colorimetric observer
+    
+    matLMS = scipy.io.loadmat('data/lms.mat')['lms_2deg']
+    lms_arr = numpy.asarray(matLMS[:,1:4], dtype=float)
+    print lms_arr
+    
+    img_out = img_in
+    
+    return img_out
+   
+
+def daltonize( daltonization_type, img_in, coldef_type ):
+    """
+    Function to daltonize image for color deficient people.
+    Input:  daltonization_type -  Type of daltonization as defined in daltonization_types
+            img_in -              Original PIL image
+            coldef_type -         Type of color deficiency. Either p for protanopes, d for deuteranopes, or t for tritanopes.
+    Output: img_out -             Simulated PIL image
+    """
+    
+    if daltonization_type == "anagnastopoulos":
+        img_out = daltonization_anagnostopoulos(img_in, coldef_type)
+    elif daltonization_type == "kotera":
+        img_out = daltonization_kotera(img_in, coldef_type)
+    else:
+        print 'Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(daltonization_types)+'".'
+        return img_in
+    return img_out
+
+def test2():
+    
+    name = "test5"
+    coldef_type = "p"
+    img_in = Image.open(name+".jpg")
+    #img_in.show()
+    #img_in_sim = simulate("vienot", img_in, coldef_type)
+    #img_in_sim.show()
+    
+    img_out = daltonize("kotera", img_in, coldef_type)
+    img_out.show()
+#     img_out_sim = simulate("vienot", img_out, coldef_type)
+#     img_out_sim.show()
+    
+
+def test1():
+    name = "test6"
     
     im = Image.open(name+".jpg")
     #im.show()
-    simulation_type = "IPT"
+    simulation_type = "vienot"
     coldef_strength = 1.0
     
     for coldef_type in coldef_types:
@@ -248,4 +340,4 @@ def test():
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"    
 
-test()
+test2()
