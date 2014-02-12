@@ -10,7 +10,7 @@ import colour
 simulation_types = ["vienot", "vienot-adjusted", "IPT"]
 daltonization_types = ["anagnostopoulos", "kotera"]
 coldef_types = ["d","p","t"]
-img_in = Image.open("test1.jpg")
+img_in = Image.open("images/test1.jpg")
 
 def makeLMSDeficientMatrix(rgb2lms, coldef_type):
     """
@@ -65,6 +65,7 @@ def makeLMSDeficientMatrix(rgb2lms, coldef_type):
         print "Error: unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
    
     matrix = numpy.array([l,m,s])
+    #print matrix
     
     return matrix
     
@@ -79,24 +80,13 @@ def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
     Output: img_out -         Simulated PIL image
     """
     
+    if not (coldef_type == "p" or coldef_type == "d"):
+        print "Error: unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes."
+        return img_in
+    
     img_in = img_in.convert('RGB')
     img_array = (numpy.asarray(img_in, dtype=float)/255.)**2.2
     m,n,dim = numpy.shape(img_array)
-    
-    #     #Compression such that palette is within monitor gamut
-    #     if coldef_type == "p":
-    #         #img_array_com = 0.992052*img_array + 0.003974
-    #         #img_array = img_array_com
-    #         pass
-    #     elif coldef_type == "d": 
-    #         #img_array_com = 0.957237*img_array + 0.0213814
-    #         #img_array = img_array_com
-    #         pass
-    if not (coldef_type == "p" or coldef_type == "d"):
-        print "Error: unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes."
-        
-        return img_in
-    
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
     rgb2xyz = numpy.array([[40.9568, 35.5041,17.9167],
@@ -114,7 +104,7 @@ def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
     lmsOriginal_arr = XYZOriginal_arr.get(lmsSpace)
     
     rgb2lms = numpy.dot(xyz2lms,rgb2xyz)
-    print rgb2lms
+    #print rgb2lms
     lms2lms_deficient = makeLMSDeficientMatrix(rgb2lms, coldef_type)
     
     # This is the actual simulation
@@ -274,6 +264,47 @@ def daltonization_anagnostopoulos(img_in, coldef_type):
     img_out = Image.fromarray(img_array)
     
     return img_out
+
+def lambdaShiftKotera(fund_img, lamda):
+    """
+    Shifts the fundamental image by a certain wavelength
+    """
+    
+    k,mn = numpy.shape(fund_img)
+    lamda = lamda % k
+    #print k,mn
+    
+    a_first = fund_img[0:lamda+1,:]
+    a_last = fund_img[lamda+1:k,:]
+    
+    fundShift_img = numpy.vstack([a_last, a_first])
+    #print numpy.shape(fundShift_img)
+    
+    return fundShift_img
+
+def visabilityCostKotera(shiftImage_vector, rdic):
+    
+    cost = 0
+    
+    cost = numpy.linalg.norm(numpy.dot(rdic,shiftImage_vector))
+    
+    return cost
+
+def visualGapCostKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic):
+    
+    cost = 0.
+    
+    cost = numpy.linalg.norm(deltaCDic_vector+numpy.dot((rlms-rdic),shiftImage_vector))
+    
+    return cost
+    
+def costKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic):
+    
+    cost = 0.
+    
+    cost = 0.5*(visabilityCostKotera(shiftImage_vector,rdic)+1.0-visualGapCostKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic))
+   
+    return cost
     
 def daltonization_kotera(img_in, coldef_type):
     """
@@ -282,13 +313,73 @@ def daltonization_kotera(img_in, coldef_type):
         print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
         return img_in
     
-    #Load 2 degree colorimetric observer
+    img_in = img_in.convert('RGB')
+    img_array = numpy.asarray(img_in, dtype=float)/255.
+    m,n,d = numpy.shape(img_array)
     
-    matLMS = scipy.io.loadmat('data/lms.mat')['lms_2deg']
-    lms_arr = numpy.asarray(matLMS[:,1:4], dtype=float)
-    print lms_arr
+    sRGB_arr = colour.data.Data(colour.space.srgb, img_array)
+    xyz_arr = sRGB_arr.get(colour.space.xyz)
+    xyz_vector = numpy.reshape(xyz_arr,(m*n,3))
     
-    img_out = img_in
+    #Read xyz color matching functions
+    data = numpy.genfromtxt('data/ciexyz31.csv', delimiter=',')
+    xyzMatchFuncs = data[:,1:4]
+    xyz2lms = numpy.array([[.15514, .54312, -.03286],
+                           [-.15514, .45684, .03286],
+                           [0., 0., .00801]])
+    lms2xyz = numpy.linalg.inv(xyz2lms)
+    lmsMatchFuncs = numpy.dot(xyzMatchFuncs,xyz2lms.transpose())
+    
+    lms_vector = numpy.dot(xyz_vector,xyz2lms.transpose())
+    k,dd =  numpy.shape(lmsMatchFuncs)
+    
+    a = lmsMatchFuncs    
+    pinv = numpy.dot(a,numpy.linalg.inv(numpy.dot(a.transpose(),a)))
+    cStarLMS_vector = numpy.dot(pinv,lms_vector.transpose())
+    
+    rlms = numpy.dot(a,numpy.dot(numpy.linalg.inv(numpy.dot(a.transpose(),a)),a.transpose()))
+    #print numpy.shape(rlms) 
+    
+    if coldef_type == "p":
+        #Matrix for protanopes
+        rdic = numpy.array([lmsMatchFuncs[:,1],lmsMatchFuncs[:,2]])
+    elif coldef_type == "d":
+        #Matrix for deuteranopes
+        rdic = numpy.array([lmsMatchFuncs[:,0],lmsMatchFuncs[:,2]])
+    elif coldef_type == "t":
+        #Matrix for tritanopes
+        rdic = numpy.array([lmsMatchFuncs[:,0],lmsMatchFuncs[:,1]])
+    adic = rdic.transpose()
+    rdic = numpy.dot(adic,numpy.dot(numpy.linalg.inv(numpy.dot(adic.transpose(),adic)),adic.transpose()))
+    
+    deltaCDic_vector = numpy.dot((rlms-rdic),cStarLMS_vector)
+    #print numpy.shape(deltaCDic_vector)
+    #optimization
+    lambda_opt = 0
+    cost_opt = costKotera(lambdaShiftKotera(deltaCDic_vector,lambda_opt),deltaCDic_vector,rlms,rdic)
+    
+    itv = numpy.linspace(0,k,20)
+    costs = [0,0]
+    for i in itv:
+        cost = costKotera(lambdaShiftKotera(deltaCDic_vector,i),deltaCDic_vector,rlms,rdic)
+        if cost >= cost_opt:
+            cost_opt = cost
+            lambda_opt = i
+    
+    deltaCStarSht_vector = lambdaShiftKotera(deltaCDic_vector,lambda_opt)
+    print lambda_opt, cost_opt
+    
+    
+    cDaltLMS_vector = cStarLMS_vector + deltaCStarSht_vector
+    
+    lmsOut_vector = numpy.dot(lmsMatchFuncs.transpose(),cDaltLMS_vector)
+    xyzOut_vector = numpy.dot(lms2xyz,lmsOut_vector)
+    
+    xyzOut_arr = colour.data.Data(colour.space.xyz, numpy.reshape(xyzOut_vector.transpose(), (m,n,3)))
+    sRGBOut_arr = xyzOut_arr.get(colour.space.srgb)*255.
+    img_array = numpy.uint8(sRGBOut_arr)
+    
+    img_out = Image.fromarray(img_array)
     
     return img_out
    
@@ -313,23 +404,25 @@ def daltonize( daltonization_type, img_in, coldef_type ):
 
 def test2():
     
-    name = "test5"
-    coldef_type = "p"
-    img_in = Image.open(name+".jpg")
-    #img_in.show()
-    #img_in_sim = simulate("vienot", img_in, coldef_type)
-    #img_in_sim.show()
+    name = "test10"
+    coldef_type = "d"
+    simulation_type = "IPT"
+    daltonization_type = "kotera"
+    img_in = Image.open("images/"+name+".jpg")
+    img_in.show()
+    img_in_sim = simulate(simulation_type, img_in, coldef_type)
+    img_in_sim.show()
     
-    img_out = daltonize("kotera", img_in, coldef_type)
+    img_out = daltonize(daltonization_type, img_in, coldef_type)
     img_out.show()
-#     img_out_sim = simulate("vienot", img_out, coldef_type)
-#     img_out_sim.show()
+    img_out_sim = simulate(simulation_type, img_out, coldef_type)
+    img_out_sim.show()
     
 
 def test1():
-    name = "test6"
+    name = "test7"
     
-    im = Image.open(name+".jpg")
+    im = Image.open("images/"+name+".jpg")
     #im.show()
     simulation_type = "vienot"
     coldef_strength = 1.0
