@@ -3,9 +3,11 @@
 ###
 
 from PIL import Image
+from scipy.interpolate import griddata
 import numpy
 import scipy.io
 import colour
+import time
 
 simulation_types = ["vienot", "vienot-adjusted", "IPT"]
 daltonization_types = ["anagnostopoulos", "kotera"]
@@ -402,6 +404,96 @@ def daltonize( daltonization_type, img_in, coldef_type ):
         return img_in
     return img_out
 
+def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
+    
+    itv = numpy.linspace(0,255,accuracy)
+    
+    input_tab = []
+    for r in itv:
+        for g in itv:
+            for b in itv:
+                input_tab.append([r,g,b])
+    input_tab = numpy.uint8(numpy.asarray(input_tab))
+    mn,d = numpy.shape(input_tab)
+    
+    input_arr = numpy.uint8(numpy.reshape(input_tab,(mn,1,3)))
+    input_img = Image.fromarray(input_arr)
+    #input_img.show()
+    
+    output_img = simulate(simulation_type, input_img, coldef_type)
+    #output_img.show()
+    output_array = numpy.asarray(output_img)
+    output_tab = numpy.reshape(output_array,(mn,3))    
+    
+                
+    return input_tab, output_tab
+
+def lookup(img_in, input_tab, output_tab):
+    
+    input_arr = numpy.asarray(img_in)
+    m,n,d = numpy.shape(img_in)
+    
+    input_vec = numpy.reshape(input_arr,(m*n,3))
+    
+    #im = rand(100,100,3)
+    #inputdata = im.reshape(10000,3)
+    if False:
+        new_r = griddata(input_tab, output_tab[:,0], input_vec, 'linear')#.reshape(m,n)
+        new_g = griddata(input_tab, output_tab[:,1], input_vec, 'linear')#.reshape(m,n)
+        new_b = griddata(input_tab, output_tab[:,2], input_vec, 'linear')#.reshape(m,n)
+    
+        output_vec =numpy.array([new_r, new_g, new_b])
+        print numpy.shape(output_vec)
+        output_arr = numpy.reshape(output_vec.transpose(), (m,n,3))
+    else:
+        new_r = griddata(input_tab, output_tab[:,0], input_vec, 'linear').reshape(m,n)
+        new_g = griddata(input_tab, output_tab[:,1], input_vec, 'linear').reshape(m,n)
+        new_b = griddata(input_tab, output_tab[:,2], input_vec, 'linear').reshape(m,n)
+        
+        output_arr = input_arr.copy()
+        output_arr[:,:,0] = new_r
+        output_arr[:,:,1] = new_g
+        output_arr[:,:,2] = new_b
+    
+    img_out = Image.fromarray(numpy.uint8(output_arr))
+    
+    return img_out
+
+                
+        
+def test3():
+    
+    name = "test24"
+    simulation_type = "IPT"
+    coldef_type = "t"
+    
+    input_tab, output_tab = makeSimulationLookupTable(simulation_type, coldef_type,3)
+    #print input_tab, output_tab
+    
+    img_in = Image.open("images/"+name+".jpg")
+    img_in.show()
+    
+    t = time.time()
+    img_lut = lookup(img_in, input_tab, output_tab)
+    print time.time()-t
+    img_lut.show()
+    
+    sRGB_lut = colour.data.Data(colour.space.srgb,numpy.asarray(img_lut)/255.)
+    
+    
+    t = time.time()
+    img_sim = simulate(simulation_type,img_in,coldef_type)
+    print time.time()-t
+    img_sim.show()
+    
+    sRGB_sim = colour.data.Data(colour.space.srgb,numpy.asarray(img_sim)/255.)
+    
+    #diff = colour.metric.dE_E(sRGB_sim, sRGB_lut)
+    #print numpy.shape(diff)
+    
+    #import pylab
+    #pylab.imshow(diff)
+
 def test2():
     
     name = "test10"
@@ -433,4 +525,4 @@ def test1():
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"    
 
-test2()
+test3()
