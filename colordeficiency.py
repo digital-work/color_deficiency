@@ -12,7 +12,7 @@ import time
 simulation_types = ["vienot", "vienot-adjusted", "IPT"]
 daltonization_types = ["anagnostopoulos", "kotera"]
 coldef_types = ["d","p","t"]
-img_in = Image.open("images/test1.jpg")
+img_in = Image.open("images/example1.jpg")
 
 def makeLMSDeficientMatrix(rgb2lms, coldef_type):
     """
@@ -395,7 +395,7 @@ def daltonize( daltonization_type, img_in, coldef_type ):
     Output: img_out -             Simulated PIL image
     """
     
-    if daltonization_type == "anagnastopoulos":
+    if daltonization_type == "anagnostopoulos":
         img_out = daltonization_anagnostopoulos(img_in, coldef_type)
     elif daltonization_type == "kotera":
         img_out = daltonization_kotera(img_in, coldef_type)
@@ -459,48 +459,95 @@ def lookup(img_in, input_tab, output_tab):
     
     return img_out
 
+def test4():
+    best = [43,46,48,49,51,52,53,56]
+    
+    name = "example"
+    coldef_type = "d"
+    simulation_type = "vienot-adjusted"
+    daltonization_type = "kotera"
+    size = 512, 512
+    
+    for b in best:
+        name_tmp = name+str(b)
+        
+        img_in = Image.open("images/"+name_tmp+".jpg")
+        
+        img_in.thumbnail(size, Image.ANTIALIAS)
+        img_in.save("images/best/"+name_tmp+"orig.jpg", "JPEG")
+        #img_in.show()
+        img_in_sim = simulate(simulation_type, img_in, coldef_type)
+        #img_in_sim.show()
+        img_in.save("images/best/"+name_tmp+"orig-sim.jpg", "JPEG")
+        
+        img_out = daltonize(daltonization_type, img_in, coldef_type)
+        #img_out.show()
+        img_in.save("images/best/"+name_tmp+"dalt.jpg", "JPEG")
+        img_out_sim = simulate(simulation_type, img_out, coldef_type)
+        #img_out_sim.show()
+        img_in.save("images/best/"+name_tmp+"dalt-sim.jpg", "JPEG")
                 
         
 def test3():
     
-    name = "test24"
-    simulation_type = "IPT"
-    coldef_type = "t"
+    name = "example56"
+    simulation_type = "vienot-adjusted"
+    coldef_type = "d"
     
-    input_tab, output_tab = makeSimulationLookupTable(simulation_type, coldef_type,3)
+    input_tab, output_tab = makeSimulationLookupTable(simulation_type, coldef_type)
     #print input_tab, output_tab
     
-    img_in = Image.open("images/"+name+".jpg")
-    img_in.show()
+    if True:
+        img_in = Image.open("images/"+name+".jpg")
+        #img_in.show()
+        
+        t = time.time()
+        img_lut = lookup(img_in, input_tab, output_tab)
+        print time.time()-t
+        img_lut.show()
+        
+        # sRGB_lut = colour.data.Data(colour.space.srgb,numpy.asarray(img_lut)/255.)
     
-    t = time.time()
-    img_lut = lookup(img_in, input_tab, output_tab)
-    print time.time()-t
-    img_lut.show()
+        #t = time.time()
+        #img_sim = simulate(simulation_type,img_in,coldef_type)
+        #print time.time()-t
+        #img_sim.show()
+        
+        #sRGB_sim = colour.data.Data(colour.space.srgb,numpy.asarray(img_sim)/255.)
+        
+        #diff = colour.metric.dE_E(sRGB_sim, sRGB_lut)
+        #print numpy.shape(diff)
+        
+        #import pylab
+        #pylab.imshow(diff)
+    else:
+        import os
+        size = 512,512
+        directory = os.path.join("./images/test2/")
+        for root,dirs,files in os.walk(directory):
+            for file in files:
+                if file.endswith('.jpg'):
+                    dir = os.path.join(directory,file)
+                    print dir
+                    img_in = Image.open(dir)        
+                    t = time.time()
+                    img_lut = lookup(img_in, input_tab, output_tab)
+                    #print time.time()-t
+                    img_lut.thumbnail(size, Image.ANTIALIAS)
+                    img_lut.show()
     
-    sRGB_lut = colour.data.Data(colour.space.srgb,numpy.asarray(img_lut)/255.)
-    
-    
-    t = time.time()
-    img_sim = simulate(simulation_type,img_in,coldef_type)
-    print time.time()-t
-    img_sim.show()
-    
-    sRGB_sim = colour.data.Data(colour.space.srgb,numpy.asarray(img_sim)/255.)
-    
-    #diff = colour.metric.dE_E(sRGB_sim, sRGB_lut)
-    #print numpy.shape(diff)
-    
-    #import pylab
-    #pylab.imshow(diff)
+   
 
 def test2():
     
-    name = "test10"
+    name = "example48"
     coldef_type = "d"
     simulation_type = "IPT"
     daltonization_type = "kotera"
+    size = 512, 512
+    
     img_in = Image.open("images/"+name+".jpg")
+    img_in.thumbnail(size, Image.ANTIALIAS)
     img_in.show()
     img_in_sim = simulate(simulation_type, img_in, coldef_type)
     img_in_sim.show()
@@ -509,10 +556,10 @@ def test2():
     img_out.show()
     img_out_sim = simulate(simulation_type, img_out, coldef_type)
     img_out_sim.show()
-    
+
 
 def test1():
-    name = "test7"
+    name = "test18"
     
     im = Image.open("images/"+name+".jpg")
     #im.show()
@@ -525,4 +572,4 @@ def test1():
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"    
 
-test3()
+test4()
