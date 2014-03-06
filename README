@@ -4,10 +4,10 @@ Example images:
 
 example1.jpg - Ishiharah test image
 
-example5.jpg - Flowers
+example5.jpg - Flowers *
 example6.jpg - Flowers
 
-example10.jpg - Wasen Stuttgart 2007
+example10.jpg - Wasen Stuttgart 2007 *
 example11.jpg - Wasen Stuttgart 2007
 example12.jpg - Wasen Stuttgart 2007
 example13.jpg - Wasen Stuttgart 2007
@@ -61,3 +61,10 @@ example58.jpg - Wrestling kirkpinar in Edirne
 example59.jpg - Wrestling kirkpinar in Edirne
 
 example60.jpg - Wrestling Fatih Çakıroğlu
+
+# Object recognition images
+example70.jpg - Tomato *
+
+# Information graphics
+example80.jpg - Oslo kart *
+example81.jpg - Stuttgart kart

@@ -8,8 +8,9 @@ import numpy
 import scipy.io
 import colour
 import time
+import math
 
-simulation_types = ["vienot", "vienot-adjusted", "IPT"]
+simulation_types = ["vienot", "vienot-adjusted", "kotera"]
 daltonization_types = ["anagnostopoulos", "kotera"]
 coldef_types = ["d","p","t"]
 img_in = Image.open("images/example1.jpg")
@@ -175,7 +176,7 @@ def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
 
 #simulate(img_in,"d","videnot").show()
 
-def simulation_IPT(img_in, coldef_type, coldef_strength=1.0):
+def simulation_kotera(img_in, coldef_type, coldef_strength=1.0):
     """
     Function to simulate color deficiency for vienot, vienot adjusted.
     Input:  simulation_type - Type of simulation as defined in simulation_types
@@ -223,8 +224,8 @@ def simulate( simulation_type, img_in, coldef_type, coldef_strength=1.0):
         img_out = simulation_vienot(img_in, coldef_type,coldef_strength)
     elif simulation_type == "vienot-adjusted":
         img_out = simulation_vienot_adjusted(img_in, coldef_type,coldef_strength)
-    elif simulation_type == "IPT":
-        img_out = simulation_IPT(img_in, coldef_type,coldef_strength)
+    elif simulation_type == "kotera":
+        img_out = simulation_kotera(img_in, coldef_type,coldef_strength)
     else:
         print 'Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(simulation_types)+'".'
         img_out = img_in
@@ -288,7 +289,19 @@ def visabilityCostKotera(shiftImage_vector, rdic):
     
     cost = 0
     
-    cost = numpy.linalg.norm(numpy.dot(rdic,shiftImage_vector))
+    #cost = numpy.linalg.norm(numpy.dot(rdic,shiftImage_vector))
+    a = numpy.dot(rdic,shiftImage_vector)
+    a = a.transpose()
+    
+    #print numpy.shape(a)
+    #s = numpy.sum(numpy.dot(a,a.transpose()))
+    #print numpy.shape(s)
+    #cost = math.sqrt(s)
+    #print cost
+    
+    #print numpy.linalg.norm(a), numpy.linalg.norm(a.transpose())
+    
+    cost = numpy.linalg.norm(a)
     
     return cost
 
@@ -296,7 +309,17 @@ def visualGapCostKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic):
     
     cost = 0.
     
-    cost = numpy.linalg.norm(deltaCDic_vector+numpy.dot((rlms-rdic),shiftImage_vector))
+    #cost = numpy.linalg.norm(deltaCDic_vector+numpy.dot((rlms-rdic),shiftImage_vector))
+    a = deltaCDic_vector+numpy.dot((rlms-rdic),shiftImage_vector)
+    a = a.transpose()
+    
+    #print numpy.shape(a)
+    #b= numpy.dot(a,a.transpose())
+    #print numpy.shape(b)
+    #cost = math.sqrt(numpy.sum(b))
+    #print cost
+    
+    cost = numpy.linalg.norm(a)
     
     return cost
     
@@ -304,6 +327,7 @@ def costKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic):
     
     cost = 0.
     
+    #cost = visualGapCostKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic)
     cost = 0.5*(visabilityCostKotera(shiftImage_vector,rdic)+1.0-visualGapCostKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic))
    
     return cost
@@ -357,16 +381,19 @@ def daltonization_kotera(img_in, coldef_type):
     deltaCDic_vector = numpy.dot((rlms-rdic),cStarLMS_vector)
     #print numpy.shape(deltaCDic_vector)
     #optimization
+    
     lambda_opt = 0
     cost_opt = costKotera(lambdaShiftKotera(deltaCDic_vector,lambda_opt),deltaCDic_vector,rlms,rdic)
-    
-    itv = numpy.linspace(0,k,20)
-    costs = [0,0]
-    for i in itv:
+    print "hiersimmer",
+    int = numpy.linspace(0,k,20)
+    costs = []
+    for i in int:
         cost = costKotera(lambdaShiftKotera(deltaCDic_vector,i),deltaCDic_vector,rlms,rdic)
+        costs.append((i,cost))
         if cost >= cost_opt:
             cost_opt = cost
             lambda_opt = i
+    print costs
     
     deltaCStarSht_vector = lambdaShiftKotera(deltaCDic_vector,lambda_opt)
     print lambda_opt, cost_opt
@@ -459,6 +486,38 @@ def lookup(img_in, input_tab, output_tab):
     
     return img_out
 
+def test5():
+    """
+    Make example images to illustrate evaluation methods
+    """
+    
+    best = [1,5,10,70] # Img 5 illustrates daltonization, img 10 illustrates the color deficiency verification experiments and , img 1 illustrates the daltonization evaluation experiment - visual search, img 60 illustrates the daltonization evaluation experiment - object recognition 
+    
+    name = "example"
+    coldef_type = "d"
+    simulation_type = "vienot"
+    daltonization_type = "anagnostopoulos"
+    size = 128, 128
+    
+    for b in best:
+        name_tmp = name+str(b)
+        
+        img_in = Image.open("images/"+name_tmp+".jpg")
+        
+        #img_in.thumbnail(size, Image.ANTIALIAS)
+        img_in.save("images/presentation/"+name_tmp+"orig.jpg", "JPEG")
+        #img_in.show()
+        img_in_sim = simulate(simulation_type, img_in, coldef_type)
+        #img_in_sim.show()
+        img_in_sim.save("images/presentation/"+name_tmp+"orig-sim.jpg", "JPEG")
+        
+        img_out = daltonize(daltonization_type, img_in, coldef_type)
+        #img_out.show()
+        img_out.save("images/presentation/"+name_tmp+"dalt.jpg", "JPEG")
+        img_out_sim = simulate(simulation_type, img_out, coldef_type)
+        #img_out_sim.show()
+        img_out_sim.save("images/presentation/"+name_tmp+"dalt-sim.jpg", "JPEG")
+    
 def test4():
     best = [43,46,48,49,51,52,53,56]
     
@@ -466,7 +525,7 @@ def test4():
     coldef_type = "d"
     simulation_type = "vienot-adjusted"
     daltonization_type = "kotera"
-    size = 512, 512
+    size = 128, 128
     
     for b in best:
         name_tmp = name+str(b)
@@ -478,48 +537,58 @@ def test4():
         #img_in.show()
         img_in_sim = simulate(simulation_type, img_in, coldef_type)
         #img_in_sim.show()
-        img_in.save("images/best/"+name_tmp+"orig-sim.jpg", "JPEG")
+        img_in_sim.save("images/best/"+name_tmp+"orig-sim.jpg", "JPEG")
         
         img_out = daltonize(daltonization_type, img_in, coldef_type)
         #img_out.show()
-        img_in.save("images/best/"+name_tmp+"dalt.jpg", "JPEG")
+        img_out.save("images/best/"+name_tmp+"dalt.jpg", "JPEG")
         img_out_sim = simulate(simulation_type, img_out, coldef_type)
         #img_out_sim.show()
-        img_in.save("images/best/"+name_tmp+"dalt-sim.jpg", "JPEG")
+        img_out_sim.save("images/best/"+name_tmp+"dalt-sim.jpg", "JPEG")
                 
         
 def test3():
     
-    name = "example56"
+    name = "example10"
     simulation_type = "vienot-adjusted"
     coldef_type = "d"
+    size = 512, 512
     
-    input_tab, output_tab = makeSimulationLookupTable(simulation_type, coldef_type)
+    input_tab, output_tab = makeSimulationLookupTable(simulation_type, coldef_type,4)
     #print input_tab, output_tab
     
     if True:
         img_in = Image.open("images/"+name+".jpg")
+        img_in.thumbnail(size, Image.ANTIALIAS)
         #img_in.show()
+        
+        sRGB_in = colour.data.Data(colour.space.srgb,numpy.asarray(img_in)/255.)
         
         t = time.time()
         img_lut = lookup(img_in, input_tab, output_tab)
         print time.time()-t
         img_lut.show()
         
-        # sRGB_lut = colour.data.Data(colour.space.srgb,numpy.asarray(img_lut)/255.)
+        sRGB_lut = colour.data.Data(colour.space.srgb,numpy.asarray(img_lut)/255.)
     
-        #t = time.time()
-        #img_sim = simulate(simulation_type,img_in,coldef_type)
-        #print time.time()-t
-        #img_sim.show()
+        t = time.time()
+        img_sim = simulate(simulation_type,img_in,coldef_type)
+        print time.time()-t
+        img_sim.show()
         
-        #sRGB_sim = colour.data.Data(colour.space.srgb,numpy.asarray(img_sim)/255.)
+        sRGB_sim = colour.data.Data(colour.space.srgb,numpy.asarray(img_sim)/255.)
         
-        #diff = colour.metric.dE_E(sRGB_sim, sRGB_lut)
+        diff = colour.metric.dE_E(sRGB_in, sRGB_lut)
+        print diff
         #print numpy.shape(diff)
         
-        #import pylab
-        #pylab.imshow(diff)
+        import pylab
+        a = Image.fromarray(diff)
+        #print numpy.max(diff)
+        a.show()
+        a = a.convert('RGB')
+        a.save("./images/difference.jpg","JPEG")
+        pylab.imshow(diff)
     else:
         import os
         size = 512,512
@@ -542,7 +611,7 @@ def test2():
     
     name = "example48"
     coldef_type = "d"
-    simulation_type = "IPT"
+    simulation_type = "kotera"
     daltonization_type = "kotera"
     size = 512, 512
     
@@ -572,4 +641,4 @@ def test1():
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"    
 
-test4()
+#test2()
