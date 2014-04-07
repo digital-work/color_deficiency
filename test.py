@@ -5,27 +5,148 @@ Created on 24. feb. 2014
 '''
 
 from colordeficiency import *
+from tools import makeComparisonFig
+import os
+import sys
 
-def test6():
-    best = [10,12,14,20,25,5,6] 
+def test10():
+    
+    coldef_type = d
+    simulation_type = brettel
+    
+    img_in = Image.open("images/example1.jpg")
+    #img_in.show()
+    img_out = simulate(simulation_type,img_in,coldef_type)
+    
+def test9():
     
     name = "example"
-    coldef_type = "d"
-    simulation_type = "vienot-adjusted"
-    daltonization_type = "kotera"
-    size = 256, 256
+    best = [7] #33
+    coldef_types = [p,d,t]
+    simulation_types = [vienot,vienot_adjusted,kotera,brettel]
+    size = 1024,1024
     
     for b in best:
         name_tmp = name+str(b)
-        
+        sys.stdout.write("Computing \'"+name_tmp+"\'.")       
+        img_in = Image.open("images/buginbrettel/"+name_tmp+".png")
+        img_in.thumbnail(size)     
+        for simulation_type in simulation_types:
+            sys.stdout.write(str(simulation_type).upper()+".")
+            for coldef_type in coldef_types:
+                sys.stdout.write(coldef_type+".")
+                pylab.figure()
+                pylab.subplot(121)
+                pylab.title("Original image")
+                pylab.axis("off")
+                pylab.imshow(img_in)
+                
+                img_out = simulate(simulation_type,img_in,coldef_type)
+                name_sim = "images/buginbrettel/tritanoper/"+name_tmp+"-"+simulation_type+"-"+coldef_type+"-sim.jpg"
+                img_out.save(name_sim)
+                
+                pylab.subplot(122)
+                pylab.title("Sim.: "+str(simulation_type)+" | ColDef.: "+str(coldef_type))
+                pylab.imshow(img_out)
+                pylab.axis("off")
+                name_comparison = "images/buginbrettel/tritanoper/"+name_tmp+"-"+simulation_type+"-"+coldef_type+"-comparison.jpg"
+                pylab.savefig(name_comparison)
+                pylab.close()
+                
+                
+        sys.stdout.write("ok.\n")
+        #makeComparisonFig(img_in,coldef_types,simulation_types,name_tmp)   
+        #pylab.savefig(name_tmp + "-comparison2.png")
+    #pylab.show()
+    sys.stdout.write("Done, gurl ;)")
+
+def test8():
+    print "Started"
+    fileList = os.listdir("images/database")
+    coldef_types = [p,d,t]
+    simulation_types = [brettel]
+    size = 1024,1024#1024,1024#512,512
+    n_files = numpy.shape(fileList)
+    i=0
+    
+    for name in fileList:
+        i = i+1
+        #print name
+        save_name = "images/database/brettel/"+ name + "-comparison.png"
+        if not os.path.isfile(save_name) and "comparison" not in name:
+            try: 
+                img_in = Image.open("images/database/"+name)
+                img_in.thumbnail(size)
+                
+                sys.stdout.write(str(i) + "/"+str(n_files[0])+" --- ")
+                
+                makeComparisonFig(img_in, coldef_types,simulation_types,name)
+                pylab.savefig(save_name)
+                pylab.close()
+                #img_in.show()
+            except IOError:
+                pass
+    print "Finished!"
+    pylab.show()
+
+def test7():
+    
+    name = "example"
+    best = [10,15,17,18,19,33] #33
+    coldef_types = [t]
+    simulation_types = [brettel]
+    size = 1024,1024
+    
+    for b in best:
+        name_tmp = name+str(b)       
         img_in = Image.open("images/"+name_tmp+".jpg")
+        img_in.thumbnail(size)        
+        #img_in.show()
         
-        img_in.thumbnail(size, Image.ANTIALIAS)
-        
-        img_sim = daltonize(daltonization_type,img_in,coldef_type)
-        img_sim.show()
-
-
+        makeComparisonFig(img_in,coldef_types,simulation_types,name_tmp)   
+        pylab.savefig(name_tmp + "-comparison2.png")
+    #pylab.show()
+    
+def test6():
+    #best = [10,12,14,20,25,5,6] 
+    #best = [101,102]
+    best = [5]
+    
+    name = "example"
+    coldef_types = ["p","d"]
+    simulation_types = ["vienot","kotera"]
+    daltonization_type = "anagnatopoulos"
+    size = 256, 256
+    
+    #import pylab
+    for b in best:
+        print 1
+        for simulation_type in simulation_types:
+            print 2
+            for coldef_type in coldef_types:
+                print "starting with " + coldef_type
+                #pylab.figure()
+                name_tmp = name+str(b)
+                
+                img_in = Image.open("images/egne/"+name_tmp+".jpg")
+                
+                img_in.thumbnail(size, Image.ANTIALIAS)
+                
+                img_in_sim = simulate(simulation_type,img_in,coldef_type)
+                #                 img_in_sim.save("images/"+name_tmp+"_"+str(coldef_type)+"_sim-"+str(simulation_type)+".jpg")
+                img_in_sim.show()
+                #                 
+                #                 img_dalt = daltonize(daltonization_type,img_in,coldef_type)
+                #                 img_dalt.save("images/"+name_tmp+"_"+str(coldef_type)+"_dalt-"+str(daltonization_type)+".jpg")
+                #                 img_dalt.show()
+                #                 
+                #                 img_dalt_sim = simulate(simulation_type,img_dalt,coldef_type)
+                #                 img_dalt_sim.save("images/"+name_tmp+"_"+str(coldef_type)+"_dalt-"+str(daltonization_type)+"_sim-"+str(simulation_type)+".jpg")
+                #                 img_dalt_sim.show()
+                
+                #pylab.savefig(name_tmp+"-"+coldef_type+"-costs-fig.png")
+                #img_sim.show()
+    pylab.show()
 
 def test5():
     """
@@ -167,7 +288,6 @@ def test2():
     img_out_sim = simulate(simulation_type, img_out, coldef_type)
     img_out_sim.show()
 
-test5()
 
 def test1():
     name = "test18"
