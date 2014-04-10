@@ -9,6 +9,10 @@
 *.docx
 *.zip
 
+images/
+!images/tmp/
+kotera/
+
 data/ciexyz31_1.csv
 
 org.eclipse.core.resources.prefs
