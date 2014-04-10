@@ -5,18 +5,69 @@ Created on 24. feb. 2014
 '''
 
 from colordeficiency import *
-from tools import makeComparisonFig
+from tools import makeComparisonFig, makeSubplots
 import os
 import sys
+import subprocess
+import settings
+
+def test11():
+    
+    #os.system("./stress -i ./images/example13.png")
+    os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
+    print os.environ['PATH']
+    os.system("./stress -i ./images/example13.jpg -o ./test13.png -g -ns 1 -ni 200")
+    #subprocess.call("./stress -i ./images/example11.jpg -o ./test1.png -g -ns 1 -ni 200")
 
 def test10():
-    
-    coldef_type = d
+    """
+    Testing yoshi_c2g algorithm
+    """
+    coldef_types = [p,d,t]
     simulation_type = brettel
+    daltonization_types = [yoshi_c2g,yoshi_c2g_only]
+    size = 1024,1024
     
-    img_in = Image.open("images/example1.jpg")
-    #img_in.show()
-    img_out = simulate(simulation_type,img_in,coldef_type)
+    enhances = [1,0]
+    pts = 5
+    its = 100
+    
+    names = ["images/database/trit9.jpg","images/database/ber3.jpg","images/database/wrest26.jpg","images/database/nat2.jpg","images/database/pap11.jpg"]
+    #name = "images/example1.jpg"
+    #name = "images/database/wrest30.jpg"
+    for name in names:
+        print name
+        img_in = Image.open(name)
+        for daltonization_type in daltonization_types:
+            print daltonization_type
+            for enhance in enhances:
+                for coldef_type in coldef_types:
+                    img_in.thumbnail(size)
+                    img_in_sim = simulate(simulation_type,img_in,coldef_type)
+                    
+                    dict_dalt = {'daltonization_type':daltonization_type, 'coldef_type':coldef_type}
+                    dict_dalt.update({'enhance':enhance, 'pts':pts, 'its':its})
+                    img_out = daltonize(img_in,dict_dalt)
+                    img_out_sim = simulate(simulation_type,img_out,coldef_type)
+                    
+                    size_plts = (2,2)
+                    imgs = [{'img_in':img_in,'title':'Orig. image','fontsize':40.}]
+                    imgs.append({'img_in':img_in_sim,'title':'Orig. sim:\"'+simulation_type+"\" | "+coldef_type,'fontsize':40.})
+                    
+                    if enhance:
+                        imgs.append({'img_in':img_out,'title':'dalt:\"'+daltonization_type+"\" +\n pts:"+str(pts)+" its:"+str(its)+" | "+coldef_type,'fontsize':40.})
+                        imgs.append({'img_in':img_out_sim,'title':'sim:\"'+simulation_type+"\' | dalt:\'"+daltonization_type+"\' +\n pts:"+str(pts)+" its:"+str(its)+" | "+coldef_type,'fontsize':40.})
+                    else:
+                        imgs.append({'img_in':img_out,'title':'dalt:\"'+daltonization_type+"\" | "+coldef_type,'fontsize':40.})
+                        imgs.append({'img_in':img_out_sim,'title':'sim:\"'+simulation_type+"\' | dalt:\'"+daltonization_type+"\' | "+coldef_type,'fontsize':40.})
+                    
+                    if not enhance and daltonization_type=="yoshi_c2g":
+                        output_name = './images/yoshi_c2g/subplots-'+os.path.basename(name)+"-"+coldef_type+"-"+daltonization_type+"-not-enhanced.png"
+                    else:
+                        output_name = './images/yoshi_c2g/subplots-'+os.path.basename(name)+"-"+coldef_type+"-"+daltonization_type+"-enhanced-pts-"+str(pts)+"-its-"+str(its)+".png"
+
+                    options = {'output_name':output_name,'size_inches':A1}
+                    fig = makeSubplots(size_plts,imgs,options)
     
 def test9():
     
@@ -62,17 +113,19 @@ def test9():
 
 def test8():
     print "Started"
-    fileList = os.listdir("images/database")
-    coldef_types = [p,d,t]
-    simulation_types = [brettel]
+    #fileList = os.listdir("images/database")
+    fileList = ["wrest30.jpg","wrest30.jpg","pupsi.jpg"]
+    coldef_types = [p,d]
+    simulation_types = [vienot,kotera,brettel]
     size = 1024,1024#1024,1024#512,512
     n_files = numpy.shape(fileList)
     i=0
     
     for name in fileList:
+        #print name
         i = i+1
         #print name
-        save_name = "images/database/brettel/"+ name + "-comparison.png"
+        save_name = "images/database/"+ name + "-comparison.png"
         if not os.path.isfile(save_name) and "comparison" not in name:
             try: 
                 img_in = Image.open("images/database/"+name)
@@ -85,6 +138,8 @@ def test8():
                 pylab.close()
                 #img_in.show()
             except IOError:
+                sys.stdout.write(str(i) + "/"+str(n_files[0])+" --- Error: Could not load image: \'" + name + "\'\n")
+                
                 pass
     print "Finished!"
     pylab.show()

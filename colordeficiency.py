@@ -11,22 +11,9 @@ import colour
 import time
 import math
 import pylab
+import os
+from settings import *
 #import cv2
-
-simulation_types = ["vienot", "vienot-adjusted", "kotera", "brettel"]
-brettel = "brettel"
-vienot = "vienot"
-vienot_adjusted = "vienot-adjusted"
-kotera = "kotera"
-
-daltonization_types = ["anagnostopoulos", "kotera"]
-
-coldef_types = ["d","p","t"]
-d = "d"
-p = "p"
-t = "t"
-
-img_in = Image.open("images/example1.jpg")
 
 def makeLMSDeficientMatrix(rgb2lms, coldef_type):
     """
@@ -822,9 +809,133 @@ def daltonization_kotera(img_in, coldef_type):
     img_out = Image.fromarray(img_array)
     
     return img_out
-   
 
-def daltonize( daltonization_type, img_in, coldef_type ):
+def daltonization_yoshi_c2g_only(img_in, options):
+    
+    # 1.step: convert original image to IPT
+    img_in = img_in.convert('RGB')
+    img_array = numpy.asarray(img_in, dtype=float)/255.
+    
+    sRGBOriginal_arr = colour.data.Data(colour.space.srgb,img_array)
+    iptOriginal_arr = sRGBOriginal_arr.get(colour.space.ipt)
+    
+    # 2.step: Enhance luminance channel
+    # Make gray image of original RGB image
+    if options.has_key('its'):
+        its = options['its']
+    else:
+        its = its_default # number of iterations (ni) should be >100
+    
+    if options.has_key('pts'):
+        pts = options['pts']
+    else:
+        pts =  pts_default # number of sample points (ns) should be between 2 and 10, where 2 means local adjustments and 10 means mainly global adjustments
+        # The noise is anti-proportional to the product ni*ns, which should be > 1000.
+        # The complexityis proportional to the product ni*ns. 
+        
+    name_in_tmp = "./images/tmp/img_in.tmp.png"
+    name_out_tmp = "./images/tmp/img_out.tmp.png"
+    img_in.save(name_in_tmp)
+        
+    if not ":/usr/local/bin" in os.environ['PATH']:
+        os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
+        print os.environ['PATH']
+    os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+        
+    img_gray = Image.open(name_out_tmp)
+    img_gray = img_gray.convert('RGB')
+    imgGray_arr = numpy.asarray(img_gray)/255.
+    imgLuminance_arr = imgGray_arr[:,:,0]
+    
+    # 3.step: Replace I channel with gray image and convert back to RGB    
+    iptDaltonized_arr = iptOriginal_arr.copy()
+    iptDaltonized_arr[:,:,0] = imgLuminance_arr
+    
+    # 4.step: Convert back to sRGB image
+    iptDaltonized_arr = colour.data.Data(colour.space.ipt,iptDaltonized_arr)
+    sRGBDaltonized_arr = iptDaltonized_arr.get(colour.space.srgb)*255.
+    
+    img_array = numpy.uint8(sRGBDaltonized_arr)
+    img_out = Image.fromarray(img_array)
+ 
+    return img_out
+
+def daltonization_yoshi_c2g(img_in,options):
+        
+    if options.has_key('coldef_type'):
+        coldef_type = options['coldef_type']
+    else:
+        print 'Error: No coldef_type. You have to choose a valid color deficiency type'
+        return img_in
+       
+    # 1.step: convert original image to IPT
+    img_in = img_in.convert('RGB')
+    img_array = numpy.asarray(img_in, dtype=float)/255.
+    
+    sRGBOriginal_arr = colour.data.Data(colour.space.srgb,img_array)
+    iptOriginal_arr = sRGBOriginal_arr.get(colour.space.ipt)
+    
+    # 2.step: Enhance luminance channel if wanted.
+    
+    # Check if user wants to use enhanced gray channel. False by default
+    if options.has_key('enhance'): 
+        enhance = options['enhance']
+    else:
+        enhance = False
+        
+    if enhance:
+        # Make gray image of original RGB image
+        if options.has_key('its'):
+            its = options['its']
+        else:
+            its = its_default # number of iterations (ni) should be >100
+        
+        if options.has_key('pts'):
+            pts = options['pts']
+        else:
+            pts =  pts_default # number of sample points (ns) should be between 2 and 10, where 2 means local adjustments and 10 means mainly global adjustments
+        # The noise is anti-proportional to the product ni*ns, which should be > 1000.
+        # The complexityis proportional to the product ni*ns. 
+        
+        name_in_tmp = "./images/tmp/img_in.tmp.png"
+        name_out_tmp = "./images/tmp/img_out.tmp.png"
+        img_in.save(name_in_tmp)
+        
+        if not ":/usr/local/bin" in os.environ['PATH']:
+            os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
+            print os.environ['PATH']
+        os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+        
+        img_gray = Image.open(name_out_tmp)
+        img_gray = img_gray.convert('RGB')
+        imgGray_arr = numpy.asarray(img_gray)/255.
+        imgLuminance_arr = imgGray_arr[:,:,0]
+    else:
+        imgLuminance_arr = iptOriginal_arr[:,:,0]
+    
+    # 3.step: Replace I channel with gray image and convert back to RGB
+    
+    iptDaltonized_arr = iptOriginal_arr.copy()
+    #iptDaltonized_arr[:,:,0] = imgGray_arr+iptP_arr
+    if (coldef_type == 'p') or (coldef_type == 'd'):
+        iptP_arr = iptOriginal_arr[:,:,1]
+        #Image.fromarray(iptP_arr*255.).show()
+        iptDaltonized_arr[:,:,0] = imgLuminance_arr+iptP_arr
+    elif coldef_type == 't':
+        iptT_arr = iptOriginal_arr[:,:,2]
+        #Image.fromarray(iptT_arr*255.).show()
+        iptDaltonized_arr[:,:,0] = imgLuminance_arr+iptT_arr
+        
+    # 4.step: Convert back to sRGB image
+    iptDaltonized_arr = colour.data.Data(colour.space.ipt,iptDaltonized_arr)
+    sRGBDaltonized_arr = iptDaltonized_arr.get(colour.space.srgb)*255.
+    
+    img_array = numpy.uint8(sRGBDaltonized_arr)
+    img_out = Image.fromarray(img_array)
+ 
+    return img_out
+
+def daltonize(img_in,options):
     """
     Function to daltonize image for color deficient people.
     Input:  daltonization_type -  Type of daltonization as defined in daltonization_types
@@ -833,10 +944,26 @@ def daltonize( daltonization_type, img_in, coldef_type ):
     Output: img_out -             Simulated PIL image
     """
     
+    if options.has_key('daltonization_type'):
+        daltonization_type = options['daltonization_type']
+    else:
+        print "Error: No daltonization_type. You have to choose a valid daltonization_type."
+        return img_in
+    
+    if options.has_key('coldef_type'):
+        coldef_type = options['coldef_type']
+    else:
+        print 'Error: No coldef_type. You have to choose a valid color deficiency type'
+        return img_in
+    
     if daltonization_type == "anagnostopoulos":
-        img_out = daltonization_anagnostopoulos(img_in, coldef_type)
+        img_out = daltonization_anagnostopoulos(img_in,coldef_type)
     elif daltonization_type == "kotera":
-        img_out = daltonization_kotera(img_in, coldef_type)
+        img_out = daltonization_kotera(img_in,coldef_type)
+    elif daltonization_type == "yoshi_c2g":
+        img_out = daltonization_yoshi_c2g(img_in,options)
+    elif daltonization_type == "yoshi_c2g_only":
+        img_out = daltonization_yoshi_c2g_only(img_in,options)
     else:
         print 'Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(daltonization_types)+'".'
         return img_in

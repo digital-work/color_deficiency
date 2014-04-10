@@ -9,10 +9,82 @@ import numpy
 
 from colordeficiency import simulate, daltonize
 from scipy.interpolate import griddata
+from settings import *
 from PIL import Image
 import pylab
 import sys
+import colour
 
+
+
+def makeSubplots(size,imgs_in,options={}):
+    """
+    Makes a plot including all subplots of size with input images in imgs
+    Input:    size     - tuple (columns,rows), where m are the columns and n the rows.
+              imgs_in  - images as dictionaries {img_in, title, font-size}  
+    """
+    
+    if (not isinstance(size,tuple)) and not (numpy.shape(size)==2):
+        print "Error: size must be a tuple of form (columns,row)."
+        return None
+    columns = size[0]
+    rows = size[1]
+    
+    if options.has_key('output_name'):
+        output_name = options['output_name']
+    else:
+        output_name = "./images/tmp/make-subplots-tmp.png"
+    
+    if options.has_key('dpi'):
+        dpi = options['dpi']
+    else:
+        dpi = 300
+    
+    if options.has_key('size_inches'):
+        size_inches = options['size_inches']
+    else:
+        size_inches = A4
+    
+    i = 1
+    fig = pylab.figure()
+    fig.dpi = dpi
+    
+    for img in imgs_in:
+        #print img
+        if img.has_key('img_in'):
+            img_in = img['img_in']
+            
+            a = numpy.shape(img_in)
+            if a[0]<a[1]:
+                pass
+            else:
+                size = tuple(numpy.array(size).transpose())
+            fig.set_size_inches(size_inches)
+            
+            pylab.subplot(columns,rows,i)
+            pylab.imshow(img_in)
+            
+            if img.has_key('title'):
+                title = img['title']
+            else:
+                title = "No title."
+                
+            if img.has_key('fontsize'):
+                fontsize = img['fontsize']
+            else:
+                fontsize = 10.
+            pylab.title(title,fontsize=fontsize)
+            pylab.axis("off")
+        else:
+            pass
+        i = i+1
+    
+    pylab.savefig(output_name)
+    pylab.close()
+    
+    return None
+        
+    
 def makeComparisonFig(img_in,coldef_types,simulation_types,name):
     
     sys.stdout.write("Making comparison figure for: "+name)

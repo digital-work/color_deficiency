@@ -6,4 +6,4 @@ Created on 7. mars 2014
 
 import test
 
-test.test9()
+test.test10()
