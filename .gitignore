@@ -9,8 +9,10 @@
 *.docx
 *.zip
 
-images/
-!images/tmp/
+images/*
+!images/tmp/*
+!images/example10.jpg
+
 kotera/
 
 data/ciexyz31_1.csv
@@ -27,3 +29,16 @@ images/database/.DS_Store
 
 
 /c++
+/code/Matlab
+
+/answersA.csv
+/answersA.xlsx
+/pupsidupsiA.xlsx
+/pupsidupsiB.xlsx
+/colordeficiency/dummy.xlsx
+/html
+/images2gif.py
+/input.txt
+/output.txt
+/test1.MPO
+/mpo.py

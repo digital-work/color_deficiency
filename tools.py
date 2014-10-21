@@ -7,14 +7,47 @@ Created on 24. feb. 2014
 import os
 import numpy
 
-from colordeficiency import simulate, daltonize
 from scipy.interpolate import griddata
-from settings import *
+import settings 
 from PIL import Image
 import pylab
 import sys
-import colour
+#import colour
+#import scipy
+import scipy.stats
 
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0*numpy.array(data)
+    n = len(a)
+    m, se = numpy.mean(a), scipy.stats.sem(a)
+    h = se * scipy.stats.t._ppf((1+confidence)/2., n-1)
+    return m, m-h, m+h
+
+def convertToLuminanceImage(img_in):
+    
+    img_in = img_in.convert('RGB')
+    img_in_array = numpy.asarray(img_in, dtype=float)
+    
+    """
+    sRGBOriginal_arr = colour.data.Data(colour.space.srgb, img_array)
+    LABOriginal_arr = sRGBOriginal_arr.get(colour.space.cielab)
+    
+    LABLuminance_arr = LABOriginal_arr.copy()
+    LABLuminance_arr[:,:,1] = .0
+    LABLuminance_arr[:,:,2] = .0
+    
+    LABLuminance_arr = colour.data.Data(colour.space.cielab,LABLuminance_arr)
+    sRGBLuminance_arr = LABLuminance_arr.get(colour.space.srgb)
+    """
+    
+    img_out_array = numpy.dot(img_in_array[...,:3], [0.299, 0.587, 0.144])
+    img_out_array[img_out_array<0.0] = 0.0
+    img_out_array[img_out_array>255.0] = 255.0
+    
+    img_out = Image.fromarray(numpy.uint8(img_out_array))
+    
+    return img_out
+ 
 
 
 def makeSubplots(size,imgs_in,options={}):
@@ -43,7 +76,7 @@ def makeSubplots(size,imgs_in,options={}):
     if options.has_key('size_inches'):
         size_inches = options['size_inches']
     else:
-        size_inches = A4
+        size_inches = settings.A4
     
     i = 1
     fig = pylab.figure()
@@ -94,7 +127,7 @@ def makeComparisonFig(img_in,coldef_types,simulation_types,name):
     
     fig = pylab.figure()
     a = numpy.shape(img_in)
-    if a[0]<a[1]:
+    if a[0]>a[1]:
         fig.set_size_inches(23.4,33)
     else:
         fig.set_size_inches(33,23.4)
@@ -104,22 +137,29 @@ def makeComparisonFig(img_in,coldef_types,simulation_types,name):
         
     for coldef_type in coldef_types:  
         sys.stdout.write(' ... ' + coldef_type)
-        #print simulation_type  
-        #pylab.subplot(n_coldefs,n_simulations,i)
-        #pylab.title("Original : " + name, fontsize=28.)
-        #pylab.imshow(img_in)
-        #pylab.axis("off")
-        #i = i+1
-            
+        #print simulation_type
+        """  
+        if a[0]>a[1]:    
+            pylab.subplot(n_coldefs,n_simulations,i)
+        else:
+            pylab.subplot(n_simulations,n_coldefs,i)
+        pylab.title("Original : " + name, fontsize=28.)
+        pylab.imshow(img_in)
+        pylab.axis("off")
+        i = i+1
+        """    
         for simulation_type in simulation_types: 
             #print coldef_type
             #print i
             img_in_sim = simulate(simulation_type, img_in, coldef_type)
             
-            if a[0]<a[1]:    
+            pylab.subplot(n_coldefs,n_simulations,i)
+            """
+            if a[0]>a[1]:    
                 pylab.subplot(n_coldefs,n_simulations,i)
             else:
                 pylab.subplot(n_simulations,n_coldefs,i)
+            """
                 
             pylab.title(simulation_type+" : "+coldef_type, fontsize=67.)
             pylab.imshow(img_in_sim)
@@ -258,3 +298,4 @@ def lookup(img_in, input_tab, output_tab):
     img_out = Image.fromarray(numpy.uint8(output_arr))
     
     return img_out
+
