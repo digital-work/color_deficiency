@@ -60,7 +60,7 @@ def extractDataFromPsychoPyXLSX(pandasDataSheet):
     # Find line, which only has NaN data because this is the last line with relevant data
     first_column_ID = pandasDataSheet.columns[0] # Get the name of the first column
     end_index = pandasDataSheet[pandasDataSheet[first_column_ID].isnull()].index[0] # Get all the rows that have null respectively NaN values and take the first, which separates the primary data from the additional data.
-    relevant_data = pandasDataSheet[0:end_index-1]
+    relevant_data = pandasDataSheet[0:end_index]
     # Extra extra data and convert into dictionary for easier processing
     extra_data = dict(pandasDataSheet.iloc[end_index+2:-1,0:2].values)
     
@@ -95,7 +95,7 @@ def extractVisualSearchData(dataSheet,dataArray=pandas.DataFrame(),testArray=pan
                 # Update dictionary containing extra data
                 extraDataDict.update(extraDataDict_tmp)
                 # Append test or relevant data to respective data array
-                if 'practTrials' in sheet_name: testArray = pandas.concat([array_tmp,dataArray]) if not testArray.empty else array_tmp
+                if 'practTrials' in sheet_name: testArray = pandas.concat([array_tmp,testArray]) if not testArray.empty else array_tmp
                 else: dataArray = pandas.concat([array_tmp,dataArray]) if not dataArray.empty else array_tmp
             
     return dataArray, testArray, extraDataDict
@@ -263,14 +263,43 @@ def extractSample2MatchData(dataSheet,dataArray=pandas.DataFrame(),testArray=pan
     """
     This function takes the url an xlsx file containing the result data from a sample-to-match experiment, extracts the data and returns the contained information as numpy array.
     """
-    pass
+    
+    # Get all the sheet names for the excel file
+    
+    sheet_names = pandas.ExcelFile(dataSheet).sheet_names
+    #print sheet_names
+    # Create empty array for test and relevatn data. Create empty dictionary for the extra data
+    if dataArray.empty: dataArray = pandas.DataFrame();
+    if testArray.empty: testArray = pandas.DataFrame();
+    extraDataDict = {}
+    
+    # Read file sheet by sheet
+    for sheet_name in sheet_names:
+        if "roundTrials" in sheet_name: pass # Ignore data about the order of set and samples for now
+        else:
+            # Read excel and extract data
+            excel_sheet = pandas.read_excel(dataSheet, sheet_name)
+            array_tmp, extraDataDict_tmp = extractDataFromPsychoPyXLSX(excel_sheet)
+            #Update dictionary containing extra data
+            extraDataDict.update(extraDataDict_tmp)
+            # Append test or relevant data to respective data array
+            if "testTrials" in sheet_name: testArray = pandas.concat([array_tmp, testArray]) if not testArray.empty else array_tmp
+            else: dataArray = pandas.concat([array_tmp,dataArray]) if not dataArray.empty else array_tmp
+    
+    dataArray = dataArray.reset_index()
+            
+    return dataArray, testArray, extraDataDict
 
 if 0:
     test_path = "/Users/thomas/Desktop/tull/test/visual-search/data/"
-    #extractVisualSearchData(test_path)
+    test_file = "/Users/thomas/Desktop/tull/test/visual-search/data/"
+    dataArray, testArray, extraDataDict = extractVisualSearchData(test_path)
     #analyzeVisualSearchData(test_path)
-    plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test/visual-search/data/",'00_VS-plots'),'../data/visual-search-data.csv')   
-if 1:
-    test_path = "/Users/thomas/Desktop/tull/test/sample-2-match/data/"
-    extractSample2MatchData(test_path)
+    #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test/visual-search/data/",'00_VS-plots'),'../data/visual-search-data.csv')   
+if 0:
+    test_file = "/Users/thomas/Desktop/tull/test/sample-2-match/data/11_2014_mai_16_1307.xlsx"
+    dataArray, testArray, extraDataDict = extractExperimentData(test_file)
+    #print dataArray
+    #print testArray
+    #print extraDataDict
     
