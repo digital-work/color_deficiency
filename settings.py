@@ -30,7 +30,8 @@ kuhn = "kuhn"
 huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
-dalt2ID = {'anagnostopoulos':   1,
+dalt2ID = {'none':              0,
+           'anagnostopoulos':   1,
            'kotera':            2,
            'kuhn':              3,
            'huan':              4,
@@ -61,6 +62,11 @@ id2ColDef = {0: "normal",
              1: 'protanopia',
              2: 'deuteranopia',
              3: 'tritanopia'}
+
+colDefLong2ID = {'normal':          0,
+                 'protanopia':      1,
+                 'deuteranopia':    2,
+                 'tritanopia':      3}
 
 colDef2ID = {'p': 1,
              'd': 2,
