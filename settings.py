@@ -16,12 +16,18 @@ vienot = "vienot"
 vienot_adjusted = "vienot-adjusted"
 kotera = "kotera"
 brettel = "brettel"
-id2Sim = {0: "none",
-          1: "vienot",
-           2: "vienot-adjusted",
-           3: "kotera",
-           4: "brettel",
-           99: "dummy"}
+sim2ID = {  'none':             0,
+            'vienot':           1,
+            'vienot-adjusted':  2,
+            'kotera':           3,
+            'brettel':          4,
+            'dummy':            99}
+id2Sim = {  0: "none",
+            1: "vienot",
+            2: "vienot-adjusted",
+            3: "kotera",
+            4: "brettel",
+            99: "dummy"}
 
 daltonization_types = ["anagnostopoulos", "kotera", "kuhn", "huan","yoshi-simon","yoshi-alsm","dummy"]
 anagnostopoulos = "anagnostopoulos"

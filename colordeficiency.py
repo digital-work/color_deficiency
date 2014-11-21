@@ -1439,9 +1439,9 @@ def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
                 
     return numpy.array(input_tab), numpy.array(output_tab)
 
-[input, output] = makeSimulationLookupTable('brettel', 'p')
-numpy.savetxt('input.txt',input,delimiter=";")
-numpy.savetxt('output.txt',output,delimiter=";")
+#[input, output] = makeSimulationLookupTable('brettel', 'p')
+#numpy.savetxt('input.txt',input,delimiter=";")
+#numpy.savetxt('output.txt',output,delimiter=";")
 
 #options = {'coldef_types':['p','d'], 'simulation_types': ['brettel'], 'daltonization_types': ['yoshi-alsam'],'alpha':0.5}
 #images = ['images/IMT6131/0340000000.png','images/IMT6131/0430000000.png','images/IMT6131/0810000000.png']
