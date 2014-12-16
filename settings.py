@@ -29,7 +29,7 @@ id2Sim = {  0: "none",
             4: "brettel",
             99: "dummy"}
 
-daltonization_types = ["anagnostopoulos", "kotera", "kuhn", "huan","yoshi-simon","yoshi-alsm","dummy"]
+daltonization_types = ["anagnostopoulos", "kotera", "kuhn", "huan","yoshi-simon","yoshi-alsam","dummy"]
 anagnostopoulos = "anagnostopoulos"
 kotera = "kotera"
 kuhn = "kuhn"

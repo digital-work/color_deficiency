@@ -11,7 +11,7 @@ import pandas
 import os
 import sys
 import operator
-from test import getAllXXXinPath, getStatsFromFilename
+from test import getAllXXXinPath, getStatsFromFilename, simType2Int
 
 def getSetFromScene(sce_id):
     visualsearch_ids = "../data/visualsearch_ids.xlsx"
@@ -135,11 +135,24 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
 #     
 #     return dataArray, testArray, extraDataDict
 
-def analyzeVisualSearchData(path):
+def analyzeVisualSearchData(dict):
     """
     This function analyzes the data from the visual searach experiment as can be found in the path.
     """
     
+    if dict.has_key('path_in'):
+        path_in = dict['path_in']
+    else:
+        print "Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in"    
+        return
+    
+    path_out_default = '../data/'    
+    if dict.has_key('path_out'):
+        path_out = dict['path_out']
+    else:
+        print "Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default)
+        path_out = path_out_default
+        
     # 0. Step: Get all the relevant information, i.e. scene_ids, obs_col_defs etc.
     visualsearch_ids = "../data/visualsearch_ids.csv"
     vs_ids_sheet = pandas.read_csv(visualsearch_ids,sep=';')    
@@ -149,31 +162,38 @@ def analyzeVisualSearchData(path):
     
     
     # 1. Step: Read all the XLSX data in the path
-    ext = 'xlsx'; xlsx_files = getAllXXXinPath(path,ext)
+    ext = 'xlsx'; xlsx_files = getAllXXXinPath(path_in,ext)
     dataArray = pandas.DataFrame()
+    i=1
     for xlsx_file in xlsx_files:
         sys.stdout.write(xlsx_file)
-        dataArray_tmp, testArray, extraDataDict = extractExperimentData(os.path.join(path,xlsx_file))
+        dataArray_tmp, testArray, extraDataDict = extractExperimentData(os.path.join(path_in,xlsx_file))
         
         newDataArray = dataArray_tmp[['dalt_id','coldef_type','resp.corr_raw','resp.rt_raw','stimFile']]
         
         if extraDataDict.has_key("2. Session"):
             sessionID = int(extraDataDict['2. Session'])
-            newDataArray['session_id'] = sessionID
+        newDataArray['session_id'] = sessionID
+        
+        if extraDataDict.has_key('group'):
+            obsGroup = str(extraDataDict['group'])
+        newDataArray['obsGroup'] = obsGroup
             
         if extraDataDict.has_key('0. Participant ID'):
             obsID = int(extraDataDict['0. Participant ID'])
+            
         newDataArray['observer_id'] = obsID
         obs_coldef_type = obs_ids_sheet.loc[obs_ids_sheet['observer_id']==obsID,['observer_coldef_type']]
         newDataArray['observer_coldef_type'] = int(obs_coldef_type['observer_coldef_type'])
         
         dataArray = pandas.concat([dataArray, newDataArray])
         sys.stdout.write(' . ')
+        if (i%5)==0: sys.stdout.write('\n')
+        i+=1
     sys.stdout.write('\n')
     #print testArray    
     
     # 2. Step: Adapt values to programstandards
-    
     for item in settings.colDefLong2ID:
         dataArray.loc[dataArray['coldef_type'] == item, ['coldef_type']] = settings.colDefLong2ID[item]
     
@@ -208,12 +228,12 @@ def analyzeVisualSearchData(path):
     dataArray.scene_id = dataArray.scene_id.astype(int)
     dataArray.version_id = dataArray.version_id.astype(int)
     
-    dataArray = dataArray[['image_id','set_id','scene_id','version_id','dalt_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath']]
+    dataArray = dataArray[['image_id','set_id','scene_id','version_id','dalt_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath','obsGroup']]
     
     # 3. Saving data to file
     try:
-        dataArray.to_csv('../data/visual-search-data.csv',sep=";")
-        print "Success: Visual search data saved"
+        dataArray.to_csv(os.path.join(path_out, 'visdem-data.csv'),sep=";")
+        sys.stdout.write("Success: Visual search data successfully saved in '"+str(path_out)+"'.\n")
     except Exception as e:
         print e    
  
@@ -316,19 +336,27 @@ def getAccuracy(data):
     if data.values.size:
         acc = float(num_correct)/float(num_total)
         se = math.sqrt((acc)*(1-acc)/float(num_total))
-        lb = acc-1.96*se # lower bound
-        ub = acc+1.96*se # upper bound
-        return [acc,lb,ub]
+        #lb = acc-1.96*se # lower bound
+        #ub = acc+1.96*se # upper bound
+        #return [acc,lb,ub]
+        return [acc,se]
     else:
-        return 0
+        return [.0,.0]
     
 def vsplots67thru70(visual_search_data,path,dict):
-    sys.stdout.write("Starting Res#"+str(dict['result_id'])+' -> ')    
+    
+    result_id = dict['result_id']
+    intro_string = result_id if result_id else dict['filename'] 
+    sys.stdout.write("Starting Res#"+str(intro_string))    
     if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
     
     DNData = pandas.DataFrame(); DEData = pandas.DataFrame(); DCData = pandas.DataFrame()
-    set_ids = [1,2,3,5,6,8,9,10]
-    #set_ids = [1]
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    # 1. Retrieving data from the image versions
     for set_id in set_ids:
         whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id]];howArr_tmp = []
         DNData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
@@ -342,63 +370,114 @@ def vsplots67thru70(visual_search_data,path,dict):
         DCData_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
         DCData = pandas.concat([DCData_tmp,DCData])
     
-    
-    #DND_acc = getAccuracy(DNData)
-    #print DCData[DCData['is_correct']==True]
-    # Reponse time plots
+    # 2. Plot reponse times
     boxes_tmp = [];labels_tmp = []
-    DND_values = DNData[DNData['is_correct']==True]['resp_time'].values; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
-    DED_values = DEData[DEData['is_correct']==True]['resp_time'].values; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
-    DCD_values = DCData[DCData['is_correct']==True]['resp_time'].values; labels_tmp.append('DC') if DCD_values.size else labels_tmp.append('DC - No data'); boxes_tmp.append(DCD_values)
-    
-    #res = R.r['t.test'](DND_values,DED_values)
-    
-    #p_value = ttest_ind(DND_values,DCD_values)      
-    #sys.stdout.write('p-value that DND and DCD are identical: '+str(p_value))  
+    DND_values = DNData[DNData['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
+    DCD_values = DCData[DCData['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('DC') if DCD_values.size else labels_tmp.append('DC - No data'); boxes_tmp.append(DCD_values) 
+    DED_values = DEData[DEData['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
             
     plt.figure(); plt.boxplot(boxes_tmp, notch=1)
-    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,3])
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.png")); plt.close()
+    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('Response time (ms)'); 
+    plt.ylim([0,3000]); plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); 
+    plt.close()
     
-    # Accuracy plots
-    accuracies = {'DN': getAccuracy(DNData),
-                  'DC': getAccuracy(DCData),
-                  'DE': getAccuracy(DEData)}
-    #print accuracies
-    acc_plots = []
-    #print float(accuracies['DN'])==float('NaN')
-    if accuracies['DN']:acc_plots.append(accuracies['DN'][0])
-    if accuracies['DE']:acc_plots.append(accuracies['DE'][0])
-    if accuracies['DC']:acc_plots.append(accuracies['DC'][0])
-    sys.stdout.write(str(accuracies))
+    # 3. Save data in file
+    for_bruno = pandas.DataFrame(boxes_tmp)
+    for_bruno = for_bruno.rename({0:labels_tmp[0],1:labels_tmp[1],2:labels_tmp[2]})
+    #for_bruno.to_csv(os.path.join(path,str(dict['result_id']),dict['filename']+".csv"),sep=';')
     
-    if acc_plots:
-        plt.figure(); plt.plot([1,2,3],acc_plots,'or'); 
-        plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('accuracy'); 
-        plt.plot([1,1],[accuracies['DN'][1],accuracies['DN'][2]],color="red");
-        plt.plot([2,2],[accuracies['DE'][1],accuracies['DE'][2]],color="red");
-        plt.plot([3,3],[accuracies['DC'][1],accuracies['DC'][2]],color="red");
-        plt.ylim([0,1]);plt.xlim([0,4])
-        plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-A.png")); plt.close()
+     
+    # 4. Accuracy plots
+    dn_acc = getAccuracy(DNData)
+    dn_acc.append(labels_tmp[0])
+    dc_acc = getAccuracy(DCData)
+    dc_acc.append(labels_tmp[1])
+    de_acc = getAccuracy(DEData)
+    de_acc.append(labels_tmp[2])
+    accuracies = {'DN': dn_acc,
+                  'DC': dc_acc,
+                  'DE': de_acc}
+    plotAccuracyGraphs(accuracies,path,dict,order={1:'DN', 2:'DC', 3:'DE'})
         
-    sys.stdout.write("\n")
+    sys.stdout.write(".")
+
+def vsplots71thru74(visual_search_data,path,dict):
     
-def analyzeSample2MatchData(path):
+    result_id = dict['result_id']
+    intro_string = result_id if result_id else dict['filename'] 
+    sys.stdout.write("Starting Res#"+str(intro_string)+' -> ')    
+    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    beforeData = pandas.DataFrame(); afterData = pandas.DataFrame();
+    
+    for set_id in set_ids:
+        # get all the data before daltonization
+        whatArr_tmp = [['dalt_id',operator.eq,0],['version_id',operator.eq,1],dict['obs_operator'],];howArr_tmp = []
+        beforeData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        beforeData = pandas.concat([beforeData_tmp,beforeData])
+        
+        # get all the data after daltonization
+        whatArr_tmp = [['dalt_id',operator.eq,2],['version_id',operator.eq,1],dict['obs_operator'],];howArr_tmp = []
+        afterData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        afterData = pandas.concat([afterData_tmp,afterData])
+        
+    boxes_tmp = [];labels_tmp = []
+    before_values = beforeData[beforeData['is_correct']==True]['resp_time'].values; labels_tmp.append('before daltonization') if before_values.size else labels_tmp.append('before - No data'); boxes_tmp.append(before_values)
+    after_values = afterData[afterData['is_correct']==True]['resp_time'].values; labels_tmp.append('after daltonization') if after_values.size else labels_tmp.append('after - No data'); boxes_tmp.append(after_values)
+    
+    plt.figure(); plt.boxplot(boxes_tmp, notch=1)
+    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,3])
+    plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); 
+    plt.close()
+    
+    # 3. Accuracy plots
+    before_acc = getAccuracy(beforeData)
+    before_acc.append(labels_tmp[0])
+    after_acc = getAccuracy(afterData)
+    after_acc.append(labels_tmp[1])
+    accuracies = {'before': before_acc,
+                  'after': after_acc}
+    plotAccuracyGraphs(accuracies,path,dict,order=['before','after'])
+    
+def analyzeSample2MatchData(dict):
     """
     This functions analyzes the data from the sample-2-match experiment as can be found in the path
     """
+    
+    if dict.has_key('path_in'):
+        path_in = dict['path_in']
+    else:
+        print "Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in"    
+        return
+    
+    path_out_default = '../data/'    
+    if dict.has_key('path_out'):
+        path_out = dict['path_out']
+    else:
+        print "Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default)
+        path_out = path_out_default
     
     # 0. Step: Get all the relevant information, i.e. obs_col_defs etc.
     observer_ids = "../data/observer_ids.csv"
     obs_ids_sheet = pandas.read_csv(observer_ids,sep=";")
     
     # 1. Step: Read all the XLSX data in the path
-    ext = 'xlsx'; xlsx_files = getAllXXXinPath(path,ext)
+    ext = 'xlsx'; xlsx_files = getAllXXXinPath(path_in,ext)
     dataArray = pandas.DataFrame()
+    i=1
     for xlsx_file in xlsx_files:
         if not '~' in xlsx_file:
             sys.stdout.write(xlsx_file)
-            dataArray_tmp, testArray, extraDataDict = extractExperimentData(os.path.join(path,xlsx_file))
+            dataArray_tmp, testArray, extraDataDict = extractExperimentData(os.path.join(path_in,xlsx_file))
             
             experiment_type = extraDataDict['expName'] if extraDataDict.has_key('expName') else 'none'
             if experiment_type == "sample-2-match":
@@ -415,7 +494,9 @@ def analyzeSample2MatchData(path):
                 newDataArray['session_id'] = sessionID
             
             dataArray = pandas.concat([dataArray, newDataArray])
-            sys.stdout.write('.')
+            sys.stdout.write(' . ')
+            if (i%5)==0: sys.stdout.write('\n')
+            i+=1
     sys.stdout.write('\n')
     
     dataArray = dataArray.reset_index()
@@ -445,19 +526,20 @@ def analyzeSample2MatchData(path):
         dataArray = dataArray[['image_id','sim_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath']]
     elif experiment_type == "visual-search":
         pass
-    
     dataArray.is_correct = dataArray.is_correct.astype(bool) 
-    
     
     # 3. Saving data to file
     try:
         sys.stdout.write("Starting to save ... ")
         if experiment_type == "sample-2-match":
-            dataArray.to_csv('../data/sample-2-match-data.csv',sep=";")
-            sys.stdout.write("Sample-to-match data successfully saved.")
+            dataArray.to_csv(os.path.join(path_out,'samsem-data.csv'),sep=";")
+            sys.stdout.write("Success: Sample-to-match data successfully saved in '"+str(path_out)+"'.\n")
+            print
         elif experiment_type == "visual-search":
-            dataArray.to_csv('../data/visual-data.csv',sep=";")
+            dataArray.to_csv(os.path.join(path_out,'visdem-data.csv'),sep=";")
             sys.stdout.write("Visual-search data successfully saved.")
+        else:
+            sys.stdout.write("Caution: No data saved.")
     except Exception as e:
         print e 
 
@@ -508,35 +590,56 @@ def s2mplots1thru4(sample2match_data,path,dict):
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
-    plt.figure(); plt.ylim([0,1]);plt.xlim([0,len(accData)+1]); 
+    if dict.has_key('y_lim'):
+        y_lim = dict['y_lim']
+    else:
+        y_lim = [.5,1.00]
+        
+    plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
     
-    acc_plots = [];labels_tmp=[];howMany=[];counter=1
-    
+    acc_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
+    #print order
     if not order:
         for key,value in accData.iteritems():
             acc_plots.append(value[0])
-            labels_tmp.append(value[3])
+            se.append(value[1])
+            labels_tmp.append(value[2])
+            #labels_tmp.append(value[3])
             
-            plt.plot(counter,value[0],'or')
-            plt.plot([counter,counter],[value[1],value[2]],color="blue")
+            #plt.plot(counter,value[0],'or')
+            #plt.plot([counter,counter],[value[1],value[2]],color="blue")
             howMany.append(counter);counter+=1
     else:
-        for key in order:
+        end = len(order);
+        while counter <= end:
+            key = order[counter]
             value = accData[key]
             acc_plots.append(value[0])
-            labels_tmp.append(value[3])
+            se.append(value[1])
+            labels_tmp.append(value[2])
             
-            plt.plot(counter,value[0],'or')
-            plt.plot([counter,counter],[value[1],value[2]],color="blue")
+            #plt.plot(counter,value[0],'or')
+            #plt.plot([counter,counter],[value[1],value[2]],color="blue")
             howMany.append(counter);counter+=1
-        
+    #print se
+    se = 1.96*numpy.array(se)
+    plt.errorbar(howMany,acc_plots,se,fmt='or')
     plt.xticks(howMany,labels_tmp); 
-    plt.title(dict['obs_title']+' - Accuracy'); plt.ylabel('accuracy');
-     
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-A.png")); plt.close()
+    if dict['obs_title']:
+        plt.title(dict['obs_title']+' - Accuracy');
+    else:
+        plt.title('')  
+    plt.ylabel('Accuracy');
+    #plt.grid('y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-A.eps")); 
+    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-A.pdf")); 
+    plt.close()
 
 def s2mplots29and30(sample2match_data,path,dict):
-    sys.stdout.write("Starting Res#"+str(dict['result_id'])+'.')    
+    
+    result_id = dict['result_id']
+    intro_string = result_id if result_id else dict['filename'] 
+    sys.stdout.write("Starting Res#"+str(intro_string)+'.')    
     if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
     
     resp_boxes_tmp = []; labels_tmp = []
@@ -554,15 +657,23 @@ def s2mplots29and30(sample2match_data,path,dict):
     deutan_data = organizeArray(sample2match_data,whatArr_tmp,howArr_tmp)
     
     # 2. Reponse time plots
-    normal_response_values = normal_data[normal_data['is_correct']==True]['resp_time'].values; labels_tmp.append('Norm.obs.') if normal_response_values.size else labels_tmp.append('Norm.obs. - No data'); resp_boxes_tmp.append(normal_response_values)
-    protan_response_values = protan_data[protan_data['is_correct']==True]['resp_time'].values; labels_tmp.append('Prot.obs.') if protan_response_values.size else labels_tmp.append('Prot.obs. - No data'); resp_boxes_tmp.append(protan_response_values)
-    deutan_response_values = deutan_data[deutan_data['is_correct']==True]['resp_time'].values; labels_tmp.append('Deut.obs.') if deutan_response_values.size else labels_tmp.append('Prot.obs. - No data'); resp_boxes_tmp.append(deutan_response_values)
+    normal_response_values = normal_data[normal_data['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('Norm.obs.') if normal_response_values.size else labels_tmp.append('Norm.obs. - No data'); resp_boxes_tmp.append(normal_response_values)
+    protan_response_values = protan_data[protan_data['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('Prot.obs.') if protan_response_values.size else labels_tmp.append('Prot.obs. - No data'); resp_boxes_tmp.append(protan_response_values)
+    deutan_response_values = deutan_data[deutan_data['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('Deut.obs.') if deutan_response_values.size else labels_tmp.append('Prot.obs. - No data'); resp_boxes_tmp.append(deutan_response_values)
     
-    plt.figure(); plt.boxplot(resp_boxes_tmp, notch=1)
-    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,3])
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.png")); plt.close()
+    plt.figure(); plt.boxplot(resp_boxes_tmp, notch=1);
+    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('Response time (ms)'); 
+    plt.ylim([0,3000]); plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); 
+    plt.close()
     
-    # 3. Accuracy plots
+    # 3. Save data in file
+    for_bruno = pandas.DataFrame(resp_boxes_tmp)
+    for_bruno = for_bruno.rename({0:labels_tmp[0],1:labels_tmp[1],2:labels_tmp[2]})
+    #for_bruno.to_csv(os.path.join(path,str(dict['result_id']),dict['filename']+".csv"),sep=';')
+    
+    # 4. Accuracy plots
     norm_acc = getAccuracy(normal_data)
     norm_acc.append(labels_tmp[0])
     prot_acc = getAccuracy(protan_data)
@@ -573,25 +684,85 @@ def s2mplots29and30(sample2match_data,path,dict):
                   'protan': prot_acc,
                   'deutan': deut_acc}
     #print accuracies
-    plotAccuracyGraphs(accuracies,path,dict,order=['norm','protan','deutan'])
+    plotAccuracyGraphs(accuracies,path,dict,order={1:'norm', 2:'protan', 3:'deutan'})
 
-def plotEI2015_SaMSEM_ViSDEM():
-    path = "/Users/thomas/Dropbox/01_NZT/01_PhD/02_Conferences/EI-2015_Color-Imaging-XX/01_Artikler/02_Evaluation-methods/images/"
+def writeMetaData(experimentData,dict):
     
-    # Plots for ViSDEM
-    visualSearchDataPath = '../data/visual-search-data.csv'
-    visual_search_data = pandas.read_csv(visualSearchDataPath,index_col=False,header=0,sep=';')
-    dict = {'result_id': '', 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All sets for all norm.sight.obs.', 'filename': 'visdem-normal-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#67
-    dict = {'result_id': '', 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All sets for all deut.obs.', 'filename': 'visdem-deutan-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#70
+    if dict.has_key('exp_type'):
+        exp_type = dict['exp_type']
+    else:
+        print "Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM."
+        return
     
-    # Plots for SaMSEM
-    sample2MatchDataPath = '../data/sample-2-match-data.csv'
-    sample2match_data = pandas.read_csv(sample2MatchDataPath,index_col=False,sep=';')
-    dict = {'result_id': '', 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.prot.', 'filename': 'samsem-protanopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#29
-    dict = {'result_id': '', 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.deut.', 'filename': 'samsem-deuteranopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#30
+    #if dict.has_key('path_in'):
+    #    path_in = dict['path_in']
+    #else:
+    #    print "Error: No input path has been chosen containing the experiment data. Choose a path to the .csv file containing the data."
+    #    return
     
+    path_out_default = '../data/'
+    if dict.has_key('path_out'):
+        path_out = dict['path_out']
+    else:
+        print "Caution: No output path has been chosen for the meta data file. Using default value for output path instead: '"+str(path_out_default)+"'."
+        path_out = os.path.join(path_out_default,'metadata-generic')
+        
+    if exp_type == "visdem":
+        f = open(path_out,'w+')
+        f.write("ViSDEM meta data\n")
+        sessions = set(experimentData['session_id'])
+        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
+        sets = set(experimentData['set_id'])
+        f.write('... # of sets: '+str(len(sets))+' ; '+str(sets)+'\n')
+        daltonizations = set(experimentData['dalt_id'])
+        f.write('... # of daltonization ids: '+str(len(daltonizations))+' ; '+str(daltonizations)+'\n')
+        observers = set(experimentData['observer_id'])
+        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
+        observers_norm = set(experimentData[experimentData['observer_coldef_type']==0]['observer_id'])
+        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
+        observers_prot = set(experimentData[experimentData['observer_coldef_type']==1]['observer_id'])
+        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')  
+        observers_deut = set(experimentData[experimentData['observer_coldef_type']==2]['observer_id'])
+        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')         
+        f.close()
+    elif exp_type == 'samsem':
+        f = open(path_out,'w+')
+        f.write("SaMSEM meta data\n")
+        sessions = set(experimentData['session_id'])
+        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
+        images = set(experimentData['image_id'])
+        f.write('... # of images: '+str(len(images))+' ; '+str(images)+'\n')
+        simulations = set(experimentData['sim_id'])
+        f.write('... # of simulations: '+str(len(simulations))+' ; '+str(simulations)+'\n')
+        observers = set(experimentData['observer_id'])
+        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
+        observers_norm = set(experimentData[experimentData['observer_coldef_type']==0]['observer_id'])
+        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
+        observers_prot = set(experimentData[experimentData['observer_coldef_type']==1]['observer_id'])
+        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')
+        observers_deut = set(experimentData[experimentData['observer_coldef_type']==2]['observer_id'])
+        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')
+    else:
+        print "Error: No valid experiment format has been chosen. Choose either visdem or samsem."
+        return
     
-if 1:
+# def plotEI2015_SaMSEM_ViSDEM():
+#     path = "/Users/thomas/Dropbox/01_NZT/01_PhD/02_Conferences/EI-2015_Color-Imaging-XX/01_Artikler/02_Evaluation-methods/images/"
+#     
+#     # Plots for ViSDEM
+#     visualSearchDataPath = '../data/visual-search-data.csv'
+#     visual_search_data = pandas.read_csv(visualSearchDataPath,index_col=False,header=0,sep=';')
+#     dict = {'result_id': '', 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All sets for all norm.sight.obs.', 'filename': 'visdem-normal-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#67
+#     dict = {'result_id': '', 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All sets for all deut.obs.', 'filename': 'visdem-deutan-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#70
+#     
+#     # Plots for SaMSEM
+#     sample2MatchDataPath = '../data/sample-2-match-data.csv'
+#     sample2match_data = pandas.read_csv(sample2MatchDataPath,index_col=False,sep=';')
+#     dict = {'result_id': '', 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.prot.', 'filename': 'samsem-protanopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#29
+#     dict = {'result_id': '', 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.deut.', 'filename': 'samsem-deuteranopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#30
+#     
+    
+if 0:
     test_path = "/Users/thomas/Desktop/tull/test/visual-search/data/"
     test_file = "/Users/thomas/Desktop/tull/test/visual-search/data/11_2014_mai_16_1356.xlsx"
     #dataArray, testArray, extraDataDict = extractVisualSearchData(test_file)
@@ -599,15 +770,15 @@ if 1:
     #print dataArray
     #print testArray
     #print extraDataDict
-    #analyzeVisualSearchData(test_path)
+    analyzeVisualSearchData(test_path)
     #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test/results",'VS-plots'),'../data/visual-search-data.csv')   
-else:
+elif 0:
     test_path = "/Users/thomas/Desktop/tull/test/sample-2-match/data/"
     test_file = "/Users/thomas/Desktop/tull/test/sample-2-match/data/11_2014_mai_16_1307.xlsx"
     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
     #print dataArray
     #print testArray
     #print extraDataDict
-    #analyzeSample2MatchData(test_path)
+    analyzeSample2MatchData(test_path)
     #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/test/results/",'S2M-plots'), '../data/sample-2-match-data.csv')
-plotEI2015_SaMSEM_ViSDEM()
+#plotEI2015_SaMSEM_ViSDEM()

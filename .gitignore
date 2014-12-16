@@ -1,5 +1,8 @@
 /.project
 /.pydevproject
+.settings/*
+org.eclipse.core.resources.prefs
+
 
 *.pyc
 *.jpg
@@ -8,37 +11,42 @@
 *.PNG
 *.docx
 *.zip
+*.xlsx
+*.csv
+*.txt
 
 images/*
 !images/tmp/*
 !images/example10.jpg
 
-kotera/
+wech/*
 
 data/ciexyz31_1.csv
 
-org.eclipse.core.resources.prefs
 
 .DS_Store
 images/.DS_Store
 images/database/.DS_Store
 
 .BridgeLabelsAndRatings
-/wrong.py
-/exercise5.py
+
+c++/CImg/*
+
+c++/cvdKuhn/*
+!c++/cvdKuhn/cvdKuhn2008.exe
+
+code/Matlab/alsam/*
+!code/Matlab/alsam/c2g_alsam.m
+
+code/Matlab/implementation/*
+!code/Matlab/implementation/callImgRecolorFromPython.m
 
 
-/c++
-/code/Matlab
 
-/answersA.csv
-/answersA.xlsx
-/pupsidupsiA.xlsx
-/pupsidupsiB.xlsx
-/colordeficiency/dummy.xlsx
-/html
-/images2gif.py
-/input.txt
-/output.txt
-/test1.MPO
+
+
+
+
+
+
 /mpo.py

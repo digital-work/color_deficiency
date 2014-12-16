@@ -23,7 +23,7 @@ import sys
 from test import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
 
 path_matlab = "code/Matlab/implementation/"
-path_matlab_alsam = "code/Matlab/"
+path_matlab_alsam = "code/Matlab/alsam/"
 module_path = settings.module_path
 
 def coldefType2Int(coldef_type):
@@ -560,26 +560,28 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     
     return img_out
 
-class StoppableThread(threading.Thread):
-    """Thread class with a stop() method. The thread itself has to check
-    regularly for the stopped() condition."""
+#wech
+# class StoppableThread(threading.Thread):
+#     """Thread class with a stop() method. The thread itself has to check
+#     regularly for the stopped() condition."""
+# 
+#     def __init__(self):
+#         super(StoppableThread, self).__init__()
+#         self._stop = threading.Event()
+# 
+#     def stop(self):
+#         self._stop.set()
+# 
+#     def stopped(self):
+#         return self._stop.isSet()
 
-    def __init__(self):
-        super(StoppableThread, self).__init__()
-        self._stop = threading.Event()
-
-    def stop(self):
-        self._stop.set()
-
-    def stopped(self):
-        return self._stop.isSet()
-
-def counting():
-    i = 0
-    while True:
-        time.sleep(.1)
-        i += 1
-        print i
+#wech
+# def counting():
+#     i = 0
+#     while True:
+#         time.sleep(.1)
+#         i += 1
+#         print i
 
 
 #print module_path"""
@@ -673,7 +675,7 @@ def daltonization_yoshi_alsam(img_in,options):
     
     # 2.step: convert original image into gray array using Alsam's method
     img_gray = c2g_alsam(img_in)
-    img_gray.show()
+    #img_gray.show()
     img_gray = img_gray.convert('RGB')
     imgGray_arr = numpy.asarray(img_gray)/255.
     imgLuminance_arr = imgGray_arr[:,:,0]
@@ -703,6 +705,12 @@ def daltonization_yoshi_alsam_extra(img_in,options):
     else:
         sys.stdout.write(' Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
+        
+    if options.has_key('beta'):
+        beta = options['beta']
+    else:
+        sys.stdout.write(' Caution: No beta has been chosen. Using default value of 0.0.')
+        beta = 0.0
     
     # 1.step: convert original image to IPT
     img_in = img_in.convert('RGB')
@@ -724,11 +732,11 @@ def daltonization_yoshi_alsam_extra(img_in,options):
     if (coldef_type == 'p') or (coldef_type == 'd'):
         iptP_arr = iptOriginal_arr[:,:,1]
         #Image.fromarray(iptP_arr*255.).show()
-        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+(1-alpha)*(iptP_arr+1)/2
+        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+beta*(iptP_arr+1)/2
     elif coldef_type == 't':
         iptT_arr = iptOriginal_arr[:,:,2]
         #Image.fromarray(iptT_arr*255.).show()
-        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+(1-alpha)*(iptT_arr+1)/2
+        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+beta*(iptT_arr+1)/2
     
     # 4.step: Convert back to sRGB image
     iptDaltonized_arr = colour.data.Data(colour.space.ipt,iptDaltonized_arr)
@@ -1188,6 +1196,12 @@ def daltonization_yoshi_c2g(img_in,options):
     else:
         sys.stdout.write(' Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
+        
+    if options.has_key('beta'):
+        beta = options['beta']
+    else:
+        sys.stdout.write(' Caution: No beta has been chosen. Using default value of 0.0.')
+        beta = 0.0
        
     # 1.step: convert original image to IPT
     img_in = img_in.convert('RGB')
@@ -1242,11 +1256,11 @@ def daltonization_yoshi_c2g(img_in,options):
     if (coldef_type == 'p') or (coldef_type == 'd'):
         iptP_arr = iptOriginal_arr[:,:,1]
         #Image.fromarray(iptP_arr*255.).show()
-        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+(1-alpha)*(iptP_arr+1)/2
+        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+beta*(iptP_arr+1)/2
     elif coldef_type == 't':
         iptT_arr = iptOriginal_arr[:,:,2]
         #Image.fromarray(iptT_arr*255.).show()
-        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+(1-alpha)*(iptT_arr+1)/2
+        iptDaltonized_arr[:,:,0] = alpha*imgLuminance_arr+beta*(iptT_arr+1)/2
         
     # 4.step: Convert back to sRGB image
     iptDaltonized_arr = colour.data.Data(colour.space.ipt,iptDaltonized_arr)
@@ -1306,114 +1320,121 @@ def daltonize(img_in,options):
         return img_in
     return img_out
 
+#wech
+# def simulate_pics(images,options):
+#     """
+#     Same as in tools_out.py, is not actually called up.
+#     """
+#     if options.has_key('path_out'):
+#         path_out = options['path_out']
+#     else:
+#         path_out = ""
+#     
+#     if not options.has_key('simulation_types'):
+#         print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.simulation_types)
+#         options['simulation_types'] = settings.simulation_types
+#     
+#     if not options.has_key('coldef_types'):
+#         print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
+#         options['coldef_types'] = settings.coldef_types
+#     
+#     for img in images:
+#         path_in_tmp, basename_tmp = os.path.split(img)
+#         file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
+#         dict_in = getStatsFromFilename(file_name_in_tmp)
+#         
+#         if not path_out:
+#             path_out = path_in_tmp
+#         sys.stdout.write("Computing "+str(file_name_in_tmp))
+#         
+#         for simulation_type in options['simulation_types']:
+#             sys.stdout.write( "..." + simulation_type)
+#             for coldef_type in options['coldef_types']:
+#                 sys.stdout.write("."+coldef_type)
+#                 
+#                 if (bool(dict_in['sim'])):
+#                     sys.stdout.write('.Cannot simulate already simulated images')
+#                 
+#                 elif (bool(dict_in['dalt']) and not (int(dict_in['coldef_type'])) == settings.colDef2ID[coldef_type]):
+#                     sys.stdout.write('.Color deficiency type of daltonization and simulation has to be the same')
+#                 else:
+#                     
+#                     img_in = Image.open(img)
+#                     img_sim =simulate(simulation_type, img_in, coldef_type)
+#                  
+#                     file_name_out_tmp = setStatsToFilename(
+#                                                        dict_in['img_id'],
+#                                                        dict_in['dalt'],
+#                                                        dict_in['dalt_id'],
+#                                                        True,
+#                                                        simType2Int(simulation_type),
+#                                                        settings.colDef2ID[coldef_type]
+#                                                        )
+#                     file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
+#                     img_sim.save(file_path_out_tmp)
+# 
+#         sys.stdout.write("\n")
 
-def simulate_pics(images,options):
-    
-    if options.has_key('path_out'):
-        path_out = options['path_out']
-    else:
-        path_out = ""
-    
-    if not options.has_key('simulation_types'):
-        print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.simulation_types)
-        options['simulation_types'] = settings.simulation_types
-    
-    if not options.has_key('coldef_types'):
-        print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
-        options['coldef_types'] = settings.coldef_types
-    
-    for img in images:
-        path_in_tmp, basename_tmp = os.path.split(img)
-        file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
-        dict_in = getStatsFromFilename(file_name_in_tmp)
-        
-        if not path_out:
-            path_out = path_in_tmp
-        sys.stdout.write("Computing "+str(file_name_in_tmp))
-        
-        for simulation_type in options['simulation_types']:
-            sys.stdout.write( "..." + simulation_type)
-            for coldef_type in options['coldef_types']:
-                sys.stdout.write("."+coldef_type)
-                
-                if (bool(dict_in['sim'])):
-                    sys.stdout.write('.Cannot simulate already simulated images')
-                
-                elif (bool(dict_in['dalt']) and not (int(dict_in['coldef_type'])) == settings.colDef2ID[coldef_type]):
-                    sys.stdout.write('.Color deficiency type of daltonization and simulation has to be the same')
-                else:
-                    
-                    img_in = Image.open(img)
-                    img_sim =simulate(simulation_type, img_in, coldef_type)
-                 
-                    file_name_out_tmp = setStatsToFilename(
-                                                       dict_in['img_id'],
-                                                       dict_in['dalt'],
-                                                       dict_in['dalt_id'],
-                                                       True,
-                                                       simType2Int(simulation_type),
-                                                       settings.colDef2ID[coldef_type]
-                                                       )
-                    file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-                    img_sim.save(file_path_out_tmp)
-
-        sys.stdout.write("\n")
-
-def daltonize_pics(images,options):
-    
-    if options.has_key('path_out'):
-        path_out = options['path_out']
-    else:
-        path_out = ""
-    
-    if not options.has_key('daltonization_types'):
-        print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.daltonization_types)
-        options['daltonization_types'] = settings.daltonization_types
-    
-    if not options.has_key('coldef_types'):
-        print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
-        options['coldef_types'] = settings.coldef_types
-    
-    for img in images:
-        path_in_tmp, basename_tmp = os.path.split(img)
-        file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
-        dict_in = getStatsFromFilename(file_name_in_tmp)
-        
-        if not path_out:
-            path_out = path_in_tmp
-        sys.stdout.write("Computing "+str(file_name_in_tmp))
-        
-        for daltonization_type in options['daltonization_types']:
-            sys.stdout.write( "..." + daltonization_type)
-            for coldef_type in options['coldef_types']:
-                sys.stdout.write("."+coldef_type)
-                
-                if (bool(dict_in['sim'])):
-                    sys.stdout.write('.Cannot daltonize already simulated images')
-                
-                elif bool(dict_in['dalt']):
-                    sys.stdout.write('.Cannot daltonize already daltonized images')
-                else:
-                    
-                    img_in = Image.open(img)
-                    #img_in.thumbnail((256,256))
-                    options_tmp = options.copy()
-                    options_tmp['coldef_type'] = coldef_type
-                    options_tmp['daltonization_type'] = daltonization_type
-                    img_dalt =daltonize(img_in, options_tmp)
-                 
-                    file_name_out_tmp = setStatsToFilename(
-                                                       dict_in['img_id'],
-                                                       True,
-                                                       settings.dalt2ID[daltonization_type],
-                                                       dict_in['sim'],
-                                                       dict_in['sim_id'],
-                                                       settings.colDef2ID[coldef_type]
-                                                       )
-                    file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-                    img_dalt.save(file_path_out_tmp)
-
-        sys.stdout.write("\n")
+#wech
+# def daltonize_pics(images,options):
+#     """
+#     Braumer des werklech?
+#     """
+#     
+#     
+#     if options.has_key('path_out'):
+#         path_out = options['path_out']
+#     else:
+#         path_out = ""
+#     
+#     if not options.has_key('daltonization_types'):
+#         print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.daltonization_types)
+#         options['daltonization_types'] = settings.daltonization_types
+#     
+#     if not options.has_key('coldef_types'):
+#         print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
+#         options['coldef_types'] = settings.coldef_types
+#     
+#     for img in images:
+#         path_in_tmp, basename_tmp = os.path.split(img)
+#         file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
+#         dict_in = getStatsFromFilename(file_name_in_tmp)
+#         
+#         if not path_out:
+#             path_out = path_in_tmp
+#         sys.stdout.write("Computing "+str(file_name_in_tmp))
+#         
+#         for daltonization_type in options['daltonization_types']:
+#             sys.stdout.write( "..." + daltonization_type)
+#             for coldef_type in options['coldef_types']:
+#                 sys.stdout.write("."+coldef_type)
+#                 
+#                 if (bool(dict_in['sim'])):
+#                     sys.stdout.write('.Cannot daltonize already simulated images')
+#                 
+#                 elif bool(dict_in['dalt']):
+#                     sys.stdout.write('.Cannot daltonize already daltonized images')
+#                 else:
+#                     
+#                     img_in = Image.open(img)
+#                     #img_in.thumbnail((256,256))
+#                     options_tmp = options.copy()
+#                     options_tmp['coldef_type'] = coldef_type
+#                     options_tmp['daltonization_type'] = daltonization_type
+#                     img_dalt =daltonize(img_in, options_tmp)
+#                  
+#                     file_name_out_tmp = setStatsToFilename(
+#                                                        dict_in['img_id'],
+#                                                        True,
+#                                                        settings.dalt2ID[daltonization_type],
+#                                                        dict_in['sim'],
+#                                                        dict_in['sim_id'],
+#                                                        settings.colDef2ID[coldef_type]
+#                                                        )
+#                     file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
+#                     img_dalt.save(file_path_out_tmp)
+# 
+#         sys.stdout.write("\n")
 
 def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
     
