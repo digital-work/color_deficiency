@@ -607,7 +607,7 @@ def daltonization_huan(img_in,options):
     mlab.start()
     try:
         file_matlab = os.path.join(path_matlab,"callImgRecolorFromPython.m")
-        path_tmp = os.path.join(module_path,"images/tmp/matlab_tmp.png")
+        path_tmp = os.path.join(module_path,"colordeficiency-images/tmp/matlab_tmp.png")
         img_in.save(path_tmp,'png')
 
         dict_matlab = {'path_tmp': path_tmp, 'coldef_type': coldef_type, 'from_python': 1}
@@ -640,8 +640,8 @@ def c2g_alsam(img_in):
     mlab.start()
     try:
         file_matlab = os.path.join(path_matlab_alsam,"c2g_alsam.m")
-        path_in_tmp = os.path.join(module_path,"images/tmp/matlab_tmp_in.png")
-        path_out_tmp = os.path.join(module_path,"images/tmp/matlab_tmp_out.png")
+        path_in_tmp = os.path.join(module_path,"colordeficiency-images/tmp/matlab_tmp_in.png")
+        path_out_tmp = os.path.join(module_path,"colordeficiency-images/tmp/matlab_tmp_out.png")
         img_in.save(path_in_tmp,'png')
 
         dict_matlab = {'path_in': path_in_tmp, 'path_out': path_out_tmp}# 'img_out_path': path_out_tmp}
@@ -787,7 +787,7 @@ def daltonization_kuhn(img_in,options):
         print 'Caution: No attribute chosen for whether the contrast should be exagerated or not. Choosing default value: 0.'
         options['exagerated'] = 0
     
-    path_tmp = "./images/tmp/" # we have to think from the c++ folder
+    path_tmp = "./colordeficiency-images/tmp/" # we have to think from the c++ folder
     filepath_orig_tmp = os.path.join(path_tmp,"kuhnorig_tmp.bmp")
     options['filepath_orig_tmp'] = filepath_orig_tmp
     img_in.save(filepath_orig_tmp)

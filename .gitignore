@@ -57,10 +57,5 @@ code/Matlab/implementation/*
 
 
 !colordeficiency-images/0010000000.png
-
-
-
-
-
-
-/mpo.py
+colordeficiency-images/tmp/*
+!colordeficiency-images/tmp/README
