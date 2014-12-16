@@ -3,7 +3,7 @@
 .settings/*
 org.eclipse.core.resources.prefs
 
-
+*.ahu
 *.pyc
 *.jpg
 *.JPG
@@ -14,9 +14,21 @@ org.eclipse.core.resources.prefs
 *.xlsx
 *.csv
 *.txt
+*.tif
+*.nef
+*.TIF
+*.CR2
+*.xmp
 
-images/*
-!images/tmp/*
+images/database/*
+images/IMT6131/*
+images/buginbrettel/*
+images/kotera/*
+images/wech/*
+images/yoshi_c2g/*
+images/tmp/*
+!images/tmp/README
+
 !images/example10.jpg
 
 wech/*
@@ -29,6 +41,7 @@ images/.DS_Store
 images/database/.DS_Store
 
 .BridgeLabelsAndRatings
+.BridgeSort
 
 c++/CImg/*
 
