@@ -619,7 +619,7 @@ def daltonization_huan(img_in,options):
     except Exception,e:
         print "Error: Something went wrong. " + str(e)
         img_out = crossOut(img_in)
-    #mlab.stop()
+    mlab.stop()
     return img_out
     
 #img_out = daltonization_huan(img_in,{'coldef_type': 'p'})

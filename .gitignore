@@ -55,7 +55,8 @@ code/Matlab/alsam/*
 
 code/Matlab/implementation/*
 !code/Matlab/implementation/callImgRecolorFromPython.m
-
+!code/Matlab/implementation/simColorBindImg.m
+!code/Matlab/implementation/imgRecolor.m
 
 !colordeficiency-images/0010000000.png
 colordeficiency-images/tmp/*
