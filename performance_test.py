@@ -8,13 +8,11 @@ img_in = im.copy()
 size = 256,256
 img_in.thumbnail(size)
 #im.show()
-if 0:
+if 1:
     for sim_type in settings.simulation_types:
         im_sim = simulate(sim_type, img_in, 'p')
         im_sim.show()
-
-#print settings.daltonization_types
-if 1:
+else:
     for dalt_type in settings.daltonization_types:
         print dalt_type
         if 1:#(dalt_type == 'kuhn'): 

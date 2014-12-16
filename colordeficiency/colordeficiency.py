@@ -23,8 +23,8 @@ import sys
 #from test import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
 
 
-path_matlab = "./code/Matlab/implementation/"
-path_matlab_alsam = "./code/Matlab/alsam/"
+path_matlab = os.path.join(settings.module_path,'code','Matlab','implementation')
+path_matlab_alsam = os.path.join(settings.module_path,'code','Matlab','alsam')
 module_path = settings.module_path
 
 def coldefType2Int(coldef_type):
@@ -405,7 +405,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
         print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
         return img_in
     
-    data = numpy.genfromtxt('./data/ciexyz31.csv', delimiter=',')
+    data = numpy.genfromtxt(os.path.join(settings.module_path,'data','ciexyz31.csv'), delimiter=',')
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
@@ -603,17 +603,18 @@ def daltonization_huan(img_in,options):
         dict['coldef_type'] = settings.default['coldef_type']
         
     coldef_type = options['coldef_type']
-    mlab = Matlab(matlab='/Applications/MATLAB_R2013b.app/bin/matlab')
+    mlab = Matlab(matlab='/Applications/MATLAB_R2013b.app/bin/matlab') # OBS: Make this more accessible
     mlab.start()
     try:
-        file_matlab = os.path.join(path_matlab,"callImgRecolorFromPython.m")
-        path_tmp = os.path.join(module_path,"colordeficiency-images/tmp/matlab_tmp.png")
+        file_matlab = os.path.join(path_matlab,'callImgRecolorFromPython.m')
+        path_tmp = os.path.join(module_path,'colordeficiency-images','tmp','matlab_tmp.png')
         img_in.save(path_tmp,'png')
 
         dict_matlab = {'path_tmp': path_tmp, 'coldef_type': coldef_type, 'from_python': 1}
         res = mlab.run_func(file_matlab, dict_matlab)#(file,60)
 
         img_out = Image.open(path_tmp)
+        os.remove(path_tmp)
         #img_out.show()
         #os.remove(path_tmp)
     except Exception,e:
@@ -626,9 +627,9 @@ def daltonization_huan(img_in,options):
 #img_out.show()   
         
 def runcvdKuhn2008ExeThread(dict):
-    commando = "wine ./c++/cvdKuhn/cvdKuhn2008.exe "+dict['filepath_orig_tmp']+" "+str(coldefType2Int(dict['coldef_type'])-1)+ " "+str(dict['exagerated'])+" "+str(dict['max_num_quant'])
+    commando = "wine "+os.path.join(settings.module_path,'c++','cvdKuhn','cvdKuhn2008.exe')+" "+dict['filepath_orig_tmp']+" "+str(coldefType2Int(dict['coldef_type'])-1)+ " "+str(dict['exagerated'])+" "+str(dict['max_num_quant'])
     # -1 because Kuhn starts to count color deficiency types at 0.
-    print commando
+    #print commando
     os.popen(commando)
 
 def c2g_alsam(img_in):
@@ -636,12 +637,12 @@ def c2g_alsam(img_in):
     Converts RGB image to gray image using the fastColour2Grey method by Ali Alsam and Drew ???
     """
     
-    mlab = Matlab(matlab='/Applications/MATLAB_R2013b.app/bin/matlab')
+    mlab = Matlab(matlab='/Applications/MATLAB_R2013b.app/bin/matlab') # OBS: Make this more accessible
     mlab.start()
     try:
         file_matlab = os.path.join(path_matlab_alsam,"c2g_alsam.m")
-        path_in_tmp = os.path.join(module_path,"colordeficiency-images/tmp/matlab_tmp_in.png")
-        path_out_tmp = os.path.join(module_path,"colordeficiency-images/tmp/matlab_tmp_out.png")
+        path_in_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp','matlab_tmp_in.png')
+        path_out_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp','matlab_tmp_out.png')
         img_in.save(path_in_tmp,'png')
 
         dict_matlab = {'path_in': path_in_tmp, 'path_out': path_out_tmp}# 'img_out_path': path_out_tmp}
@@ -787,7 +788,7 @@ def daltonization_kuhn(img_in,options):
         print 'Caution: No attribute chosen for whether the contrast should be exagerated or not. Choosing default value: 0.'
         options['exagerated'] = 0
     
-    path_tmp = "./colordeficiency-images/tmp/" # we have to think from the c++ folder
+    path_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp') # we have to think from the c++ folder
     filepath_orig_tmp = os.path.join(path_tmp,"kuhnorig_tmp.bmp")
     options['filepath_orig_tmp'] = filepath_orig_tmp
     img_in.save(filepath_orig_tmp)
@@ -1042,7 +1043,7 @@ def daltonization_kotera(img_in, options):
     xyz_vector = numpy.reshape(xyz_arr,(m*n,3))
     
     #Read xyz color matching functions
-    data = numpy.genfromtxt('data/ciexyz31.csv', delimiter=',')
+    data = numpy.genfromtxt(os.path.join(settings.module_path,'data','ciexyz31.csv'), delimiter=',')
     xyzMatchFuncs = data[:,1:4]
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
@@ -1157,14 +1158,14 @@ def daltonization_yoshi_c2g_only(img_in, options):
         # The noise is anti-proportional to the product ni*ns, which should be > 1000.
         # The complexityis proportional to the product ni*ns. 
         
-    name_in_tmp = "../colordeficiency-images/tmp/img_in_tmp.png"
-    name_out_tmp = "../colordeficiency-images/tmp/img_out_tmp.png"
+    name_in_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp','img_in_tmp.png')
+    name_out_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp','img_out_tmp.png')
     img_in.save(name_in_tmp)
         
     if not ":/usr/local/bin" in os.environ['PATH']:
         os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
         print os.environ['PATH']
-    os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+    os.system(os.path.join(settings.module_path, 'stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
     img_gray = Image.open(name_out_tmp)
     os.remove(name_in_tmp)
@@ -1237,15 +1238,16 @@ def daltonization_yoshi_c2g(img_in,options):
         # The noise is anti-proportional to the product ni*ns, which should be > 1000.
         # The complexityis proportional to the product ni*ns. 
         
-        name_in_tmp = "./colordeficiency-images/tmp/img_in_tmp.png"
-        name_out_tmp = "./colordeficiency-images/tmp/img_out_tmp.png"
+        
+        name_in_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp','img_in_tmp.png')
+        name_out_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp','img_out_tmp.png')
         
         img_in.save(name_in_tmp)
         
         if not ":/usr/local/bin" in os.environ['PATH']:
             os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
             print os.environ['PATH']
-        os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+        os.system(os.path.join(settings.module_path, 'stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
         img_gray = Image.open(name_out_tmp)
         os.remove(name_in_tmp)
