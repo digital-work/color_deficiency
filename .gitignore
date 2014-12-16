@@ -51,6 +51,7 @@ c++/cvdKuhn/*
 
 code/Matlab/alsam/*
 !code/Matlab/alsam/c2g_alsam.m
+!code/Matlab/alsam/frankotchellappa.m
 
 code/Matlab/implementation/*
 !code/Matlab/implementation/callImgRecolorFromPython.m
