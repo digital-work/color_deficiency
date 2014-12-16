@@ -30,7 +30,7 @@ def EIXX2015_SChaRDa():
         
         for image_id in image_ids:
             filename_in = str(image_id).zfill(3) +"0000000.png"
-            img_in = Image.open(os.path.join('../colordeficiency_old-images/',filename_in))
+            img_in = Image.open(os.path.join('../colordeficiency-images/',filename_in))
             img_in.thumbnail(size)
             
             for coldef_type in coldef_types:
@@ -54,7 +54,7 @@ def EIXX2015_SChaRDa():
         
         for image_id in image_ids:
             filename_in = str(image_id).zfill(3) +"0000000.png"
-            img_in = Image.open(os.path.join('../colordeficiency_old-images/',filename_in))
+            img_in = Image.open(os.path.join('../colordeficiency-images/',filename_in))
             img_in.save(os.path.join(path_out,str(image_id).zfill(3)+'-original.png'))
             
             for coldef_type in coldef_types:
@@ -76,7 +76,7 @@ def EIXX2015_SChaRDa():
         
         for image_id in image_ids:
             filename_in = str(image_id).zfill(3) +"0000000.png"
-            img_in = Image.open(os.path.join('../colordeficiency_old-images/',filename_in))
+            img_in = Image.open(os.path.join('../colordeficiency-images/',filename_in))
             img_in.save(os.path.join(path_out,str(image_id).zfill(3)+'-original.png'))
             
             for coldef_type in coldef_types:
@@ -100,7 +100,7 @@ def EIXX2015_SChaRDa():
         
         for image_id in image_ids:
             filename_in = str(image_id).zfill(3) +"0000000.png"
-            img_in = Image.open(os.path.join('../colordeficiency_old-images/',filename_in))
+            img_in = Image.open(os.path.join('../colordeficiency-images/',filename_in))
             img_in.save(os.path.join(path_out,str(image_id).zfill(3)+'-original.png'))
             
             for coldef_type in coldef_types:
@@ -127,7 +127,7 @@ def EIXX2015_SChaRDa():
         
         for image_id in image_ids:
             filename_in = str(image_id).zfill(3) +"0000000.png"
-            img_in = Image.open(os.path.join('../colordeficiency_old-images/',filename_in))
+            img_in = Image.open(os.path.join('../colordeficiency-images/',filename_in))
             img_in.save(os.path.join(path_out,str(image_id).zfill(3)+'-original.png'))
             
             for coldef_type in coldef_types:

@@ -23,8 +23,8 @@ import sys
 #from test import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
 
 
-path_matlab = "../code/Matlab/implementation/"
-path_matlab_alsam = "../code/Matlab/alsam/"
+path_matlab = "./code/Matlab/implementation/"
+path_matlab_alsam = "./code/Matlab/alsam/"
 module_path = settings.module_path
 
 def coldefType2Int(coldef_type):
@@ -405,7 +405,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
         print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
         return img_in
     
-    data = numpy.genfromtxt('../data/ciexyz31.csv', delimiter=',')
+    data = numpy.genfromtxt('./data/ciexyz31.csv', delimiter=',')
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
@@ -563,7 +563,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
 
 #wech
 # class StoppableThread(threading.Thread):
-#     """Thread class with a stop() method. The thread itself has to check
+#     """Thread class with a stop() method. The thread itself has to performance_test
 #     regularly for the stopped() condition."""
 # 
 #     def __init__(self):
@@ -652,12 +652,12 @@ def c2g_alsam(img_in):
         #img_gray_array = numpy.asarray(img_gray,dtype=float)/255.
         #img_out.show()
         #os.remove(path_tmp)
+        img_out = Image.open(path_out_tmp)
     except Exception,e:
         print "Error: Something went wrong. " + str(e)
         img_out = crossOut(img_in)
     mlab.stop()
     
-    img_out = Image.open(path_out_tmp)
     
     return img_out
 
@@ -702,13 +702,13 @@ def daltonization_yoshi_alsam_extra(img_in,options):
     coldef_type = options['coldef_type']    
     
     if options.has_key('alpha'):
-        alpha = options['alpha']
+        alpha = float(options['alpha'])
     else:
         sys.stdout.write(' Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
         
     if options.has_key('beta'):
-        beta = options['beta']
+        beta = float(options['beta'])
     else:
         sys.stdout.write(' Caution: No beta has been chosen. Using default value of 0.0.')
         beta = 0.0
@@ -1157,8 +1157,8 @@ def daltonization_yoshi_c2g_only(img_in, options):
         # The noise is anti-proportional to the product ni*ns, which should be > 1000.
         # The complexityis proportional to the product ni*ns. 
         
-    name_in_tmp = "../colordeficiency_old-images/tmp/img_in.tmp.png"
-    name_out_tmp = "../colordeficiency_old-images/tmp/img_out.tmp.png"
+    name_in_tmp = "../colordeficiency-images/tmp/img_in_tmp.png"
+    name_out_tmp = "../colordeficiency-images/tmp/img_out_tmp.png"
     img_in.save(name_in_tmp)
         
     if not ":/usr/local/bin" in os.environ['PATH']:
@@ -1167,6 +1167,9 @@ def daltonization_yoshi_c2g_only(img_in, options):
     os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
     img_gray = Image.open(name_out_tmp)
+    os.remove(name_in_tmp)
+    os.remove(name_out_tmp)
+    
     img_gray = img_gray.convert('RGB')
     imgGray_arr = numpy.asarray(img_gray)/255.
     imgLuminance_arr = imgGray_arr[:,:,0]
@@ -1195,7 +1198,7 @@ def daltonization_yoshi_c2g(img_in,options):
     if options.has_key('alpha'):
         alpha = options['alpha']
     else:
-        sys.stdout.write(' Caution: No alpha has been chosen. Using default value of 1.0.')
+        sys.stdout.write('Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
         
     if options.has_key('beta'):
@@ -1234,16 +1237,20 @@ def daltonization_yoshi_c2g(img_in,options):
         # The noise is anti-proportional to the product ni*ns, which should be > 1000.
         # The complexityis proportional to the product ni*ns. 
         
-        name_in_tmp = "../colordeficiency_old-images/tmp/img_in.tmp.png"
-        name_out_tmp = "../colordeficiency_old-images/tmp/img_out.tmp.png"
+        name_in_tmp = "./colordeficiency-images/tmp/img_in_tmp.png"
+        name_out_tmp = "./colordeficiency-images/tmp/img_out_tmp.png"
+        
         img_in.save(name_in_tmp)
         
         if not ":/usr/local/bin" in os.environ['PATH']:
             os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
             print os.environ['PATH']
-        os.system("../stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+        os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
         img_gray = Image.open(name_out_tmp)
+        os.remove(name_in_tmp)
+        os.remove(name_out_tmp)
+        
         img_gray = img_gray.convert('RGB')
         imgGray_arr = numpy.asarray(img_gray)/255.
         imgLuminance_arr = imgGray_arr[:,:,0]

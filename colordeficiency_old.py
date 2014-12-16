@@ -562,7 +562,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
 
 #wech
 # class StoppableThread(threading.Thread):
-#     """Thread class with a stop() method. The thread itself has to check
+#     """Thread class with a stop() method. The thread itself has to performance_test
 #     regularly for the stopped() condition."""
 # 
 #     def __init__(self):
