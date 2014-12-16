@@ -47,6 +47,7 @@ c++/CImg/*
 
 c++/cvdKuhn/*
 !c++/cvdKuhn/cvdKuhn2008.exe
+!c++/cvdKuhn/zlib1.dll
 
 code/Matlab/alsam/*
 !code/Matlab/alsam/c2g_alsam.m
