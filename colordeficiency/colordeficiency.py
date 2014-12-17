@@ -1165,7 +1165,7 @@ def daltonization_yoshi_c2g_only(img_in, options):
     if not ":/usr/local/bin" in os.environ['PATH']:
         os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
         print os.environ['PATH']
-    os.system(os.path.join(settings.module_path, 'stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+    os.system(os.path.join(settings.module_path,'colordeficiency-data','code','simone','stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
     img_gray = Image.open(name_out_tmp)
     os.remove(name_in_tmp)
@@ -1247,7 +1247,7 @@ def daltonization_yoshi_c2g(img_in,options):
         if not ":/usr/local/bin" in os.environ['PATH']:
             os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
             print os.environ['PATH']
-        os.system(os.path.join(settings.module_path, 'stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+        os.system(os.path.join(settings.module_path,'colordeficiency-data','code','simone','stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
         img_gray = Image.open(name_out_tmp)
         os.remove(name_in_tmp)
