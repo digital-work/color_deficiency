@@ -16,7 +16,7 @@ import test_wech
 
 
 def getSetFromScene(sce_id):
-    visualsearch_ids = "../data/visualsearch_ids.xlsx"
+    visualsearch_ids = "../colordeficiency-data/visualsearch_ids.xlsx"
     vs_ids_sheet = pandas.read_excel(visualsearch_ids)
     set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==sce_id].set_id.values[0])  
 
@@ -148,7 +148,7 @@ def analyzeVisualSearchData(dict):
         print "Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in"    
         return
     
-    path_out_default = '../data/'    
+    path_out_default = '../colordeficiency-data/'    
     if dict.has_key('path_out'):
         path_out = dict['path_out']
     else:
@@ -156,10 +156,10 @@ def analyzeVisualSearchData(dict):
         path_out = path_out_default
         
     # 0. Step: Get all the relevant information, i.e. scene_ids, obs_col_defs etc.
-    visualsearch_ids = "../data/visualsearch_ids.csv"
+    visualsearch_ids = "../colordeficiency-data/visualsearccolordeficiency-colordeficiency-data/.csv"
     vs_ids_sheet = pandas.read_csv(visualsearch_ids,sep=';')    
     
-    observer_ids = "../data/observer_ids.csv"
+    observer_ids = "../colordeficiency-data/observer_ids.csv"
     obs_ids_sheet = pandas.read_csv(observer_ids,sep=';')
     
     
@@ -461,7 +461,7 @@ def analyzeSample2MatchData(dict):
         print "Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in"    
         return
     
-    path_out_default = '../data/'    
+    path_out_default = '../colordeficiency-data/'    
     if dict.has_key('path_out'):
         path_out = dict['path_out']
     else:
@@ -469,7 +469,7 @@ def analyzeSample2MatchData(dict):
         path_out = path_out_default
     
     # 0. Step: Get all the relevant information, i.e. obs_col_defs etc.
-    observer_ids = "../data/observer_ids.csv"
+    observer_ids = "../colordeficiency-data/observer_ids.csv"
     obs_ids_sheet = pandas.read_csv(observer_ids,sep=";")
     
     # 1. Step: Read all the XLSX data in the path
@@ -702,7 +702,7 @@ def writeMetaData(experimentData,dict):
     #    print "Error: No input path has been chosen containing the experiment data. Choose a path to the .csv file containing the data."
     #    return
     
-    path_out_default = '../data/'
+    path_out_default = '../colordeficiency-data/'
     if dict.has_key('path_out'):
         path_out = dict['path_out']
     else:
@@ -752,35 +752,35 @@ def writeMetaData(experimentData,dict):
 #     path = "/Users/thomas/Dropbox/01_NZT/01_PhD/02_Conferences/EI-2015_Color-Imaging-XX/01_Artikler/02_Evaluation-methods/images/"
 #     
 #     # Plots for ViSDEM
-#     visualSearchDataPath = '../data/visual-search-data.csv'
+#     visualSearchDataPath = '../colordeficiency-data/visual-search-data.csv'
 #     visual_search_data = pandas.read_csv(visualSearchDataPath,index_col=False,header=0,sep=';')
 #     dict = {'result_id': '', 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All sets for all norm.sight.obs.', 'filename': 'visdem-normal-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#67
 #     dict = {'result_id': '', 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All sets for all deut.obs.', 'filename': 'visdem-deutan-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#70
 #     
 #     # Plots for SaMSEM
-#     sample2MatchDataPath = '../data/sample-2-match-data.csv'
+#     sample2MatchDataPath = '../colordeficiency-data/sample-2-match-data.csv'
 #     sample2match_data = pandas.read_csv(sample2MatchDataPath,index_col=False,sep=';')
 #     dict = {'result_id': '', 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.prot.', 'filename': 'samsem-protanopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#29
 #     dict = {'result_id': '', 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.deut.', 'filename': 'samsem-deuteranopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#30
 #     
     
 if 0:
-    test_path = "/Users/thomas/Desktop/tull/test_wech/visual-search/data/"
-    test_file = "/Users/thomas/Desktop/tull/test_wech/visual-search/data/11_2014_mai_16_1356.xlsx"
+    test_path = "/Users/thomas/Desktop/tull/test_wech/visual-search/colordeficiency-data/"
+    test_file = "/Users/thomas/Desktop/tull/test_wech/visual-search/colordeficiency-data/11_2014_mai_16_1356.xlsx"
     #dataArray, testArray, extraDataDict = extractVisualSearchData(test_file)
     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
     #print dataArray
     #print testArray
     #print extraDataDict
     analyzeVisualSearchData(test_path)
-    #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test_wech/results",'VS-plots'),'../data/visual-search-data.csv')   
+    #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test_wech/results",'VS-plots'),'../colordeficiency-data/visual-search-data.csv')   
 elif 0:
-    test_path = "/Users/thomas/Desktop/tull/test_wech/sample-2-match/data/"
-    test_file = "/Users/thomas/Desktop/tull/test_wech/sample-2-match/data/11_2014_mai_16_1307.xlsx"
+    test_path = "/Users/thomas/Desktop/tull/test_wech/sample-2-match/colordeficiency-data/"
+    test_file = "/Users/thomas/Desktop/tull/test_wech/sample-2-match/colordeficiency-data/11_2014_mai_16_1307.xlsx"
     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
     #print dataArray
     #print testArray
     #print extraDataDict
     analyzeSample2MatchData(test_path)
-    #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/test_wech/results/",'S2M-plots'), '../data/sample-2-match-data.csv')
+    #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/test_wech/results/",'S2M-plots'), '../colordeficiency-data/sample-2-match-data.csv')
 #plotEI2015_SaMSEM_ViSDEM()
