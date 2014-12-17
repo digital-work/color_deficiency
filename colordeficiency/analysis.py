@@ -11,7 +11,9 @@ import pandas
 import os
 import sys
 import operator
-from test import getAllXXXinPath, getStatsFromFilename, simType2Int
+import test_wech
+#from test_wech import getAllXXXinPath, getStatsFromFilenamet
+
 
 def getSetFromScene(sce_id):
     visualsearch_ids = "../data/visualsearch_ids.xlsx"
@@ -74,7 +76,7 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
     
     sheet_names = pandas.ExcelFile(dataSheet).sheet_names
     #print sheet_names
-    # Create empty array for test and relevatn data. Create empty dictionary for the extra data
+    # Create empty array for test_wech and relevatn data. Create empty dictionary for the extra data
     if dataArray.empty: dataArray = pandas.DataFrame();
     if testArray.empty: testArray = pandas.DataFrame();
     extraDataDict = {}
@@ -89,7 +91,7 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
                 array_tmp, extraDataDict_tmp = extractDataFromPsychoPyXLSX(excel_sheet)
                 #Update dictionary containing extra data
                 extraDataDict.update(extraDataDict_tmp)
-                # Append test or relevant data to respective data array
+                # Append test_wech or relevant data to respective data array
                 if ("testTrials" in sheet_name) or ("practTrials" in sheet_name): testArray = pandas.concat([array_tmp, testArray]) if not testArray.empty else array_tmp
                 else: dataArray = pandas.concat([array_tmp,dataArray]) if not dataArray.empty else array_tmp
     
@@ -106,13 +108,13 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
 #     * dataArray:     Pandas data array containing information from previous experiments, to which the new data is concatenated. Empty array by default.
 #     Output:
 #     * dataArray:     Pandas data array containing the new relevant information (plus the optional previously existed data).
-#     * testArray:     Pandas data array containing the new test information (plus the optional previously existed test data)
+#     * testArray:     Pandas data array containing the new test_wech information (plus the optional previously existed test_wech data)
 #     * extraDataDict: Dictionary containing the additional data from the experiments
 #     """
 #     
 #     #Get all the sheet names from the excel file
 #     sheet_names = pandas.ExcelFile(dataSheet).sheet_names
-#     # Create empty array for test and relevant datam create empty dictionary for the extra data
+#     # Create empty array for test_wech and relevant datam create empty dictionary for the extra data
 #     if dataArray.empty: dataArray = pandas.DataFrame(); 
 #     if testArray.empty: testArray = pandas.DataFrame(); 
 #     extraDataDict= {}
@@ -126,7 +128,7 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
 #                 array_tmp, extraDataDict_tmp = extractDataFromPsychoPyXLSX(excel_sheet)
 #                 # Update dictionary containing extra data
 #                 extraDataDict.update(extraDataDict_tmp)
-#                 # Append test or relevant data to respective data array
+#                 # Append test_wech or relevant data to respective data array
 #                 if 'practTrials' in sheet_name: testArray = pandas.concat([array_tmp,testArray]) if not testArray.empty else array_tmp
 #                 else: dataArray = pandas.concat([array_tmp,dataArray]) if not dataArray.empty else array_tmp
 #     
@@ -162,7 +164,7 @@ def analyzeVisualSearchData(dict):
     
     
     # 1. Step: Read all the XLSX data in the path
-    ext = 'xlsx'; xlsx_files = getAllXXXinPath(path_in,ext)
+    ext = 'xlsx'; xlsx_files = test_wech.getAllXXXinPath(path_in,ext)
     dataArray = pandas.DataFrame()
     i=1
     for xlsx_file in xlsx_files:
@@ -212,7 +214,7 @@ def analyzeVisualSearchData(dict):
         path_tmp = row['filepath']
         filename = os.path.basename(path_tmp).split('.')[0]
         #print filename
-        dict_tmp = getStatsFromFilename(filename)
+        dict_tmp = test_wech.getStatsFromFilename(filename)
         imgID_tmp = int(dict_tmp['img_id'])
         #print index
         
@@ -471,7 +473,7 @@ def analyzeSample2MatchData(dict):
     obs_ids_sheet = pandas.read_csv(observer_ids,sep=";")
     
     # 1. Step: Read all the XLSX data in the path
-    ext = 'xlsx'; xlsx_files = getAllXXXinPath(path_in,ext)
+    ext = 'xlsx'; xlsx_files = test_wech.getAllXXXinPath(path_in,ext)
     dataArray = pandas.DataFrame()
     i=1
     for xlsx_file in xlsx_files:
@@ -518,7 +520,7 @@ def analyzeSample2MatchData(dict):
         for index, row in dataArray.iterrows():
             path_tmp = row['filepath']
             filename = os.path.basename(path_tmp).split('.')[0]
-            dict_tmp = getStatsFromFilename(filename)
+            dict_tmp = test_wech.getStatsFromFilename(filename)
             imgID_tmp = int(dict_tmp['img_id'])
             dataArray.at[index,'image_id'] = int(imgID_tmp)
         dataArray.image_id = dataArray.image_id.astype(int)
@@ -763,22 +765,22 @@ def writeMetaData(experimentData,dict):
 #     
     
 if 0:
-    test_path = "/Users/thomas/Desktop/tull/test/visual-search/data/"
-    test_file = "/Users/thomas/Desktop/tull/test/visual-search/data/11_2014_mai_16_1356.xlsx"
+    test_path = "/Users/thomas/Desktop/tull/test_wech/visual-search/data/"
+    test_file = "/Users/thomas/Desktop/tull/test_wech/visual-search/data/11_2014_mai_16_1356.xlsx"
     #dataArray, testArray, extraDataDict = extractVisualSearchData(test_file)
     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
     #print dataArray
     #print testArray
     #print extraDataDict
     analyzeVisualSearchData(test_path)
-    #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test/results",'VS-plots'),'../data/visual-search-data.csv')   
+    #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/test_wech/results",'VS-plots'),'../data/visual-search-data.csv')   
 elif 0:
-    test_path = "/Users/thomas/Desktop/tull/test/sample-2-match/data/"
-    test_file = "/Users/thomas/Desktop/tull/test/sample-2-match/data/11_2014_mai_16_1307.xlsx"
+    test_path = "/Users/thomas/Desktop/tull/test_wech/sample-2-match/data/"
+    test_file = "/Users/thomas/Desktop/tull/test_wech/sample-2-match/data/11_2014_mai_16_1307.xlsx"
     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
     #print dataArray
     #print testArray
     #print extraDataDict
     analyzeSample2MatchData(test_path)
-    #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/test/results/",'S2M-plots'), '../data/sample-2-match-data.csv')
+    #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/test_wech/results/",'S2M-plots'), '../data/sample-2-match-data.csv')
 #plotEI2015_SaMSEM_ViSDEM()

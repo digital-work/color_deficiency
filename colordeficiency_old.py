@@ -4,7 +4,7 @@
 
 from PIL import Image, ImageDraw, ImageEnhance
 #from scipy.interpolate import griddata
-#from test import coldefType2Int
+#from test_wech import coldefType2Int
 import numpy
 #import scipy.io
 import colour
@@ -20,7 +20,7 @@ import time
 #import cv2
 from pymatbridge import Matlab
 import sys
-from test import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
+from test_wech import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
 
 path_matlab = "code/Matlab/implementation/"
 path_matlab_alsam = "code/Matlab/alsam/"

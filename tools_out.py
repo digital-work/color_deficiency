@@ -6,13 +6,13 @@ Created on 25. juni 2014
 # wech
 # whole file can be deleted
 
-# from test import simType2Int, getStatsFromFilename, setStatsToFilename
+# from test_wech import simType2Int, getStatsFromFilename, setStatsToFilename
 # #from colordeficiency_old import simulate
 # from PIL import Image
 # import sys
 # import os
 # import settings
-# from test import getAllXXXInPath
+# from test_wech import getAllXXXInPath
 # from analysis import extracVisualSearchData
 # from colordeficiency_old import simulate, daltonize
 
