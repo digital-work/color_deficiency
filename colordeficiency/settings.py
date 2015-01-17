@@ -9,7 +9,7 @@ Contains all the basic default settings
 #from PIL import Image
 import os
 
-
+version="v0.1.2"
 
 simulation_types = ["vienot", "vienot-adjusted", "kotera", "brettel","dummy"]
 vienot = "vienot"

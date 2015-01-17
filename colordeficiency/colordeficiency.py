@@ -405,7 +405,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
         print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
         return img_in
     
-    data = numpy.genfromtxt(os.path.join(settings.module_path,'data','ciexyz31.csv'), delimiter=',')
+    data = numpy.genfromtxt(os.path.join(settings.module_path,'colordeficiency-data','ciexyz31.csv'), delimiter=',')
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
@@ -1043,7 +1043,7 @@ def daltonization_kotera(img_in, options):
     xyz_vector = numpy.reshape(xyz_arr,(m*n,3))
     
     #Read xyz color matching functions
-    data = numpy.genfromtxt(os.path.join(settings.module_path,'data','ciexyz31.csv'), delimiter=',')
+    data = numpy.genfromtxt(os.path.join(settings.module_path,'colordeficiency-data','ciexyz31.csv'), delimiter=',')
     xyzMatchFuncs = data[:,1:4]
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
