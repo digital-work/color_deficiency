@@ -10,10 +10,12 @@ import pandas
 import os
 import sys
 import operator
+import json
+import math
 #from colordeficiency import colordeficiency_tools
 #from colordeficiency_tools import getAllXXXinPath, getStatsFromFilenamet
 
-from analysis_tools import plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
+from analysis_tools import plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
 from colordeficiency import settings
 #print colordeficiency.settings.coldef_toolbox_path
 
@@ -26,7 +28,6 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
     # Get all the sheet names for the excel file
     
     sheet_names = pandas.ExcelFile(dataSheet).sheet_names
-    #print sheet_names
     # Create empty array for colordeficiency_tools and relevatn data. Create empty dictionary for the extra data
     if dataArray.empty: dataArray = pandas.DataFrame();
     if testArray.empty: testArray = pandas.DataFrame();
@@ -206,7 +207,6 @@ def analyzeViSDEMData(dict):
         if (i%5)==0: sys.stdout.write('\n')
         i+=1
     sys.stdout.write('\n')
-    #print testArray    
     
     # 2. Step: Adapt values to programstandards
     for item in colordeficiency.settings.colDefLong2ID:
@@ -226,10 +226,8 @@ def analyzeViSDEMData(dict):
     for index, row in dataArray.iterrows():
         path_tmp = row['filepath']
         filename = os.path.basename(path_tmp).split('.')[0]
-        #print filename
         dict_tmp = colordeficiency_tools.getStatsFromFilename(filename)
         imgID_tmp = int(dict_tmp['img_id'])
-        #print index
         
         tempVSDataArray = vs_ids_sheet.loc[vs_ids_sheet['image_id']==imgID_tmp,['set_id','scene_id','version_id']]
         
@@ -359,6 +357,7 @@ def samsemPlots1thru4(samsem_data,path,dict):
             
             # 3. Get response time data
             alg_values = relevant_data_tmp[relevant_data_tmp['is_correct']==True]['resp_time'].values*1000; 
+            #alg_values = alg_values
             boxes.append(alg_values)
             
             labels.append(settings.id2Sim[algorithm_id]) if alg_values.size else labels.append(str(algorithm_id) + ' - No data'); 
@@ -376,13 +375,12 @@ def samsemPlots1thru4(samsem_data,path,dict):
             order.update({i:algorithm_id})
             i += 1
     
+            
     # 6. Plot response time data
-    dict.update({'y_lim': [0,1750]})
-    plotRTGraphs(boxes,labels,path, dict, order)
+    plotRTGraphs(boxes,labels,path,dict,order)
     # 7. Plot mean data
     plotCIAverageGraphs(mean_cis,path,dict,order)
     # 8. Plot accuracy data
-    dict.update({'y_lim': [.55,.9]})
     plotAccuracyGraphs(accuracies,path,dict,order)
     
 def samsemPlots9thru12(samsem_data,path,dict):
@@ -418,7 +416,6 @@ def samsemPlots29and30(samsem_data,path,dict):
     whatArr_tmp = [['sim_id',operator.ne,99],];howArr_tmp=[]
     samsem_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
     sim_ids = set(samsem_data['sim_id'].values.astype(int))
-    print sim_ids
     
     # 1. Retrieving data for the three observer groups
     # Data for normal sighted observers
@@ -433,13 +430,13 @@ def samsemPlots29and30(samsem_data,path,dict):
     
     # 2. Get response time data
     # For normal sighted observers
-    normal_response_values = normal_data[normal_data['is_correct']==True]['resp_time'].values*1000; labels.append('Norm.obs.') if normal_response_values.size else labels.append('Norm.obs. - No data'); 
+    normal_response_values = normal_data[normal_data['is_correct']==True]['resp_time'].values*1000; labels.append('Normal') if normal_response_values.size else labels.append('Normal - No data'); 
     boxes.append(normal_response_values)
     # For protan observers
-    protan_response_values = protan_data[protan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Prot.obs.') if protan_response_values.size else labels.append('Prot.obs. - No data'); 
+    protan_response_values = protan_data[protan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Protan') if protan_response_values.size else labels.append('Protan - No data'); 
     boxes.append(protan_response_values)
     # For deutan observers
-    deutan_response_values = deutan_data[deutan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Deut.obs.') if deutan_response_values.size else labels.append('Prot.obs. - No data'); 
+    deutan_response_values = deutan_data[deutan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Deutan') if deutan_response_values.size else labels.append('Protan - No data'); 
     boxes.append(deutan_response_values)
     
     # 4. Get CI data
@@ -478,7 +475,7 @@ def samsemPlots29and30(samsem_data,path,dict):
     #for_bruno.to_csv(os.path.join(path,str(dict['result_id']),dict['filename']+".csv"),sep=';')
     
     # 7. Plot response time data
-    dict.update({'y_lim': [0,3000]})
+    #dict.update({'y_lim_RT': [0,3000]})
     plotRTGraphs(boxes,labels,path, dict)
     # 8. Plot mean data
     order={1:'norm', 2:'protan', 3:'deutan'}
@@ -524,7 +521,6 @@ def samsemPlots31and32(samsem_data,path,dict):
     
     obs_title = dict['obs_title']
     
-    #print samsem_data
     image_ids = set(samsem_data['image_id'].values.astype(int))
     for image_id in image_ids:
         filename_tmp = 'C-99'+str(coldef_type)+'999'+'9'+str(image_id).zfill(3)
@@ -590,8 +586,381 @@ def samsemPlots31and32(samsem_data,path,dict):
         # 7. Plot accrucay data
         plotAccuracyGraphs(accuracies, path, dict, order)
         
+def samsemPlots35thru37(samsem_data,path,dict):
+    """
+    Plots the SaMSEM Res#35-37. Similar to checkNormality.
+    Each image showing distribution for one algorithm simulating one specific color deficiency for all images collapsed together.
+    On the x-axis, ???.
+    The result images are stored in (subfolders) defined by the path input.
+    Input: * samsem_data:    SaMSEM data that is to be analyzed
+           * path:           Path to the folder, where the result images should be stored. 
+           * dict:           A dictionary containing different options.
+                             ** result_id:    ID of the result images according to the meeting from 18/09/2014. 
+                             ** coldef_type:  The color deficiency type of the simulation being used.
+                             ** filename:     Name of the file as which the result image should be stored.
+                             ** plot_type:    Type of plot that is being used. Can be either histogram, residual-plot, aller qq-plot.
+    """
+    result_id = dict['result_id']   
+    if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
     
-  
+    intro_string = result_id if result_id else dict['filename']  # filename does not make any sense at this point
+    sys.stdout.write("Starting Res#"+str(intro_string)+'.') 
+    
+    coldef_type = dict['coldef_type']
+    plot_type = dict['plot_type']
+    
+    boxes = []; labels = []
+    
+    sim_ids = set(samsem_data['sim_id'].values.astype(int))
+    for sim_id in sim_ids:
+        
+        filename = str(sim_id).zfill(2)+str(coldef_type)+"999"+str(coldef_type)+"999"
+        dict.update({'filename': filename})
+        
+        if sim_id != 99:
+            whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
+        else:
+            whatArr_tmp = [['coldef_type',operator.eq,1],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[] # All dummy simulations are only noted for protanopia
+        alg_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+        
+        alg_RT_values = (alg_data[alg_data['is_correct']==True]['resp_time'].values*1000)
+        
+        if plot_type == "histogram":
+            plotHistogram(alg_RT_values, path, dict)
+        elif plot_type == "residual":
+            boxes.append(alg_RT_values)
+            labels.append(settings.id2Sim[sim_id]) if alg_RT_values.size else labels.append(str(sim_id) + ' - No data');
+        elif plot_type == "q-q":
+            plotQQPlot(alg_RT_values, path, dict)
+    
+    if plot_type == "residual":
+        filename = "99"+str(coldef_type)+"999"+str(coldef_type)+"999"
+        dict.update({'filename': filename})
+        plotResidualPlots(boxes, labels, path, dict)
+
+
+def makePairedDataForSimulation(samsem_data,path,dict):
+    """
+    Make paired data for all observers and all images collapsed of all algorithms individually.
+    The result images are stored in (subfolders) defined by the path input.
+    Input: * samsem_data:    SaMSEM data that is to be analyzed
+           * path:           Path to the folder, where the result images should be stored.
+    """
+    
+    # 1. Restrict data to only one type of observer color deficiency
+    coldef_type = dict['coldef_type']
+    whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type]];howArr_tmp=[]
+    samsem_data_restr = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+
+    sim_ids = sorted(set(samsem_data_restr['sim_id'].values.astype(int)))
+    observer_ids = sorted(set(samsem_data_restr['observer_id'].values.astype(int)))
+    image_ids = sorted(set(samsem_data_restr['image_id'].values.astype(int)))
+    
+    columns=['observer_id', 'observer_coldef_type', 'image_id', 'coldef_type']
+    for sim_id in sim_ids:
+        col_tmp = "sim_id_"+str(sim_id).zfill(2)
+        columns.append(col_tmp)
+        
+    samsem_data_template = pandas.DataFrame(columns=columns)
+    samsem_data_RT_paired = samsem_data_template.copy()
+    samsem_data_ACC_paired = samsem_data_template.copy()
+    index = 0
+    
+    for observer_id in observer_ids:
+        for image_id in image_ids:
+            
+            whatArr_tmp = [['observer_id',operator.eq,observer_id],['image_id',operator.eq,image_id]]; howArr_tmp = []
+            samsem_data_tmp = organizeArray(samsem_data_restr,whatArr_tmp,howArr_tmp)
+            
+            pandas_RT_tmp = pandas.DataFrame({'observer_id': observer_id,
+                                          'observer_coldef_type': coldef_type,
+                                          'image_id': image_id,
+                                          'coldef_type': coldef_type},[index])
+            pandas_ACC_tmp = pandas.DataFrame({'observer_id': observer_id,
+                                          'observer_coldef_type': coldef_type,
+                                          'image_id': image_id,
+                                          'coldef_type': coldef_type},[index])
+            
+            for sim_id in sim_ids:
+                if sim_id not in [3,99]:
+                    whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];
+                    field = organizeArray(samsem_data_tmp,whatArr_tmp,howArr_tmp)
+                else:
+                    # For the Kotera and the dummy method, both protan and deutan version are the same
+                    whatArr_tmp = [['sim_id',operator.eq,sim_id]];
+                    field = organizeArray(samsem_data_tmp,whatArr_tmp,howArr_tmp)
+                RT_tmp = float('NaN') if field.empty else field['resp_time'].values[0]*1000
+                ACC_tmp = float('NaN') if field.empty else field['is_correct'].values[0]
+                pandas_RT_tmp["sim_id_"+str(sim_id).zfill(2)]= float(RT_tmp)#str(observer_id).zfill(2)+'-'+str(image_id).zfill(2)+'-'+str(sim_id)+"-"+str(int(RT_tmp)).zfill(4)
+                pandas_ACC_tmp["sim_id_"+str(sim_id).zfill(2)]= bool(ACC_tmp)
+            samsem_data_RT_paired = samsem_data_RT_paired.append(pandas_RT_tmp)
+            samsem_data_ACC_paired = samsem_data_ACC_paired.append(pandas_ACC_tmp)
+            index += 1
+    # Layout RT and ACC for storage in path
+    samsem_data_RT_paired =  samsem_data_RT_paired[columns]
+    samsem_data_RT_paired.observer_id = samsem_data_RT_paired.observer_id.astype(int)
+    samsem_data_RT_paired.observer_coldef_type = samsem_data_RT_paired.observer_coldef_type.astype(int)
+    samsem_data_RT_paired.image_id = samsem_data_RT_paired.image_id.astype(int)
+    samsem_data_RT_paired.coldef_type = samsem_data_RT_paired.coldef_type.astype(int)
+    samsem_data_RT_paired.to_csv(os.path.join(path,'samsem-data-RT-paired.csv'),sep=";")
+    
+    samsem_data_ACC_paired =  samsem_data_ACC_paired[columns]
+    samsem_data_ACC_paired.observer_id = samsem_data_ACC_paired.observer_id.astype(int)
+    samsem_data_ACC_paired.observer_coldef_type = samsem_data_ACC_paired.observer_coldef_type.astype(int)
+    samsem_data_ACC_paired.image_id = samsem_data_ACC_paired.image_id.astype(int)
+    samsem_data_ACC_paired.coldef_type = samsem_data_ACC_paired.coldef_type.astype(int)
+    samsem_data_ACC_paired.to_csv(os.path.join(path,'samsem-data-ACC-paired.csv'),sep=";")
+    
+    f = open(os.path.join(path,'meta-data.txt'), 'w')
+    json.dump(sim_ids, f)
+    f.close()
+
+import copy
+
+def makePairedRTData(samsem_data_RT_paired,samsem_data_ACC_paired, methods):
+    """
+    Input: * RT data paired
+           * ACC data paired
+           * IDs of methods to compare
+    Output: * All possible combinations
+            * Labels for the combinations
+    """
+    
+    method_counter = copy.copy(methods)
+    
+    comparisons = []; labels = [];
+    
+    for method in methods:
+        method_counter.pop(0)
+        if method_counter:
+            col_tmp = "sim_id_"+str(method).zfill(2)
+            values_RT_tmp = samsem_data_RT_paired[col_tmp].values
+            values_ACC_tmp = samsem_data_ACC_paired[col_tmp].values
+            values_RT_update_tmp = numpy.array([x*y for x,y in zip(values_RT_tmp,values_ACC_tmp)])
+            for to_method in method_counter:
+                label_tmp = str(method).zfill(2)+'-to-'+str(to_method).zfill(2)
+                to_col_tmp = "sim_id_"+str(to_method).zfill(2)
+                
+                to_values_RT_tmp = samsem_data_RT_paired[to_col_tmp].values
+                to_values_ACC_tmp = samsem_data_ACC_paired[to_col_tmp].values
+                to_values_RT_update_tmp = numpy.array([x*y for x,y in zip(to_values_RT_tmp,to_values_ACC_tmp)])
+                
+                difference_paired = values_RT_update_tmp - to_values_RT_update_tmp
+                comparisons.append(difference_paired)
+                labels.append(label_tmp)
+    return comparisons, labels
+
+def checkNormality(distributions,labels,path,options,project_str="",plot_types={'q-q','hist','boxplot','residuals'}):
+    """
+    Similar to samsemPlots35thru37
+    """
+    if project_str:
+        folder_name = project_str.lower().replace(" ","-")+"_normality-check"
+        project = project_str
+    else:
+        folder_name = "new-normality-check"
+        project = "New normality check"
+    print "* Start checking normality of \'"+str(project)+"\'"
+    
+    # 1. Check that dimensions of distribtions and labels are the same
+    distr_size = numpy.shape(distributions)
+    labels_size = numpy.shape(labels)
+    try:
+        pass
+    except:
+        print "Error: Dimensions of labels and distributions have to match."
+        return
+    
+    # 2. Check that all plot types are accepted
+    try:
+        plot_types_acc = plot_types
+    except:
+        print "Caution: Plot type has to be one of the following: \'q-q\', \'hist\', \'boxplot\' or \'residuals\'"
+    
+    # 4. Create folder if necessary
+    save_to_path = os.path.join(path,folder_name)
+    if not os.path.exists(save_to_path): os.makedirs(save_to_path)
+        
+    # 3. Make q-q plot
+    if 'q-q' in plot_types_acc:
+        sys.stdout.write("** Making Q-Q plots ")
+        save_to_tmp = os.path.join(save_to_path,'q-q')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        i = 0;
+        for distribution in distributions:
+            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
+            sys.stdout.write('.')
+            plotQQPlot(nonnan_distribution, save_to_tmp, {"filename":labels[i]})
+            i+=1
+        
+        sys.stdout.write('\n')
+    
+    # . Make histograms
+    if 'hist' in plot_types_acc:
+        sys.stdout.write("** Making histograms ")
+        save_to_tmp = os.path.join(save_to_path,'hist')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        i = 0;
+        for distribution in distributions:
+            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
+            sys.stdout.write('.')
+            options.update({"filename":labels[i]})
+            plotHistogram(nonnan_distribution, save_to_tmp,options)
+            i+=1
+        
+        sys.stdout.write('\n')
+    
+    # . Make boxplots
+    if 'boxplot' in plot_types_acc:
+        
+        sys.stdout.write("** Making boxplots .")
+        save_to_tmp = os.path.join(save_to_path,'boxplots')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        options.update({'filename': project_str.lower().replace(" ","-")})
+        plotRTGraphs(distributions, labels, save_to_tmp,options)
+    
+        sys.stdout.write('\n')
+    
+    # . Make residuals
+    if 'residuals' in plot_types_acc:
+        sys.stdout.write("** Making boxplots of the residuals .")
+        save_to_tmp = os.path.join(save_to_path,'residuals')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        options.update({'filename': project_str.lower().replace(" ","-")})
+        plotResidualPlots(distributions, labels, save_to_tmp, options)
+        sys.stdout.write('\n')
+    
+    print "* Stop checking normality"
+import scipy    
+def signTest(data,path,methods):
+    """
+    Input: * data:    Pandas data frame with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * labels:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    
+    # Remove all rows that contain nan
+    data_wonan = data.dropna()
+    
+    method_counter = copy.copy(methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in methods:
+        
+        method_counter.pop(0)
+        values = data_wonan[method].values
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter:
+                
+                # Get current to_values
+                to_values = data_wonan[to_method].values
+                
+                diff_values = values-to_values # Make difference
+                num_positive = sum(diff_values>0) # Find all the values that are greater than zero
+                num_total = numpy.shape(diff_values)[0]
+                
+                p_value = scipy.stats.binom_test(num_positive,num_total)
+                curr_row[to_method] = p_value
+        matrix = matrix.append(curr_row)
+        #sys.stdout.write("\n")
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,"sign_test_p-values.csv"),sep=';')
+
+def makeKruskalWallisTest(data,path,methods):
+    """
+    Input: * data:    Pandas data frame with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * methods:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    
+    # Remove all rows that contain nan
+    data_wonan = data.dropna()
+    
+    method_counter = copy.copy(methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in methods:
+        
+        method_counter.pop(0)
+        values = data_wonan[method].values
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data_wonan[to_method].values
+                H,p_value = scipy.stats.mstats.kruskalwallis(values,to_values)
+                curr_row[to_method] = p_value
+        matrix = matrix.append(curr_row)
+        #sys.stdout.write("\n")
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,"kruskal-wallis_test_p-values.csv"),sep=';')
+
+def makeMedianTest(data,path,methods):
+    """
+    Input: * data:    Numpy data array with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * labels:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    num_columns = numpy.shape(data)[0]
+    if not num_methods == num_columns:
+        print "Error: Number of columns does not match the labels."
+        return
+    
+    range_methods = range(num_methods)
+    
+    method_counter = copy.copy(range_methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in range_methods:
+        method_counter.pop(0)
+        values = data[method]
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data[to_method]
+                stat, p_value, m, table =  scipy.stats.median_test(values,to_values)
+                curr_row[methods[to_method]] = p_value
+        matrix = matrix.append(curr_row)
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,"median_test_p-values.csv"),sep=';')
+
 ###
 ###  ViSDEM result plots
 ###
@@ -754,8 +1123,206 @@ def vsplots71thru74(visual_search_data,path,dict):
     accuracies = {'before': before_acc,
                   'after': after_acc}
     plotAccuracyGraphs(accuracies,path,dict,order=['before','after'])
-    
 
+def visdemPlot75(visual_search_data,path,dict):
+    
+    
+    if dict.has_key('filename'):
+        filename = dict['filename']
+    else:    
+        filename = "visdem-normal-deutan-observers"
+    
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = ''
+    
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 18
+        
+    if dict.has_key('y_lim_ACC'):
+        y_lim_ACC = dict['y_lim_ACC']
+    else:
+        y_lim_ACC = [.0,1.] 
+        
+    if dict.has_key('y_lim_RT'):
+        y_lim_RT = dict['y_lim_RT']
+    else:
+        y_lim_RT = [0,3000]
+    
+    if dict.has_key('result_id'):
+        result_id = dict['result_id']
+    else:
+        result_id = ''
+    intro_string = result_id if result_id else filename
+         
+    sys.stdout.write("Starting Res#"+str(intro_string))    
+    if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
+    
+    Data_norm = pandas.DataFrame()
+    Data_deut = pandas.DataFrame()
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    # 1. Retrieving data from the image versions
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
+        Data_norm_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        Data_norm = pandas.concat([Data_norm_tmp,Data_norm])
+        
+        # Getting data from all variant for all deutan color deficient observers
+        whatArr_tmp = [['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
+        Data_deut_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        Data_deut = pandas.concat([Data_deut_tmp,Data_deut])
+    
+    # 2. Plot reponse times
+    # Normal sighted observers
+    boxes_tmp = []; labels_tmp = []
+    Data_norm_values = Data_norm[Data_norm['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('Normal') if Data_norm_values.size else labels_tmp.append('Normal - No data'); 
+    boxes_tmp.append(Data_norm_values)
+    
+    # Deutan color deficient observers
+    Data_deut_values = Data_deut[Data_deut['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('Deutan') if Data_deut_values.size else labels_tmp.append('Deutan - No data'); 
+    boxes_tmp.append(Data_deut_values)
+             
+    # Let's start plotting!
+    plt.figure(); 
+    plt.boxplot(boxes_tmp, notch=1)
+    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(obs_title, fontsize=fontsize); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
+    plt.ylim(y_lim_RT); plt.grid(axis='y')
+    plt.savefig(os.path.join(path,str(result_id),filename+"-R.pdf")); 
+    plt.close()
+    
+    # 3. Run median test on RT data
+    test_array = []
+    test_array.append(Data_norm_values)
+    test_array.append(Data_deut_values)
+    test_array = numpy.array(test_array)
+    #print test_array[0]
+    print
+    makeMedianTest(test_array,path,labels_tmp)
+     
+    # 4. Accuracy plots
+    # Normal sighted
+    norm_acc = getAccuracy(Data_norm)
+    norm_acc.append(labels_tmp[0])
+    # Deutan color deficient
+    deut_acc = getAccuracy(Data_deut)
+    deut_acc.append(labels_tmp[1])
+    accuracies_norm = {'Normal': norm_acc,
+                       'Deutan': deut_acc}
+    
+    # Lets start plotting
+    dict.update({'fontsize':fontsize,'filename': filename})
+    plotAccuracyGraphs(accuracies_norm,path,dict,order={1:'Normal', 2:'Deutan'})
+        
+    sys.stdout.write(".")
+
+ 
+    
+def visdemPlot76(visual_search_data,path,dict):
+    
+    filename_norm = "visdem-normal-observers"
+    filename_deut = "visdem-deutan-observers"
+    filename_norm_deut = "visdem-normal-deutan-observers"
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 18
+    
+    result_id = dict['result_id']
+    intro_string = result_id if result_id else dict['filename'] 
+    sys.stdout.write("Starting Res#"+str(intro_string))    
+    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    
+    DNData_norm = pandas.DataFrame(); DCData_norm = pandas.DataFrame()
+    DNData_deut = pandas.DataFrame(); DCData_deut = pandas.DataFrame()
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    # 1. Retrieving data from the image versions
+    for set_id in set_ids:
+        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DNData_norm_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DNData_norm = pandas.concat([DNData_norm_tmp,DNData_norm])
+        
+        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DCData_norm_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DCData_norm = pandas.concat([DCData_norm_tmp,DCData_norm])
+        
+        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DNData_deut_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DNData_deut = pandas.concat([DNData_deut_tmp,DNData_deut])
+        
+        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DCData_deut_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DCData_deut = pandas.concat([DCData_deut_tmp,DCData_deut])
+    
+    # 2. Plot reponse times
+    boxes_norm_tmp = []; boxes_deut_tmp = []; labels_tmp = []
+    DND_norm_values = DNData_norm[DNData_norm['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DN') if DND_norm_values.size else labels_tmp.append('DN - No data'); 
+    boxes_norm_tmp.append(DND_norm_values)
+    DCD_norm_values = DCData_norm[DCData_norm['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DC') if DCD_norm_values.size else labels_tmp.append('DC - No data'); 
+    boxes_norm_tmp.append(DCD_norm_values) 
+    
+    DND_deut_values = DNData_deut[DNData_deut['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DN') if DND_deut_values.size else labels_tmp.append('DN - No data'); 
+    boxes_deut_tmp.append(DND_deut_values)
+    DCD_deut_values = DCData_deut[DCData_deut['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DC') if DCD_deut_values.size else labels_tmp.append('DC - No data'); 
+    boxes_deut_tmp.append(DCD_deut_values) 
+             
+    plt.figure(); 
+    plt.boxplot(boxes_norm_tmp, notch=1)
+    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(dict['obs_title']); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
+    plt.ylim([0,3000]); plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),filename_norm+"-R.pdf")); 
+    plt.close()
+    
+    plt.figure(); 
+    plt.boxplot(boxes_deut_tmp, notch=1)
+    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(dict['obs_title']); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
+    plt.ylim([0,3000]); plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),filename_deut+"-R.pdf")); 
+    plt.close()
+     
+    # 4. Accuracy plots
+    dn_norm_acc = getAccuracy(DNData_norm)
+    dn_norm_acc.append(labels_tmp[0])
+    dc_norm_acc = getAccuracy(DCData_norm)
+    dc_norm_acc.append(labels_tmp[1])
+    accuracies_norm = {'DN': dn_norm_acc,
+                       'DC': dc_norm_acc}
+    
+    dn_deut_acc = getAccuracy(DNData_deut)
+    dn_deut_acc.append(labels_tmp[0])
+    dc_deut_acc = getAccuracy(DCData_deut)
+    dc_deut_acc.append(labels_tmp[1])
+    accuracies_deut = {'DN': dn_deut_acc,
+                       'DC': dc_deut_acc}
+    
+    dict.update({'fontsize':fontsize,'filename': filename_norm_deut})
+    plt.figure()
+    dict.update({'fmt': 'or', 'color': 'red'})
+    plotAccuracyGraphs(accuracies_norm,path,dict,order={1:'DN', 2:'DC'})
+    dict.update({'fmt': 'D', 'color': 'blue'})
+    plotAccuracyGraphs(accuracies_deut,path,dict,order={1:'DN', 2:'DC'})
+    plt.close()
+        
+    sys.stdout.write(".")
 
   
     
