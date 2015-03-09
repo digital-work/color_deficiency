@@ -64,10 +64,14 @@ coldef_types_long = ['deuteranopia', 'protanopia', 'tritanopia']
 d = "d"
 p = "p"
 t = "t"
-id2ColDef = {0: "normal",
-             1: 'protanopia',
-             2: 'deuteranopia',
-             3: 'tritanopia'}
+id2ColDefLong = {0: "normal",
+                 1: 'protanopia',
+                 2: 'deuteranopia',
+                 3: 'tritanopia'}
+
+id2ColDef = { 1: 'p',
+              2: 'd',
+              3: 't'}
 
 colDefLong2ID = {'normal':          0,
                  'protanopia':      1,
@@ -81,7 +85,7 @@ colDef2ID = {'p': 1,
 default = {'simulation_type': 'brettel',
            'daltonization_type': 'anagnastopoulos',
            'coldef_type': 'p'}
-module_path = os.path.dirname(os.path.abspath(__file__))
+module_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),os.pardir)
 
 pts_default = 10
 its_default = 100

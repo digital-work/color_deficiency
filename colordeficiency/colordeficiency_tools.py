@@ -5,7 +5,7 @@ Created on 24. feb. 2014
 '''
 
 from colordeficiency import *
-from tools import makeComparisonFig, makeSubplots, convertToLuminanceImage, mean_confidence_interval
+#from tools import makeComparisonFig, makeSubplots, convertToLuminanceImage, mean_confidence_interval
 import os
 import sys
 import subprocess
