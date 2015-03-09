@@ -25,7 +25,7 @@ def extractDataFromPsychoPyXLSX(pandasDataSheet):
     
     return relevant_data, extra_data
 
-def organizeArray(dataArray_in,logArray,sortArray):
+def organizeArray(dataArray_in,logArray,sortArray=[]):
     """
     Returns an adjusted dataArray according to the logical operations mentioned in the logical dictionary
     Input: 
@@ -59,16 +59,14 @@ def organizeArray(dataArray_in,logArray,sortArray):
     return dataArray_out
 
 def plotCIAverageGraphs(meanData,path,dict,order=[]):
-    
-    if dict.has_key('y_lim'):
-        y_lim = dict['y_lim']
+    if dict.has_key('y_lim_RT'):
+        y_lim = dict['y_lim_RT']
     else:
-        y_lim = [1.,5000.]
-     
+        y_lim = [.0,1750.]
     plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(meanData)+1]); plt.grid(axis='y');
     
     mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
-    #print order
+    
     if not order:
         for key,value in meanData.iteritems():
             mean_plots.append(value[0])
@@ -98,15 +96,43 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
-    if dict.has_key('y_lim'):
-        y_lim = dict['y_lim']
+    if dict.has_key('y_lim_ACC'):
+        y_lim = dict['y_lim_ACC']
     else:
-        y_lim = [.5,1.00]
-        
-    plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
+        y_lim = [.5,1.]
     
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 12
+        
+    if dict.has_key('fmt'):
+        fmt = dict['fmt']
+    else:
+        fmt = 'or'
+        
+    if dict.has_key('color'):
+        color = dict['color']
+    else:
+        color = 'red'
+        
+    if dict.has_key('multiple_graphs'):
+        multiple_graphs = dict['multiple_graphs']
+    else:
+        multiple_graphs = 0
+        
+    if dict.has_key('result_id'):
+        result_id = dict['result_id']
+    else:
+        result_id = ''  
+        
+        
+    if not multiple_graphs: 
+        plt.figure(); 
+    plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
+    #plt.fontsize(fontsize)
     acc_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
-    #print order
+    
     if not order:
         for key,value in accData.iteritems():
             acc_plots.append(value[0])
@@ -124,28 +150,112 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
             howMany.append(counter);counter+=1
             
     se = 1.96*numpy.array(se)
-    plt.errorbar(howMany,acc_plots,se,fmt='or')
-    plt.xticks(howMany,labels_tmp); 
-    if dict['obs_title']:
+    plt.errorbar(howMany,acc_plots,se,fmt=fmt, color=color)
+    plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
+    if dict.has_key('obs_title'):
         plt.title(dict['obs_title']+' - Accuracy');
     else:
         plt.title('')  
-    plt.ylabel('Accuracy');
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-A.pdf")); 
-    plt.close()
+    plt.ylabel('Accuracy',fontsize=fontsize);
+    plt.savefig(os.path.join(path,str(result_id),dict['filename']+"-A.pdf")); 
+    
+    if not multiple_graphs:
+        plt.close()
 
 def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
-    if dict.has_key('y_lim'):
-        y_lim = dict['y_lim']
+    if dict.has_key('y_lim_RT'):
+        y_lim = dict['y_lim_RT']
     else:
-        y_lim = [.0,5000]
-
-    counter = numpy.array(range(1,numpy.size(boxes)+1))
+        y_lim = [.0,1750]
+        
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = ""
+    
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 12
+    
+    if dict.has_key('result_id') and dict.has_key('filename'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
+    
+    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
     
     plt.figure(); plt.boxplot(boxes, notch=1)
-    plt.xticks(counter,labels); plt.title(dict['obs_title']); plt.ylabel('Response Times (ms)'); plt.ylim(y_lim); plt.grid(axis='y');
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); plt.close()
+    plt.xticks(counter,labels,fontsize=fontsize); plt.title(obs_title,fontsize=fontsize); plt.tick_params(axis='y', labelsize=fontsize);plt.tick_params(axis='x', labelsize=fontsize); plt.ylabel('Response Times (ms)', fontsize=fontsize); plt.ylim(y_lim); plt.grid(axis='y');
+    plt.savefig(save_to_file); plt.close()
+
+def plotHistogram(distribution,path,dict):
+    
+    if dict.has_key('bins'):
+        bins = dict['bins']
+    else:
+        bins = 20
+        
+    if dict.has_key('x_lim_hist'):
+        x_lim = dict['x_lim_hist']
+    else:
+        x_lim = [.0,1750.]
+        
+    if dict.has_key('filename') and dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-HIST.pdf")
+        
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = dict['filename']
+    
+    plt.figure(); plt.hist(distribution, bins = bins);
+    plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.xlim(x_lim); plt.grid(axis='y');
+    plt.savefig(save_to_file); plt.close()
+
+def plotResidualPlots(boxes,labels,path,dict):
+    
+    if dict.has_key('y_lim_RES'):
+        y_lim = dict['y_lim_RES']
+    else:
+        y_lim = [-1750.,1750.]
+    
+    if dict.has_key('filename') and dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-RES.pdf")
+    
+    
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = dict['filename']
+    
+    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
+    res_boxes = []
+    i=1
+    for box in boxes:
+        i +=1
+        mean_tmp = stats.nanmean(box)
+        residual_values_tmp = box-mean_tmp
+        res_boxes.append(residual_values_tmp)
+    
+    plt.figure(); plt.boxplot(res_boxes, notch=1);
+    plt.xticks(counter,labels); plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.ylim(y_lim); plt.grid(axis='y');
+    plt.savefig(save_to_file); plt.close()
+
+def plotQQPlot(distribution,path,dict):
+    
+    if dict.has_key('filename') and dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-QQ.pdf") # This is only for samsemPlots35Thru37. Please remove it
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-QQ.pdf")
+    
+    stats.probplot(distribution, dist="norm", plot=plt)
+    plt.savefig(save_to_file); plt.close()
     
 def getSetFromScene(sce_id):
     visualsearch_ids = "../colordeficiency-data/visualsearch_ids.xlsx"
@@ -155,13 +265,11 @@ def getSetFromScene(sce_id):
     
 def getAccuracy(data):
     
-    #print data
     num_total =  data.values.size
-    #print num_total
-    num_correct = data[data['is_correct']==True].values.size; #print num_correct
-    num_incorrect = data[data['is_correct']==False].values.size; #print num_incorrect
-    #print num_correct
-    #print num_incorrect
+    
+    num_correct = data[data['is_correct']==True].values.size; 
+    num_incorrect = data[data['is_correct']==False].values.size;
+
     if data.values.size:
         acc = float(num_correct)/float(num_total)
         se = math.sqrt((acc)*(1-acc)/float(num_total))
