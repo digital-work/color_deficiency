@@ -620,6 +620,7 @@ def samsemPlots35thru37(samsem_data,path,dict):
         if sim_id != 99:
             whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
         else:
+            # Maybe remove the coldef_type for dummy simulation?
             whatArr_tmp = [['coldef_type',operator.eq,1],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[] # All dummy simulations are only noted for protanopia
         alg_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
         
@@ -638,7 +639,85 @@ def samsemPlots35thru37(samsem_data,path,dict):
         dict.update({'filename': filename})
         plotResidualPlots(boxes, labels, path, dict)
 
-
+def samsemPlots41and42(samsem_data,path,dict):
+    """
+    Making chi2-contingency test for all algorithms samsem data.
+    """
+    coldef_type = dict['coldef_type']
+    
+    # Ignore dummy algorithm
+    whatArr_tmp = [['sim_id',operator.ne,99]];howArr_tmp=[]
+    samsem_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+    
+    corrArr = []; uncorrArr = []
+    
+    sim_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
+    for sim_id in sim_ids:
+        if sim_id != 99:
+            whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
+        else:
+            whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
+        alg_data_tmp = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+        
+        corr_tmp = numpy.size(alg_data_tmp[alg_data_tmp['is_correct']==True]['resp_time'].values)
+        corrArr.append(corr_tmp)
+        uncorr_tmp = numpy.size(alg_data_tmp[alg_data_tmp['is_correct']==False]['resp_time'].values)
+        uncorrArr.append(uncorr_tmp)
+    obs = numpy.array([corrArr, uncorrArr])
+    print obs
+    test_statistics = scipy.stats.chi2_contingency(obs)
+    
+    res_str = "Chi2: %f, p-value: %E" % (test_statistics[0], test_statistics[1])
+    
+    text_file = open(os.path.join(path,settings.id2ColDef[coldef_type]+"-algorithms_chi2-contingency_test_p-value.txt"), "w+")
+    text_file.write(res_str)
+    text_file.close()
+    
+def samsemPlots43and44(samsem_data,path,dict):
+    """
+    Making chi2-contingency test for each observer group of the samsem data.
+    """
+    
+    coldef_type = dict['coldef_type']
+    
+    # Ignore dummy algorithm
+    whatArr_tmp = [['sim_id',operator.ne,99]];howArr_tmp=[]
+    samsem_data_wo99 = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+    
+    whatArr_tmp = [['sim_id',operator.eq,99]];howArr_tmp=[]
+    samsem_data_w99 = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+    
+    # 1. Retrieving data for the three observer groups
+    # Data for normal sighted observers
+    whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,0]];howArr_tmp=[]
+    normal_data = organizeArray(samsem_data_wo99,whatArr_tmp,howArr_tmp)
+    corr_normal = numpy.size(normal_data[normal_data['is_correct']==True]['resp_time'].values)
+    uncorr_normal = numpy.size(normal_data[normal_data['is_correct']==False]['resp_time'].values)
+    
+    # Data for protan observers
+    whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,1]];howArr_tmp=[]
+    protan_data = organizeArray(samsem_data_wo99,whatArr_tmp,howArr_tmp)
+    corr_protan = numpy.size(protan_data[protan_data['is_correct']==True]['resp_time'].values)
+    uncorr_protan = numpy.size(protan_data[protan_data['is_correct']==False]['resp_time'].values)
+    
+    # Data for deutan observers
+    whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,2]];howArr_tmp=[]
+    deutan_data = organizeArray(samsem_data_wo99,whatArr_tmp,howArr_tmp)
+    corr_deutan = numpy.size(deutan_data[deutan_data['is_correct']==True]['resp_time'].values)
+    uncorr_deutan = numpy.size(deutan_data[deutan_data['is_correct']==False]['resp_time'].values)
+    
+    corrArr = [corr_normal, corr_protan, corr_deutan]
+    uncorrArr = [uncorr_normal, uncorr_protan, uncorr_deutan]
+    
+    obs = numpy.array([corrArr, uncorrArr])
+    test_statistics = scipy.stats.chi2_contingency(obs)
+    
+    res_str = "Chi2: %f, p-value: %E" % (test_statistics[0], test_statistics[1])
+    
+    text_file = open(os.path.join(path,settings.id2ColDef[coldef_type]+"-obs-groups_chi2-contingency_test_p-value.txt"), "w+")
+    text_file.write(res_str)
+    text_file.close()
+            
 def makePairedDataForSimulation(samsem_data,path,dict):
     """
     Make paired data for all observers and all images collapsed of all algorithms individually.
