@@ -337,56 +337,91 @@ def samsemPlots1thru4(samsem_data,path,dict):
     Before: s2mplots1thru4       
     """
     
-    sys.stdout.write("Starting Res#"+str(dict['result_id'])+'.')    
-    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    # Defining the subfolder for the results
+    path_res = path
+    if dict.has_key('result_id'):
+        sys.stdout.write("Starting Res#"+str(dict['result_id'])+'.')
+        path_res = os.path.join(path,str(dict['result_id']))    
+        if not os.path.exists(path_res): os.makedirs(path_res)
+        
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
     
     # 1. Retrieving data from data set
     coldef_type = dict['coldef_type']
-    whatArr_tmp = [['coldef_type',operator.eq,coldef_type],dict['obs_operator']];howArr_tmp = []; # Only observations that use simulations of the chosen color deficiency are needed 
-    samsem_data_reduced =  organizeArray(samsem_data, whatArr_tmp,howArr_tmp)
+    #whatArr_tmp = [['coldef_type',operator.eq,coldef_type],dict['obs_operator']];howArr_tmp = []; # Only observations that use simulations of the chosen color deficiency are needed 
+    #samsem_data_reduced =  organizeArray(samsem_data, whatArr_tmp,howArr_tmp)
+    # HDEG: get the missing data for deuteranopes from method 3 and 99.
+    
     
     boxes = []; labels = []; accuracies = {}; labels_acc_tmp = []; mean_cis = {}; order = {}; i=1
-    algorithm_ids = set(samsem_data['sim_id'].values.astype(int))
+    if dict.has_key('method_ids'):
+        method_ids = dict['method_ids']
+    else:
+        method_ids = set(samsem_data['sim_id'].values.astype(int))
+        if 99 in method_ids: method_ids.remove(99)
+        
+    if dict.has_key('plot_types'):
+        plot_types = dict['plot_types']
+    else:
+        plot_types = ['RT_boxplots', 'RT_means', 'ACC_CIs', 'median']
+        
     
     # 2. Retrieving data from each algorithm
-    for algorithm_id in algorithm_ids:
+    for method_id in method_ids:
         
-        if algorithm_id != 99:
-            whatArr_tmp = [['sim_id',operator.eq,algorithm_id]];howArr_tmp=[];
-            relevant_data_tmp = organizeArray(samsem_data_reduced,whatArr_tmp,howArr_tmp)   
-            
-            # 3. Get response time data
-            alg_values = relevant_data_tmp[relevant_data_tmp['is_correct']==True]['resp_time'].values*1000; 
-            #alg_values = alg_values
+        if (method_id != 3) and (method_id != 99):
+            whatArr_tmp = [['coldef_type',operator.eq,coldef_type],dict['obs_operator'],['sim_id',operator.eq,method_id]];howArr_tmp=[];
+        else:
+            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,method_id]];howArr_tmp=[];
+        relevant_data_tmp = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)   
+        
+        # 3. Get response time data
+        alg_values = relevant_data_tmp[relevant_data_tmp['is_correct']==True]['resp_time'].values*1000; 
+        if 'RT_boxplots' in plot_types:
             boxes.append(alg_values)
+        labels.append(settings.id2Sim[method_id]) if alg_values.size else labels.append(str(method_id) + ' - No data'); 
             
-            labels.append(settings.id2Sim[algorithm_id]) if alg_values.size else labels.append(str(algorithm_id) + ' - No data'); 
-            
-            # 4. Get CI data
+        # 4. Get CI of RT means
+        if 'RT_means' in plot_types:
             alg_mean = getCIAverage(alg_values);
             alg_mean.append(labels[i-1])
-            mean_cis.update({algorithm_id: alg_mean})
+            mean_cis.update({method_id: alg_mean})
             
-            # 5. Get accuracy data
+        # 5. Get accuracy data
+        if 'ACC_CIs' in plot_types:
             alg_acc = getAccuracy(relevant_data_tmp)
             alg_acc.append(labels[i-1])
-            accuracies.update({algorithm_id: alg_acc})
+            accuracies.update({method_id: alg_acc})
             
-            order.update({i:algorithm_id})
-            i += 1
+        order.update({i:method_id})
+        i += 1
     
-            
-    # 6. Plot response time data
-    plotRTGraphs(boxes,labels,path,dict,order)
-    # 7. Plot mean data
-    plotCIAverageGraphs(mean_cis,path,dict,order)
-    # 8. Plot accuracy data
-    plotAccuracyGraphs(accuracies,path,dict,order)
+    if 'RT_boxplots' in plot_types:
+        # 6. Plot response time data
+        plotRTGraphs(boxes,labels,path_res,dict,order)
+    
+    if 'RT_means' in plot_types:
+        # 7. Plot CI means of RT data
+        plotCIAverageGraphs(mean_cis,path_res,dict,order)
+        
+    if 'ACC_CIs' in plot_types:
+        # 8. Plot accuracy data
+        plotAccuracyGraphs(accuracies,path_res,dict,order)
+        
+    if 'median-test' in plot_types:
+        # 9. Make median test
+        makeMedianTest(numpy.array(boxes), path_res, method_ids,dict)
     
 def samsemPlots9thru12(samsem_data,path,dict):
     """
     Literally identical to samsemPlots1thru4. Check documentation there.
     """
+    
+    
+    print "Starting SAMSEM_RES#9+12: Analyzing data for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods."
     samsemPlots1thru4(samsem_data,path,dict)
 
 def samsemPlots29and30(samsem_data,path,dict):
@@ -600,14 +635,25 @@ def samsemPlots35thru37(samsem_data,path,dict):
                              ** filename:     Name of the file as which the result image should be stored.
                              ** plot_type:    Type of plot that is being used. Can be either histogram, residual-plot, aller qq-plot.
     """
-    result_id = dict['result_id']   
-    if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
     
-    intro_string = result_id if result_id else dict['filename']  # filename does not make any sense at this point
-    sys.stdout.write("Starting Res#"+str(intro_string)+'.') 
+    path_res = path
+    if dict.has_key('result_id'):
+        result_id = dict['result_id']   
+        if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
     
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    
+    #intro_string = result_id if result_id else dict['filename']  # filename does not make any sense at this point
+    #sys.stdout.write("Starting Res#"+str(intro_string)+'.') 
     coldef_type = dict['coldef_type']
-    plot_type = dict['plot_type']
+    if dict.has_key('plot_types'):
+        plot_types = dict['plot_types']
+    else:
+        plot_types = ['histogramm', 'residual', 'q-q']
+    print "Starting SaMSEM_RES#35-37: Computing normality plot ("+str(plot_types)+") for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods."
     
     boxes = []; labels = []
     
@@ -617,33 +663,40 @@ def samsemPlots35thru37(samsem_data,path,dict):
         filename = str(sim_id).zfill(2)+str(coldef_type)+"999"+str(coldef_type)+"999"
         dict.update({'filename': filename})
         
-        if sim_id != 99:
-            whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
+        if (sim_id != 3) and (sim_id != 99):
+            whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]]
         else:
-            # Maybe remove the coldef_type for dummy simulation?
-            whatArr_tmp = [['coldef_type',operator.eq,1],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[] # All dummy simulations are only noted for protanopia
-        alg_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
+            whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]] # All dummy simulations are only noted for protanopia
+        alg_data = organizeArray(samsem_data,whatArr_tmp)
+        #print alg_data
         
         alg_RT_values = (alg_data[alg_data['is_correct']==True]['resp_time'].values*1000)
         
-        if plot_type == "histogram":
-            plotHistogram(alg_RT_values, path, dict)
-        elif plot_type == "residual":
+        if "histogram" in plot_types:
+            plotHistogram(alg_RT_values, path_res, dict)
+        elif "residual" in plot_types:
             boxes.append(alg_RT_values)
             labels.append(settings.id2Sim[sim_id]) if alg_RT_values.size else labels.append(str(sim_id) + ' - No data');
-        elif plot_type == "q-q":
-            plotQQPlot(alg_RT_values, path, dict)
+        elif "q-q" in plot_types:
+            #print alg_RT_values
+            plotQQPlot(alg_RT_values, path_res, dict)
     
-    if plot_type == "residual":
+    if "residual" in plot_types:
         filename = "99"+str(coldef_type)+"999"+str(coldef_type)+"999"
         dict.update({'filename': filename})
-        plotResidualPlots(boxes, labels, path, dict)
+        plotResidualPlots(boxes, labels, path_res, dict)
 
 def samsemPlots41and42(samsem_data,path,dict):
     """
     Making chi2-contingency test for all algorithms samsem data.
     """
     coldef_type = dict['coldef_type']
+    print "Starting SAMSEM_RES#41+42: Computing of Chi2 for simulation methods of " + str(settings.id2ColDefLong[coldef_type])+"."
+    
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
     
     # Ignore dummy algorithm
     whatArr_tmp = [['sim_id',operator.ne,99]];howArr_tmp=[]
@@ -653,7 +706,7 @@ def samsemPlots41and42(samsem_data,path,dict):
     
     sim_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
     for sim_id in sim_ids:
-        if sim_id != 99:
+        if (sim_id !=3) and (sim_id != 99):
             whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
         else:
             whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
@@ -664,12 +717,13 @@ def samsemPlots41and42(samsem_data,path,dict):
         uncorr_tmp = numpy.size(alg_data_tmp[alg_data_tmp['is_correct']==False]['resp_time'].values)
         uncorrArr.append(uncorr_tmp)
     obs = numpy.array([corrArr, uncorrArr])
-    print obs
+    #print obs
+    obs = numpy.transpose(obs)
     test_statistics = scipy.stats.chi2_contingency(obs)
     
-    res_str = "Chi2: %f, p-value: %E" % (test_statistics[0], test_statistics[1])
+    res_str = str(obs)+"\nChi2: %f, p-value: %E" % (test_statistics[0], test_statistics[1])
     
-    text_file = open(os.path.join(path,settings.id2ColDef[coldef_type]+"-algorithms_chi2-contingency_test_p-value.txt"), "w+")
+    text_file = open(os.path.join(path_res,settings.id2ColDef[coldef_type]+"-algorithms_chi2-contingency_test_p-value.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
     
@@ -679,6 +733,13 @@ def samsemPlots43and44(samsem_data,path,dict):
     """
     
     coldef_type = dict['coldef_type']
+    print "Starting SAMSEM_RES#43+44: Computing of Chi2 for observer groups for " + str(settings.id2ColDefLong[coldef_type]) + " simulation methods."
+    
+    
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
     
     # Ignore dummy algorithm
     whatArr_tmp = [['sim_id',operator.ne,99]];howArr_tmp=[]
@@ -712,9 +773,9 @@ def samsemPlots43and44(samsem_data,path,dict):
     obs = numpy.array([corrArr, uncorrArr])
     test_statistics = scipy.stats.chi2_contingency(obs)
     
-    res_str = "Chi2: %f, p-value: %E" % (test_statistics[0], test_statistics[1])
+    res_str = str(obs)+"\nChi2: %f, p-value: %E" % (test_statistics[0], test_statistics[1])
     
-    text_file = open(os.path.join(path,settings.id2ColDef[coldef_type]+"-obs-groups_chi2-contingency_test_p-value.txt"), "w+")
+    text_file = open(os.path.join(path_res,settings.id2ColDef[coldef_type]+"-obs-groups_chi2-contingency_test_p-value.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
             
@@ -999,9 +1060,9 @@ def makeKruskalWallisTest(data,path,methods):
         matrix = matrix.append(curr_row)
         #sys.stdout.write("\n")
     matrix.index = methods
-    matrix.to_csv(os.path.join(path,"kruskal-wallis_test_p-values.csv"),sep=';')
+    matrix.to_csv(os.path.join(path,"kruskal-wallis-test_p-values.csv"),sep=';')
 
-def makeMedianTest(data,path,methods):
+def makeMedianTest(data,path,methods,dict):
     """
     Input: * data:    Numpy data array with relevant data that should be compared
            * path:    Path, to which the results should be save to as matrix
@@ -1014,6 +1075,11 @@ def makeMedianTest(data,path,methods):
     if not num_methods == num_columns:
         print "Error: Number of columns does not match the labels."
         return
+    
+    if dict.has_key('filename'):
+        filename = dict['filename']+"_median-test_p-values.csv"
+    else:
+        filename = "median-test_p-values.csv"
     
     range_methods = range(num_methods)
     
@@ -1038,7 +1104,46 @@ def makeMedianTest(data,path,methods):
                 curr_row[methods[to_method]] = p_value
         matrix = matrix.append(curr_row)
     matrix.index = methods
-    matrix.to_csv(os.path.join(path,"median_test_p-values.csv"),sep=';')
+    matrix.to_csv(os.path.join(path,filename),sep=';')
+
+def makeChi2ContingencyTest(data,path,methods,dict):
+    
+    num_methods = numpy.shape(methods)[0]
+    num_columns = numpy.shape(data)[0]
+    if not num_methods == num_columns:
+        print "Error: Number of columns does not match the labels."
+        return
+    
+    if dict.has_key('filename'):
+        filename = dict['filename']+"_chi2-test_p-values.csv"
+    else:
+        filename = "chi2-test_p-values.csv"
+        
+    range_methods = range(num_methods)
+    
+    method_counter = copy.copy(range_methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in range_methods:
+        method_counter.pop(0)
+        values = data[method]
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data[to_method]
+                stat, p_value, m, table =  scipy.stats.median_test(values,to_values)
+                curr_row[methods[to_method]] = p_value
+        matrix = matrix.append(curr_row)
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,filename),sep=';')
+    
 
 ###
 ###  ViSDEM result plots
@@ -1286,7 +1391,7 @@ def visdemPlot75(visual_search_data,path,dict):
     test_array = numpy.array(test_array)
     #print test_array[0]
     print
-    makeMedianTest(test_array,path,labels_tmp)
+    makeMedianTest(test_array,path,labels_tmp,dict)
      
     # 4. Accuracy plots
     # Normal sighted
