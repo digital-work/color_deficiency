@@ -59,6 +59,12 @@ def organizeArray(dataArray_in,logArray,sortArray=[]):
     return dataArray_out
 
 def plotCIAverageGraphs(meanData,path,dict,order=[]):
+    
+    if dict.has_key('result_id'):
+        path_res = os.path.join(path,str(dict['result_id']))
+    else:
+        path_res = path        
+    
     if dict.has_key('y_lim_RT'):
         y_lim = dict['y_lim_RT']
     else:
@@ -86,12 +92,12 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
     se = 1.96*numpy.array(se)
     plt.errorbar(howMany,mean_plots,se,fmt='or')
     plt.xticks(howMany,labels_tmp); 
-    if dict['obs_title']:
+    if dict.has_key('obs_title'):
         plt.title(dict['obs_title']+' - CI mean');
     else:
         plt.title('')  
     plt.ylabel('Response Times (ms)');
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-CI.pdf")); 
+    plt.savefig(os.path.join(path_res,dict['filename']+"-CI.pdf")) 
     plt.close()
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
