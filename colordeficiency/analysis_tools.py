@@ -10,6 +10,7 @@ import pandas
 import numpy
 from scipy import stats
 import math
+import copy
 
 def extractDataFromPsychoPyXLSX(pandasDataSheet):
     """
@@ -130,11 +131,26 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     if dict.has_key('result_id'):
         result_id = dict['result_id']
     else:
-        result_id = ''  
+        result_id = ''
+    
+    if dict.has_key('figsize'):
+        figsize = dict['figsize']
+    else:
+        figsize = [8., 6.]
+    
+    if dict.has_key('xlabel'):
+        xlabel = dict['xlabel']
+    else:
+        xlabel = ''
         
+    if dict.has_key('ylabel'):
+        ylabel = dict['ylabel']
+    else:
+        ylabel = 'Accuracy'
         
     if not multiple_graphs: 
-        plt.figure(); 
+        plt.figure() 
+    fig = plt.gcf()
     plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
     #plt.fontsize(fontsize)
     acc_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
@@ -155,18 +171,36 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
             labels_tmp.append(value[2])
             howMany.append(counter);counter+=1
             
-    se = 1.96*numpy.array(se)
-    plt.errorbar(howMany,acc_plots,se,fmt=fmt, color=color)
+    acc_plots = numpy.array(acc_plots)
+    se = numpy.array(se)
+    se_int = 1.96*se
+    lower_bound = acc_plots-se_int
+    upper_bound = acc_plots+se_int
+    plt.errorbar(howMany,acc_plots,se_int,fmt=fmt, color=color)
     plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
+    title_default = ''
     if dict.has_key('obs_title'):
-        plt.title(dict['obs_title']+' - Accuracy');
+        if not dict['obs_title']:        
+            title = dict['obs_title']+' - Accuracy'
+        else:
+            title = title_default
     else:
-        plt.title('')  
-    plt.ylabel('Accuracy',fontsize=fontsize);
-    plt.savefig(os.path.join(path,str(result_id),dict['filename']+"-A.pdf")); 
+        title = title_default 
+    plt.title(title)
+    plt.ylabel(ylabel,fontsize=fontsize);
+    plt.xlabel(xlabel,fontsize=fontsize)
+    fig.set_size_inches(figsize)
+    plt.savefig(os.path.join(path,str(result_id),dict['filename']+"-ACC.pdf")); 
+    
+    
     
     if not multiple_graphs:
         plt.close()
+        
+    data = {'l_bound': lower_bound,'acc': acc_plots, 'u_bound':upper_bound}
+    a = pandas.DataFrame(data, index=labels_tmp, columns=['l_bound','acc', 'u_bound'])
+    a.to_csv(os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.csv"),sep=';')
+    
 
 def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
@@ -185,11 +219,10 @@ def plotRTGraphs(boxes,labels,path,dict,order=[]):
     else:
         fontsize = 12
     
-    if dict.has_key('result_id') and dict.has_key('filename'):
-        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")
-    elif dict.has_key('filename'): 
+    if dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
+    if dict.has_key('filename'):
         save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
-    
     counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
     
     plt.figure(); plt.boxplot(boxes, notch=1)
@@ -271,11 +304,10 @@ def getSetFromScene(sce_id):
     
 def getAccuracy(data):
     
-    num_total =  data.values.size
+    num_total =  numpy.shape(data.values)[0]
+    num_correct = numpy.shape(data[data['is_correct']==True].values)[0] 
+    num_incorrect = numpy.shape(data[data['is_correct']==False].values)[0]
     
-    num_correct = data[data['is_correct']==True].values.size; 
-    num_incorrect = data[data['is_correct']==False].values.size;
-
     if data.values.size:
         acc = float(num_correct)/float(num_total)
         se = math.sqrt((acc)*(1-acc)/float(num_total))
@@ -290,10 +322,54 @@ def getAccuracy(data):
 def getCIAverage(data):
     
     if data.size:
-        num_total = data.size
+        num_total = numpy.shape(data)[0]
         mean = stats.nanmean(data)
         se = stats.nanstd(data)/math.sqrt(num_total)
         
         return [mean,se]
     else:
         return [.0,.0]
+    
+def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
+    """
+    Veit ikkje om detter her stemmer eller gir mening.
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    num_columns = numpy.shape(data)[1]
+    if not num_methods == num_columns:
+        print "Error: Number of columns does not match the labels."
+        return
+    
+    if dict.has_key('filename'):
+        filename = dict['filename']+"_pearson-chi2-contingency-2x2-test-matrix_p-values.csv"
+    else:
+        filename = "pearson-chi2-test_p-values-matrix.csv"
+        
+    range_methods = range(num_methods)
+    
+    method_counter = copy.copy(range_methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    #print data
+    for method in range_methods:
+        method_counter.pop(0)
+        values = data[:,method]
+        curr_row = pandas.DataFrame.copy(template)
+        
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data[:,to_method]
+                curr_distr = numpy.array([values,to_values])
+                #print curr_distr
+                chi2, p, dof, ex = stats.chi2_contingency(curr_distr) # Compare only simulation methods
+                curr_row[methods[to_method]] = p
+                #print ex
+        matrix = matrix.append(curr_row)
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,filename),sep=';')
