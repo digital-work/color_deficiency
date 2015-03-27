@@ -15,7 +15,7 @@ import copy, json, math, matplotlib.pyplot as plt, numpy, operator, os, pandas, 
 #from colordeficiency import colordeficiency_tools
 #from colordeficiency_tools import getAllXXXinPath, getStatsFromFilenamet
 
-from analysis_tools import makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
+from analysis_tools import writePandastoLatex, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
 from colordeficiency import settings
 from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename
 from scipy import stats
@@ -936,8 +936,9 @@ def samsemPlots41and42(samsem_data,path,dict):
         uncorrArr.append(uncorr_tmp)
         sim_names.append(sim_name_tmp)
         
-        data.update({sim_name_tmp: [corr_tmp, uncorr_tmp]})
+        data.update({sim_name_tmp: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
     obs = numpy.array([corrArr, uncorrArr])
+    #print type(corrArr)
     
     # Make Chi2 contingency test
     obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[sim_names]
@@ -945,6 +946,8 @@ def samsemPlots41and42(samsem_data,path,dict):
     start = 0; end = 4
     obs_adj = obs[:,start:end]
     chi2, p, dof, ex  = stats.chi2_contingency(obs_adj) # Compare only simulation methods
+    
+    #print res_pandas
     res_str = ""
     res_str = res_str + "Simulation methods and observations:\n" + str(obs_pandas)
     res_str = res_str + "\n\nSimulation methods included in test:\n" + str(sim_names[start:end])
@@ -952,8 +955,17 @@ def samsemPlots41and42(samsem_data,path,dict):
     text_file = open(os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods-ACC_pearson-chi2-contingency-test_p-value.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
+
+    #print obs_pandas
+    writePandastoLatex(obs_pandas, os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods-ACC_observations.tex"))
+    data_res = {'chi2':chi2,'p':p}
+    data_res.update({'dof':str(dof)})
+    res_pandas = pandas.DataFrame(data=data_res, index=[str(sim_names[start:end])])[['chi2','p','dof']]
+   
+    #print res_pandas.dof
+    writePandastoLatex(res_pandas, os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods-ACC_pearson-chi2-contingency-test_p-value.tex"))
     
-    # Make Chi2 contingency test matrix
+    # Make Chi2 contingency 2x2 test matrix
     dict.update({'filename': dict['filename']+'-ACC'})
     makePearsonChi2Contingency2x2Test(obs, path_res, sim_names, dict)
     
@@ -1365,58 +1377,60 @@ def makeMedianTest(data,path,methods,dict):
                 curr_row[methods[to_method]] = p_value
         matrix = matrix.append(curr_row)
     matrix.index = methods
+    matrix = matrix.drop(matrix.index[[num_methods-1]])
+    matrix = matrix[methods[1:num_methods]]
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
 
     writePandastoLatex(matrix,os.path.join(path,filename_latex))
     
-def writePandastoLatex(pandasArr,path):
-    columns =  pandasArr.columns
-    num_columns = numpy.shape(columns)[0]
-    range_columns = sorted(range(0,num_columns))
-    
-    index =  pandasArr.index
-    num_index = numpy.shape(index)[0]
-    #print num_index
-    range_index = sorted(range(0,num_index))
-    
-    order = "| c ||"
-    header = "& "
-    for i in range_columns:
-        order += " c "
-        header += " "+str(columns[i])+" "
-        if i != num_columns-1:
-            order += "|"
-            header += "& "
-    order += "|"
-    
-    res_str = "\\begin{center}\n"
-    res_str += "\t\\begin{tabular}{"+order+"}\n"
-    res_str += "\t\t\\hline\n"
-    res_str += "\t\t"+header+"\\\\ \\hline\\hline\n"
-    #res_str += 
-    counter_row = 0
-    for index, row in  pandasArr.iterrows():
-        counter_row +=1
-        #print counter_row
-        res_str += "\t\t"+index+" & "
-        for i in sorted(range(0,num_index)):
-            if type(row[i]) == str:
-                res_str += row[i]+" "
-            else:
-                res_str += "%.4f"%(row[i])+" "
-            if i != num_columns-1:
-                res_str += "& "
-        if counter_row != num_index:   
-            res_str += "\\\\ \\hline\n"
-        else:
-            res_str += "\\\\ \n"
-    res_str += "\t\t\\hline\n"
-    res_str += "\t\\end{tabular}\n"
-    res_str += "\\end{center}"
-    
-    text_file = open(path, "w+")
-    text_file.write(res_str)
-    text_file.close()
+# def writePandastoLatex(pandasArr,path):
+#     columns =  pandasArr.columns
+#     num_columns = numpy.shape(columns)[0]
+#     range_columns = sorted(range(0,num_columns))
+#     
+#     index =  pandasArr.index
+#     num_index = numpy.shape(index)[0]
+#     #print num_index
+#     range_index = sorted(range(0,num_index))
+#     
+#     order = "| c ||"
+#     header = "& "
+#     for i in range_columns:
+#         order += " c "
+#         header += " "+str(columns[i])+" "
+#         if i != num_columns-1:
+#             order += "|"
+#             header += "& "
+#     order += "|"
+#     
+#     res_str = "\\begin{center}\n"
+#     res_str += "\t\\begin{tabular}{"+order+"}\n"
+#     res_str += "\t\t\\hline\n"
+#     res_str += "\t\t"+header+"\\\\ \\hline\\hline\n"
+#     #res_str += 
+#     counter_row = 0
+#     for index, row in  pandasArr.iterrows():
+#         counter_row +=1
+#         #print counter_row
+#         res_str += "\t\t"+index+" & "
+#         for i in sorted(range(0,num_index)):
+#             if type(row[i]) == str:
+#                 res_str += row[i]+" "
+#             else:
+#                 res_str += "%.4f"%(row[i])+" "
+#             if i != num_columns-1:
+#                 res_str += "& "
+#         if counter_row != num_index:   
+#             res_str += "\\\\ \\hline\n"
+#         else:
+#             res_str += "\\\\ \n"
+#     res_str += "\t\t\\hline\n"
+#     res_str += "\t\\end{tabular}\n"
+#     res_str += "\\end{center}"
+#     
+#     text_file = open(path, "w+")
+#     text_file.write(res_str)
+#     text_file.close()
     
 
 ###

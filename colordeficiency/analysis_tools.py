@@ -192,14 +192,13 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     fig.set_size_inches(figsize)
     plt.savefig(os.path.join(path,str(result_id),dict['filename']+"-ACC.pdf")); 
     
-    
-    
     if not multiple_graphs:
         plt.close()
         
-    data = {'l_bound': lower_bound,'acc': acc_plots, 'u_bound':upper_bound}
-    a = pandas.DataFrame(data, index=labels_tmp, columns=['l_bound','acc', 'u_bound'])
+    data = {'l-bounds': lower_bound,'acc': acc_plots, 'u-bounds':upper_bound}
+    a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','acc', 'u-bounds'])
     a.to_csv(os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.csv"),sep=';')
+    writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
     
 
 def plotRTGraphs(boxes,labels,path,dict,order=[]):
@@ -342,9 +341,11 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename = dict['filename']+"_pearson-chi2-contingency-2x2-test-matrix_p-values.csv"
+        filename_csv = dict['filename']+"_pearson-chi2-contingency-2x2-test-matrix_p-values.csv"
+        filename_tex = dict['filename']+"_pearson-chi2-contingency-2x2-test-matrix_p-values.tex"
     else:
-        filename = "pearson-chi2-test_p-values-matrix.csv"
+        filename_csv = "pearson-chi2-test_p-values-matrix.csv"
+        filename_tex = "pearson-chi2-test_p-values-matrix.tex"
         
     range_methods = range(num_methods)
     
@@ -372,4 +373,65 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
                 #print ex
         matrix = matrix.append(curr_row)
     matrix.index = methods
-    matrix.to_csv(os.path.join(path,filename),sep=';')
+    matrix = matrix.drop(matrix.index[[num_methods-1]])
+    matrix = matrix[methods[1:num_methods]]
+    matrix.to_csv(os.path.join(path,filename_csv),sep=';')
+    #print matrix
+    writePandastoLatex(matrix, os.path.join(path,filename_tex))
+    
+    
+def writePandastoLatex(pandasArr,path):
+    columns =  pandasArr.columns
+    num_columns = numpy.shape(columns)[0]
+    range_columns = sorted(range(0,num_columns))
+    
+    index =  pandasArr.index
+    num_index = numpy.shape(index)[0]
+    #print num_index
+    range_index = sorted(range(0,num_index))
+    
+    order = "| c ||"
+    header = "& "
+    for i in range_columns:
+        order += " c "
+        header += " "+str(columns[i])+" "
+        if i != num_columns-1:
+            order += "|"
+            header += "& "
+    order += "|"
+    
+    res_str = "\\begin{tabular}{"+order+"}\n"
+    res_str += "\t\\hline\n"
+    res_str += "\t"+header+"\\\\ \\hline \\hline\n"
+    #res_str += 
+    counter_row = 0
+    #print pandasArr.dtypes
+    for index, row in  pandasArr.iterrows():
+        #print index
+        #print type(row[i])
+        
+        counter_row +=1
+        #print counter_row
+        res_str += "\t"+index+" & "
+        for i in range_columns:
+            #print row[i]
+            #print type(row[i])
+            if type(row[i]) == str:
+                res_str += row[i]+" "
+            elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
+                res_str += "%.4f"%(row[i])+" "
+            elif (type(row[i]) == int) or (type(row[i]) == numpy.int64):
+                #print 'hiersimmer'
+                res_str += str(int(row[i]))+" "
+            if i != num_columns-1:
+                res_str += "& "
+        if counter_row != num_index:   
+            res_str += "\\\\ \\hline\n"
+        else:
+            res_str += "\\\\ \n"
+    res_str += "\t\\hline\n"
+    res_str += "\\end{tabular}\n"
+    
+    text_file = open(path, "w+")
+    text_file.write(res_str)
+    text_file.close()
