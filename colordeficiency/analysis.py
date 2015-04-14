@@ -1157,6 +1157,7 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     
     print "Starting SAMSEM_RES#53-60-paired: Plotting Paired RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
     
+    compute_paired_data = 0
     
     path_res = path
     if dict.has_key('subfolder'):
@@ -1195,7 +1196,19 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
         order_dict.update({i: dalt_method}); i += 1
         dalt_names.append(dalt_method)
     
-    makePairedDataForViSDEM(visdem_data, path, dict)
+    if compute_paired_data:
+        makePairedDataForViSDEM(visdem_data, path, dict)
+    
+    visdem_data_paired_path = os.path.join(dict['path_data'],'visdem-data-RT-paired.csv')
+    visdem_data_paired = pandas.read_csv(visdem_data_paired_path,index_col=False,sep=';')    
+    
+    f = open(os.path.join(dict['path_data'],'visdem-data-RT-paired_meta-data.txt'), 'r')
+    b = json.load(f)
+    f.close()
+    
+    visdem_data_paired_array, labels = makePairedRTData(visdem_data_paired, b, 'dalt_id')
+    print visdem_data_paired_array
+    print labels
     # Make response time plots
     #boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
     #plotRTGraphs(boxes, labels, path_res, dict)
@@ -1627,22 +1640,18 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     visdem_data_RT_paired.coldef_type = visdem_data_RT_paired.coldef_type.astype(int)
     visdem_data_RT_paired.to_csv(os.path.join(path,'visdem-data-RT-paired.csv'),sep=";")
     
-    dalt_names = [settings.id2Dalt[i] for i in dalt_ids]
-    res_str = str(dalt_ids) + "\n"
-    res_str += str(dalt_names)
-    
     f = open(os.path.join(path,'visdem-data-RT-paired_meta-data.txt'), 'w')
-    json.dump(res_str, f)
+    json.dump(dalt_ids, f)
     f.close()
 
 
 #import copy
 
-def makePairedRTData(samsem_data_RT_paired,samsem_data_ACC_paired, methods):
+def makePairedRTData(data_RT_paired, methods,id_label):
     """
-    Input: * RT data paired
-           * ACC data paired
+    Input: * RT Pandas data frame paired
            * IDs of methods to compare
+           * Label of columns being compared
     Output: * All possible combinations
             * Labels for the combinations
     """
@@ -1654,19 +1663,16 @@ def makePairedRTData(samsem_data_RT_paired,samsem_data_ACC_paired, methods):
     for method in methods:
         method_counter.pop(0)
         if method_counter:
-            col_tmp = "sim_id_"+str(method).zfill(2)
-            values_RT_tmp = samsem_data_RT_paired[col_tmp].values
-            values_ACC_tmp = samsem_data_ACC_paired[col_tmp].values
-            values_RT_update_tmp = numpy.array([x*y for x,y in zip(values_RT_tmp,values_ACC_tmp)])
+            col_tmp = id_label+"_"+str(method).zfill(2)
+            values_RT_tmp = data_RT_paired[col_tmp].values
+            
             for to_method in method_counter:
                 label_tmp = str(method).zfill(2)+'-to-'+str(to_method).zfill(2)
-                to_col_tmp = "sim_id_"+str(to_method).zfill(2)
                 
-                to_values_RT_tmp = samsem_data_RT_paired[to_col_tmp].values
-                to_values_ACC_tmp = samsem_data_ACC_paired[to_col_tmp].values
-                to_values_RT_update_tmp = numpy.array([x*y for x,y in zip(to_values_RT_tmp,to_values_ACC_tmp)])
+                to_col_tmp = id_label+"_"+str(to_method).zfill(2)
+                to_values_RT_tmp = data_RT_paired[to_col_tmp].values
                 
-                difference_paired = values_RT_update_tmp - to_values_RT_update_tmp
+                difference_paired = values_RT_tmp - to_values_RT_tmp
                 comparisons.append(difference_paired)
                 labels.append(label_tmp)
     return comparisons, labels
