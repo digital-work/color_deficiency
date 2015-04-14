@@ -26,7 +26,7 @@ def extractDataFromPsychoPyXLSX(pandasDataSheet):
     
     return relevant_data, extra_data
 
-def organizeArray(dataArray_in,logArray,sortArray=[]):
+def organizeArray(dataArray,whatArray,howArray=[]):
     """
     Returns an adjusted dataArray according to the logical operations mentioned in the logical dictionary
     Input: 
@@ -37,21 +37,21 @@ def organizeArray(dataArray_in,logArray,sortArray=[]):
     *dataArray_out: Pandas data array with the adjusted values. 
     """
     
-    dataArray_out = dataArray_in.copy(); i = bool(1);
+    dataArray_out = dataArray.copy(); i = bool(1);
     
-    for entry in logArray:
+    for entry in whatArray:
         column_tmp = entry[0]
         eval_funct = entry[1]
         data_value = entry[2]
         
         # Check if column exist
-        if column_tmp in dataArray_in.columns:
-            i = i & (eval_funct(dataArray_in[column_tmp],data_value))
+        if column_tmp in dataArray.columns:
+            i = i & (eval_funct(dataArray[column_tmp],data_value))
     
     # Check if column of sorting interest exists
     sortArray_new = []
-    for sort in sortArray:
-        if sort in dataArray_in.columns:
+    for sort in howArray:
+        if sort in dataArray.columns:
             sortArray_new.append(sort)
     
     # Show only columns of interests or everything if array is empty
@@ -154,7 +154,6 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
     #plt.fontsize(fontsize)
     acc_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
-    
     if not order:
         for key,value in accData.iteritems():
             acc_plots.append(value[0])
@@ -164,7 +163,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     else:
         end = len(order);
         while counter <= end:
-            key = order[counter]
+            key = order[counter-1]
             value = accData[key]
             acc_plots.append(value[0])
             se.append(value[1])
@@ -328,6 +327,27 @@ def getCIAverage(data):
         return [mean,se]
     else:
         return [.0,.0]
+
+def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res=[] ):
+    
+    if not res:
+        obs_adj = obs_array
+    else:
+        obs_adj = obs_array[:,res[0]:res[1]]
+        
+    chi2, p, dof, ex  = stats.chi2_contingency(obs_adj) # Compare only simulation methods
+    res_str = ""
+    res_str = res_str + dict['investigated-item'].capitalize()+" and observations:\n" + str(labels)
+    res_str = res_str + "\n" +str(obs_array)
+    if res:
+        res_str = res_str + "\n\n"+dict['investigated-item'].capitalize()+" included in test:\n" + str(labels[res[0]:res[1]])
+    res_str = res_str + "\n\nChi2: %f, p-value: %E, dof: %i, expect: " % (chi2, p, dof) + "\n"+str(ex)
+    text_file = open(os.path.join(path_res,dict['filename']+"_pearson-chi2-contingency-test_p-value.txt"), "w+")
+    text_file.write(res_str)
+    text_file.close()
+    
+    writePandastoLatex(obs_pandas, os.path.join(path_res,dict['filename']+"_observations.tex"))    
+ 
     
 def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     """
@@ -337,7 +357,7 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     num_methods = numpy.shape(methods)[0]
     num_columns = numpy.shape(data)[1]
     if not num_methods == num_columns:
-        print "Error: Number of columns does not match the labels."
+        print "Error: Number of columns does not match the labels for Pearson Chi2 test."
         return
     
     if dict.has_key('filename'):
@@ -357,7 +377,6 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     template = pandas.DataFrame(columns=methods)
     template.loc[0] = result_array_template
     matrix = pandas.DataFrame(columns=methods)
-    #print data
     for method in range_methods:
         method_counter.pop(0)
         values = data[:,method]
@@ -367,16 +386,13 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
             for to_method in method_counter: # Get current to_values
                 to_values = data[:,to_method]
                 curr_distr = numpy.array([values,to_values])
-                #print curr_distr
                 chi2, p, dof, ex = stats.chi2_contingency(curr_distr) # Compare only simulation methods
                 curr_row[methods[to_method]] = p
-                #print ex
         matrix = matrix.append(curr_row)
     matrix.index = methods
     matrix = matrix.drop(matrix.index[[num_methods-1]])
     matrix = matrix[methods[1:num_methods]]
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
-    #print matrix
     writePandastoLatex(matrix, os.path.join(path,filename_tex))
     
     
@@ -387,7 +403,6 @@ def writePandastoLatex(pandasArr,path):
     
     index =  pandasArr.index
     num_index = numpy.shape(index)[0]
-    #print num_index
     range_index = sorted(range(0,num_index))
     
     order = "| c ||"
@@ -403,25 +418,17 @@ def writePandastoLatex(pandasArr,path):
     res_str = "\\begin{tabular}{"+order+"}\n"
     res_str += "\t\\hline\n"
     res_str += "\t"+header+"\\\\ \\hline \\hline\n"
-    #res_str += 
     counter_row = 0
-    #print pandasArr.dtypes
     for index, row in  pandasArr.iterrows():
-        #print index
-        #print type(row[i])
         
         counter_row +=1
-        #print counter_row
         res_str += "\t"+index+" & "
         for i in range_columns:
-            #print row[i]
-            #print type(row[i])
             if type(row[i]) == str:
                 res_str += row[i]+" "
             elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
-                res_str += "%.4f"%(row[i])+" "
+                res_str += "%.4e"%(float(row[i]))+" "
             elif (type(row[i]) == int) or (type(row[i]) == numpy.int64):
-                #print 'hiersimmer'
                 res_str += str(int(row[i]))+" "
             if i != num_columns-1:
                 res_str += "& "
