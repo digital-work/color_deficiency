@@ -16,13 +16,13 @@ vienot = "vienot"
 vienot_adjusted = "vienot-adjusted"
 kotera = "kotera"
 brettel = "brettel"
-sim2ID = {  'none':             0,
+sim2ID = {  'original':            0,
             'vienot':           1,
             'vienot-adjusted':  2,
             'kotera':           3,
             'brettel':          4,
             'dummy':            99}
-id2Sim = {  0: "none",
+id2Sim = {  0: "original",
             1: "vienot",
             2: "vienot-adjusted",
             3: "kotera",
@@ -36,7 +36,7 @@ kuhn = "kuhn"
 huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
-dalt2ID = {'none':              0,
+dalt2ID = {'original':          0,
            'anagnostopoulos':   1,
            'kotera':            2,
            'kuhn':              3,
@@ -46,7 +46,7 @@ dalt2ID = {'none':              0,
            'yoshi-simone':      7,
            'yoshi-alsam':       8,
            'dummy':             99}
-id2Dalt = {0:   "none",
+id2Dalt = {0:   "original",
            1:   "anagnostopoulos",
            2:   "kotera",
            3:   "kuhn",
