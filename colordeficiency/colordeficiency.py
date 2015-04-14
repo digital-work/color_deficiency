@@ -606,20 +606,24 @@ def daltonization_huan(img_in,options):
     mlab = Matlab(matlab='/Applications/MATLAB_R2013b.app/bin/matlab') # OBS: Make this more accessible
     mlab.start()
     try:
+        print 1
         file_matlab = os.path.join(path_matlab,'callImgRecolorFromPython.m')
         path_tmp = os.path.join(module_path,'colordeficiency-images','tmp','matlab_tmp.png')
         img_in.save(path_tmp,'png')
-
+        print 2
         dict_matlab = {'path_tmp': path_tmp, 'coldef_type': coldef_type, 'from_python': 1}
         res = mlab.run_func(file_matlab, dict_matlab)#(file,60)
-
+        print 3
         img_out = Image.open(path_tmp)
         os.remove(path_tmp)
         #img_out.show()
         #os.remove(path_tmp)
     except Exception,e:
-        print "Error: Something went wrong. " + str(e)
-        img_out = crossOut(img_in)
+        print "Warning: Something went wrong. " + str(e)
+        try:
+            img_out = Image.open(path_tmp)
+        except Exception,e:
+            img_out = crossOut(img_in)
     mlab.stop()
     return img_out
     
@@ -1445,6 +1449,25 @@ def daltonize(img_in,options):
 #                     img_dalt.save(file_path_out_tmp)
 # 
 #         sys.stdout.write("\n")
+
+def anne():
+
+    img_path = "/Users/thomas/Desktop/Anne"
+    img_name = "mapdesign.jpeg"
+    img = Image.open(os.path.join(img_path, img_name))
+    img.show()
+    coldef_types = ['p']
+
+    daltonization_types = ['huan']#settings.daltonization_types
+    for daltonization_type in daltonization_types:
+        for coldef_type in coldef_types:
+            print daltonization_type
+            img_dalt = daltonize(img,{'daltonization_type': daltonization_type, 'coldef_type': coldef_type})
+            img_dalt.show()
+            img_dalt.save(os.path.join(img_path, daltonization_type+"-"+coldef_type+"-"+img_name))
+    
+
+#img.show()
 
 def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
     
