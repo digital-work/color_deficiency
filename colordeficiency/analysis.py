@@ -1122,7 +1122,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
         
         dalt_method = settings.id2Dalt[dalt_method_id]
         whatArray = [['dalt_id', operator.eq, dalt_method_id],['version_id',operator.eq,1],dict['obs_operator']]
-        if (dalt_method_id != 0)  and (dalt_method_id != 2) and (dalt_method_id != 99):
+        if (dalt_method_id != 0)  and (dalt_method_id != 99):
             whatArray.append(['coldef_type',operator.eq,coldef_type])
         relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
         
@@ -1138,6 +1138,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
     accuracies = preparePandas4AccuracyPlots(pandas_dict)
     plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
     
+    # Make median test
     dict.update({'filename': filename_orig+'-RT'})
     makeMedianTest(boxes, path_res, labels, dict)
     
@@ -1157,7 +1158,8 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     
     print "Starting SAMSEM_RES#53-60-paired: Plotting Paired RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
     
-    compute_paired_data = 0
+    compute_paired_data = 1
+    filename_orig = dict['filename'] 
     
     path_res = path
     if dict.has_key('subfolder'):
@@ -1197,24 +1199,32 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
         dalt_names.append(dalt_method)
     
     if compute_paired_data:
-        makePairedDataForViSDEM(visdem_data, path, dict)
+        makePairedDataForViSDEM(visdem_data_adj, dict['path_data'], dict)
     
-    visdem_data_paired_path = os.path.join(dict['path_data'],'visdem-data-RT-paired.csv')
+    visdem_data_paired_path = os.path.join(dict['path_data'],dict['filename']+'_visdem-data-RT-paired.csv')
     visdem_data_paired = pandas.read_csv(visdem_data_paired_path,index_col=False,sep=';')    
     
-    f = open(os.path.join(dict['path_data'],'visdem-data-RT-paired_meta-data.txt'), 'r')
+    f = open(os.path.join(dict['path_data'],dict['filename']+'_visdem-data-RT-paired_meta-data.txt'), 'r')
     b = json.load(f)
     f.close()
     
+    start = 0; end = 5
     visdem_data_paired_array, labels = makePairedRTData(visdem_data_paired, b, 'dalt_id')
-    print visdem_data_paired_array
-    print labels
-    # Make response time plots
-    #boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
-    #plotRTGraphs(boxes, labels, path_res, dict)
+    
+    # Remove NaN values from array
+    visdem_data_paired_wonan_array = []
+    for a in visdem_data_paired_array:
+        visdem_data_paired_wonan_array.append(a[numpy.isnan(a)==False])
+    
+    # Plot response times
+    dict.update({'filename': filename_orig+'-paired'})
+    plotRTGraphs(visdem_data_paired_wonan_array[start:end], labels[start:end], path_res, dict)
     
     # Make median test
-    #makeMedianTest(boxes, path_res, labels, dict)
+    makeMedianTest(visdem_data_paired_wonan_array[start:end], path_res, labels[start:end], dict)
+    
+    #print visdem_data_paired_wonan_array
+    #x[~numpy.isnan(x)]
     
      
 def vsplots71thru74(visual_search_data,path,dict):
@@ -1568,7 +1578,7 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     
     # 1. Restrict data to only one type of observer color deficiency
     coldef_type = dict['coldef_type']
-    whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['version_id',operator.eq,1]]
+    whatArr_tmp = [dict['obs_operator'],['version_id',operator.eq,1]]
     visdem_data_restr = organizeArray(visdem_data,whatArr_tmp)
 
     dalt_ids = sorted(set(visdem_data_restr['dalt_id'].values.astype(int)))
@@ -1578,19 +1588,20 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     for dalt_id in dalt_ids:
         col_tmp = "dalt_id_"+str(dalt_id).zfill(2)
         columns.append(col_tmp)
+    
+    observer_coldef_types = set(visdem_data_restr['observer_coldef_type'].values)
+    #print observer_coldef_types
         
     visdem_data_template = pandas.DataFrame(columns=columns)
     visdem_data_RT_paired = visdem_data_template.copy()
     index = 0
     
-    #print visdem_data_RT_paired
     
     for observer_id in observer_ids:
         whatArray_tmp = [['observer_id',operator.eq,observer_id]]
         visdem_data_restr_obs = organizeArray(visdem_data_restr, whatArray_tmp)
         
         set_ids = sorted(set(visdem_data_restr_obs['set_id'].values.astype(int)))
-        #print visdem_data_restr_obs
         
         for set_id in set_ids:
             whatArray_tmp = [['set_id', operator.eq, set_id]]
@@ -1609,7 +1620,6 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
                                                   'scene_id': scene_id,
                                                   'image_id': 'nix'
                                                   },[index])
-                #print pandas_RT_tmp
                 
                 for dalt_id in dalt_ids:
                     if dalt_id not in [0,99]:
@@ -1618,8 +1628,8 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
                         whatArray_tmp = [['dalt_id',operator.eq,dalt_id]]
                     field = organizeArray(visdem_data_restr_scene, whatArray_tmp).reset_index().loc[0]
                     if not field.empty:
-                        #RT_tmp = field['resp_time'] if bool(field['is_correct']) else float('NaN')
-                        RT_tmp = field['resp_time']
+                        RT_tmp = field['resp_time']*1000 if bool(field['is_correct']) else float('NaN')
+                        #RT_tmp = field['resp_time']*1000
                         pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
                         pandas_RT_tmp['image_id'] = field['image_id']
                         pandas_RT_tmp['coldef_type'] = field['coldef_type']
@@ -1631,16 +1641,15 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
                 index += 1
     # Layout RT for storage in path
     visdem_data_RT_paired = visdem_data_RT_paired[columns]
-    #print visdem_data_RT_paired
     visdem_data_RT_paired.observer_id = visdem_data_RT_paired.observer_id.astype(int)
     visdem_data_RT_paired.observer_coldef_type = visdem_data_RT_paired.observer_coldef_type.astype(int)
     visdem_data_RT_paired.set_id = visdem_data_RT_paired.set_id.astype(int)
     visdem_data_RT_paired.scene_id = visdem_data_RT_paired.scene_id.astype(int)
     visdem_data_RT_paired.image_id = visdem_data_RT_paired.image_id.astype(int)
     visdem_data_RT_paired.coldef_type = visdem_data_RT_paired.coldef_type.astype(int)
-    visdem_data_RT_paired.to_csv(os.path.join(path,'visdem-data-RT-paired.csv'),sep=";")
+    visdem_data_RT_paired.to_csv(os.path.join(path,dict['filename']+'_visdem-data-RT-paired.csv'),sep=";")
     
-    f = open(os.path.join(path,'visdem-data-RT-paired_meta-data.txt'), 'w')
+    f = open(os.path.join(path,dict['filename']+'_visdem-data-RT-paired_meta-data.txt'), 'w')
     json.dump(dalt_ids, f)
     f.close()
 
