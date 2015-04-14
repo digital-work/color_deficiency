@@ -15,7 +15,7 @@ import copy, json, math, matplotlib.pyplot as plt, numpy, operator, os, pandas, 
 #from colordeficiency import colordeficiency_tools
 #from colordeficiency_tools import getAllXXXinPath, getStatsFromFilenamet
 
-from analysis_tools import writePandastoLatex, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
+from analysis_tools import writePandastoLatex, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
 from colordeficiency import settings
 from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename
 from scipy import stats
@@ -364,7 +364,7 @@ def samsemPlots1thru4(samsem_data,path,dict):
     # HDEG: get the missing data for deuteranopes from method 3 and 99.
     
     
-    boxes = []; labels = []; accuracies = {}; mean_cis = {}; order = {}; i=1
+    boxes = []; labels = []; accuracies = {}; mean_cis = {}; order = {}; i=0
     if dict.has_key('method_ids'):
         method_ids = dict['method_ids']
     else:
@@ -465,7 +465,6 @@ def samsemPlots17thru20(samsem_data, path, dict):
         else:
             whatArr_sim = [['sim_id',operator.eq,method_id],['observer_coldef_type',operator.eq,coldef_type]]
         samsem_data_sim = organizeArray(samsem_data, whatArr_sim)
-        #print samsem_data_sim
         
         boxes = []; labels = []; accuracies = {}; mean_cis = {}; order = {}; i=1
         
@@ -495,7 +494,6 @@ def samsemPlots17thru20(samsem_data, path, dict):
             
             order.update({i:image_id})
             i += 1
-        #print boxes
         if 'RT_boxplots' in plot_types:
             # 6. Plot response time data
             plotRTGraphs(boxes,labels,path_res,dict,order)
@@ -528,18 +526,12 @@ def samsemPlots29and30(samsem_data,path,dict):
     """
     
     # Defining the subfolder for the results
-    path_res = path
-    if dict.has_key('result_id'):
-        sys.stdout.write("Starting Res#"+str(dict['result_id'])+'.')
-        path_res = os.path.join(path,str(dict['result_id']))    
-        if not os.path.exists(path_res): os.makedirs(path_res)
-        
+    path_res = path    
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
-    
-    boxes = []; accuracies = {}; mean_cis = {}; labels = []
+    filename = dict['filename']
     coldef_type = dict['coldef_type']
     print "Starting SAMSEM_RES#29+30: Analyzing data of all observer groups for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods."
     
@@ -557,8 +549,7 @@ def samsemPlots29and30(samsem_data,path,dict):
     if dict.has_key('plot_types'):
         plot_types = dict['plot_types']
     else:
-        plot_types = ['RT_boxplots', 'RT_means', 'ACC_CIs', 'median']
-    
+        plot_types = ['RT_boxplots', 'ACC_CIs', 'median']
     
     rel_data = pandas.DataFrame()
     for method_id in method_ids:
@@ -581,67 +572,24 @@ def samsemPlots29and30(samsem_data,path,dict):
     whatArr_tmp = [['observer_coldef_type',operator.eq,2]]
     deutan_data = organizeArray(samsem_data_adj,whatArr_tmp)
     
-    # 2. Get response time data
-    # For normal sighted observers
-    normal_response_values = normal_data[normal_data['is_correct']==True]['resp_time'].values*1000; labels.append('Normal') if normal_response_values.size else labels.append('Normal - No data'); 
-    # For protan observers
-    protan_response_values = protan_data[protan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Protan') if protan_response_values.size else labels.append('Protan - No data'); 
-    # For deutan observers
-    deutan_response_values = deutan_data[deutan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Deutan') if deutan_response_values.size else labels.append('Protan - No data'); 
+    pandas_dict = {'normal':normal_data, 'protan':protan_data, 'deutan': deutan_data}
+    order_dict = {0: 'normal', 1: 'protan', 2: 'deutan'}
+    observer_group_names = ['normal', 'protan', 'deutan']
     
+    # 2. Make response time boxplots
     if 'RT_boxplots' in plot_types:
-        boxes.append(normal_response_values)
-        boxes.append(protan_response_values)
-        boxes.append(deutan_response_values)
-        
+        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
         plotRTGraphs(boxes,labels,path_res, dict)
-        
-    if 'RT_means' in plot_types:
-        # 4. Get CI data
-        # For normal sighted observers
-        mean_normal = getCIAverage(normal_response_values);
-        mean_normal.append(labels[0])
-        # For protan observers
-        mean_protan = getCIAverage(protan_response_values);
-        mean_protan.append(labels[1])
-        # For deutan observers
-        mean_deutan = getCIAverage(deutan_response_values);
-        mean_deutan.append(labels[2])
-
-        mean_cis.update({'norm': mean_normal,
-                     'protan': mean_protan,
-                     'deutan': mean_deutan})
-        
-        order={1:'norm', 2:'protan', 3:'deutan'}
-        plotCIAverageGraphs(mean_cis,path_res,dict,order)
     
-    if 'ACC_CIs' in plot_types:
-        # 5. Get accuracy data
-        # For normal sighted observers
-        norm_acc = getAccuracy(normal_data)
-        norm_acc.append(labels[0])
-        # For protan observers
-        prot_acc = getAccuracy(protan_data)
-        prot_acc.append(labels[1])
-        # For deutan observers
-        deut_acc = getAccuracy(deutan_data)
-        deut_acc.append(labels[2])
-        
-        accuracies.update({'norm': norm_acc,
-                       'protan': prot_acc,
-                       'deutan': deut_acc})
-        order = {1: 'norm', 2: 'protan', 3: 'deutan'}
-        plotAccuracyGraphs(accuracies,path_res,dict,order)
-    
-    # 6. Save data in file
-    #for_bruno = pandas.DataFrame(boxes)
-    #for_bruno = for_bruno.rename({0:labels[0],1:labels[1],2:labels[2]})
-    #for_bruno.to_csv(os.path.join(path,str(dict['result_id']),dict['filename']+".csv"),sep=';')
-    
+    # 3. Make median test
     if 'median-test' in plot_types:
-        # 9. Make median test
-        dict.update({'filename': dict['filename']+"-RT"})
-        makeMedianTest(numpy.array(boxes), path_res, labels, dict)
+        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+        makeMedianTest(boxes, path_res, labels, dict)
+    
+    # 4. Plot accuracy confidence intervals        
+    if 'ACC_CIs' in plot_types:
+        accuracies = preparePandas4AccuracyPlots(pandas_dict)
+        plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
 
 def samsemPlots31and32(samsem_data,path,dict):
     """
@@ -748,7 +696,7 @@ def samsemPlots31and32(samsem_data,path,dict):
         
 def samsemPlots35and36(samsem_data,path,dict):
     """
-    Plots the SaMSEM Res#35-37. Similar to checkNormality.
+    Plots the SaMSEM Res#35+36. Similar to checkNormality.
     Each image showing distribution for one algorithm simulating one specific color deficiency for all images collapsed together.
     On the x-axis, ???.
     The result images are stored in (subfolders) defined by the path input.
@@ -793,7 +741,6 @@ def samsemPlots35and36(samsem_data,path,dict):
         else:
             whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]] # All dummy simulations are only noted for protanopia
         alg_data = organizeArray(samsem_data,whatArr_tmp)
-        #print alg_data
         
         alg_RT_values = (alg_data[alg_data['is_correct']==True]['resp_time'].values*1000)
         
@@ -842,7 +789,7 @@ def samsemPlots37and38(samsem_data,path,dict):
         plot_types = dict['plot_types']
     else:
         plot_types = ['histogramm', 'q-q']
-    print "Starting SaMSEM_RES#36-38: Computing normality plot ("+str(plot_types)+") of observer groups for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods."
+    print "Starting SaMSEM_RES#37+38: Computing normality plot ("+str(plot_types)+") of observer groups for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods."
     
     if dict.has_key('filename'):
         filename = dict['filename']
@@ -919,35 +866,28 @@ def samsemPlots41and42(samsem_data,path,dict):
     #whatArr_tmp = [['sim_id',operator.ne,99]];howArr_tmp=[]
     #samsem_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
     
-    corrArr = []; uncorrArr = []; data = {}; sim_names = []
+    corrArr = []; uncorrArr = []; data = {}; sim_names = []; chi2_pandas = {}
     
     sim_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
     for sim_id in sim_ids:
         sim_name_tmp = settings.id2Sim[sim_id]
+        sim_names.append(sim_name_tmp)
         if (sim_id !=3) and (sim_id != 99):
             whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]];howArr_tmp=[]
         else:
             whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]]
         alg_data_tmp = organizeArray(samsem_data,whatArr_tmp)
         
-        corr_tmp = numpy.shape(alg_data_tmp[alg_data_tmp['is_correct']==True]['resp_time'].values)[0]
-        corrArr.append(corr_tmp)
-        uncorr_tmp = numpy.shape(alg_data_tmp[alg_data_tmp['is_correct']==False]['resp_time'].values)[0]
-        uncorrArr.append(uncorr_tmp)
-        sim_names.append(sim_name_tmp)
-        
-        data.update({sim_name_tmp: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
-    obs = numpy.array([corrArr, uncorrArr])
-    #print type(corrArr)
+        #pandas_dict
+        chi2_pandas.update({sim_name_tmp: alg_data_tmp})
     
     # Make Chi2 contingency test
-    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[sim_names]
+    obs_array, obs_pandas = preparePandas4Chi2(chi2_pandas,{0: 'vienot', 1: 'vienot-adjusted', 2: 'kotera', 3: 'brettel', 4: 'dummy'})
     
     start = 0; end = 4
-    obs_adj = obs[:,start:end]
+    obs_adj = obs_array[:,start:end]
     chi2, p, dof, ex  = stats.chi2_contingency(obs_adj) # Compare only simulation methods
     
-    #print res_pandas
     res_str = ""
     res_str = res_str + "Simulation methods and observations:\n" + str(obs_pandas)
     res_str = res_str + "\n\nSimulation methods included in test:\n" + str(sim_names[start:end])
@@ -955,19 +895,14 @@ def samsemPlots41and42(samsem_data,path,dict):
     text_file = open(os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods-ACC_pearson-chi2-contingency-test_p-value.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
-
-    #print obs_pandas
+    
     writePandastoLatex(obs_pandas, os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods-ACC_observations.tex"))
-    data_res = {'chi2':chi2,'p':p}
-    data_res.update({'dof':str(dof)})
-    res_pandas = pandas.DataFrame(data=data_res, index=[str(sim_names[start:end])])[['chi2','p','dof']]
-   
-    #print res_pandas.dof
-    writePandastoLatex(res_pandas, os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods-ACC_pearson-chi2-contingency-test_p-value.tex"))
     
     # Make Chi2 contingency 2x2 test matrix
     dict.update({'filename': dict['filename']+'-ACC'})
-    makePearsonChi2Contingency2x2Test(obs, path_res, sim_names, dict)
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, sim_names, dict)
+
+
     
 def samsemPlots43and44(samsem_data,path,dict):
     """
@@ -1004,45 +939,536 @@ def samsemPlots43and44(samsem_data,path,dict):
     # Data for normal sighted observers
     whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,0]]
     normal_data = organizeArray(samsem_data_adj,whatArr_tmp)
-    corr_normal = numpy.shape(normal_data[normal_data['is_correct']==True]['resp_time'].values)[0]
-    uncorr_normal = numpy.shape(normal_data[normal_data['is_correct']==False]['resp_time'].values)[0]
     
     # Data for protan observers
     whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,1]]
     protan_data = organizeArray(samsem_data_adj,whatArr_tmp)
-    corr_protan = numpy.shape(protan_data[protan_data['is_correct']==True]['resp_time'].values)[0]
-    uncorr_protan = numpy.shape(protan_data[protan_data['is_correct']==False]['resp_time'].values)[0]
     
     # Data for deutan observers
     whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,2]]
     deutan_data = organizeArray(samsem_data_adj,whatArr_tmp)
-    corr_deutan = numpy.shape(deutan_data[deutan_data['is_correct']==True]['resp_time'].values)[0]
-    uncorr_deutan = numpy.shape(deutan_data[deutan_data['is_correct']==False]['resp_time'].values)[0]
-    
-    corrArr = [corr_normal, corr_protan, corr_deutan]
-    uncorrArr = [uncorr_normal, uncorr_protan, uncorr_deutan]
-    obs = numpy.array([corrArr, uncorrArr])
-    
-    data = {'normal': [corr_normal, uncorr_normal],
-            'protan': [corr_protan, uncorr_protan],
-            'deutan': [corr_deutan, uncorr_deutan]}
     
     # Make Chi2 contingency test
-    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[obs_groups]
+    obs_array, obs_pandas = preparePandas4Chi2({'normal': normal_data, 'protan': protan_data, 'deutan': deutan_data},{0: 'normal', 1: 'protan', 2: 'deutan'})
     
-    chi2, p, dof, ex  = stats.chi2_contingency(obs) # Compare only simulation methods
+    chi2, p, dof, ex  = stats.chi2_contingency(obs_array) # Compare only simulation methods
     res_str = ""
     res_str = res_str + "Observer groups and observations:\n" + str(obs_pandas)
     res_str = res_str + "\n\nChi2: %f, p-value: %E, dof: %i, expect: " % (chi2, p, dof) + "\n"+str(ex)
-    text_file = open(os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods_obs_groups-ACC_pearson-chi2-contingency-test_p-value.txt"), "w+")
+    text_file = open(os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods_obs-groups-ACC_pearson-chi2-contingency-test_p-value.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
     
+    writePandastoLatex(obs_pandas, os.path.join(path_res,settings.id2ColDefLong[coldef_type]+"-methods_obs-groups-ACC_observations.tex"))
+    
     # Make Chi2 contingency test matrix
     dict.update({'filename': dict['filename']+'-ACC'})
-    makePearsonChi2Contingency2x2Test(obs, path_res, obs_groups, dict)
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, obs_groups, dict)
 
             
+
+###
+###  ViSDEM result plots
+###
+
+def vsplots1thru4(visual_search_data,path,dict):
+    sys.stdout.write("Starting Res#"+str(dict['result_id'])+':')    
+    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    
+    set_ids = set(visual_search_data['set_id'].values.astype(int))        
+    for set_id in set_ids:
+        sys.stdout.write("Set#"+str(set_id)+'.')
+        # extract only DN and DE images for norm.sigh.obs.
+        filename_tmp = '000999'+dict['obs_coldef_type']+str(set_id).zfill(3)+'9999-v'
+            
+        whatArr_tmp = [['version_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id],['is_correct',operator.eq,True]];howArr_tmp = []
+        DNData =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+            
+        whatArr_tmp = [['version_id',operator.eq,2],['dalt_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id],['is_correct',operator.eq,True]];howArr_tmp = []
+        DEData = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+            
+        boxes_tmp = [];labels_tmp = []
+        DND_values = DNData['resp_time'].values; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
+        DED_values = DEData['resp_time'].values; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
+            
+        plt.figure(); plt.boxplot(boxes_tmp, notch=1)
+        plt.xticks([1,2],labels_tmp); plt.title('Set '+str(set_id)+': '+dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,5])
+        plt.savefig(os.path.join(path,str(dict['result_id']),filename_tmp+".png")); plt.close()
+    
+    sys.stdout.write('\n')
+  
+def vsplots5thru8(visual_search_data,path,dict):
+    sys.stdout.write("Starting Res#"+str(dict['result_id'])+':')    
+    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    
+    scene_ids = set(visual_search_data['scene_id'].values.astype(int))        
+    for scene_id in scene_ids:
+        sys.stdout.write("Scene#"+str(scene_id)+'.')
+        # extract only DN and DE images for norm.sigh.obs.
+        filename_tmp = '000999'+dict['obs_coldef_type']+str(getSetFromScene(scene_id)).zfill(3)+str(scene_id).zfill(3)+'9-v'
+            
+        whatArr_tmp = [['version_id',operator.eq,0],dict['obs_operator'],['scene_id',operator.eq,scene_id],['is_correct',operator.eq,True]];howArr_tmp = []
+        DNData =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+            
+        whatArr_tmp = [['version_id',operator.eq,2],['dalt_id',operator.eq,0],dict['obs_operator'],['scene_id',operator.eq,scene_id],['is_correct',operator.eq,True]];howArr_tmp = []
+        DEData = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+            
+        boxes_tmp = [];labels_tmp = []
+        DND_values = DNData['resp_time'].values; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
+        DED_values = DEData['resp_time'].values; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
+            
+        plt.figure(); plt.boxplot(boxes_tmp, notch=1)
+        plt.xticks([1,2],labels_tmp); plt.title('Scene '+str(scene_id)+': '+dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,5])
+        plt.savefig(os.path.join(path,str(dict['result_id']),filename_tmp+".png")); plt.close()
+    
+    sys.stdout.write('\n')
+
+
+    
+def visdemPlots67thru70(visdem_data,path,dict):
+    
+    print "Starting SAMSEM_RES#67-70: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for observer group " + dict['filename']+"."
+    
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    
+    dict.update({'investigated-item': 'daltonization method'})
+    
+    DNData = pandas.DataFrame(); DEData = pandas.DataFrame(); DCData = pandas.DataFrame()
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+    
+    visdem_data_adj = pandas.DataFrame()
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
+    visdem_data_adj.reset_index()
+    
+    # 1. Retrieving data from the image versions
+    whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],dict['obs_operator']]
+    DNData =  organizeArray(visdem_data_adj,whatArr_tmp)
+            
+    whatArr_tmp = [['version_id',operator.eq,2],['dalt_id',operator.eq,0],dict['obs_operator']]
+    DEData = organizeArray(visdem_data_adj,whatArr_tmp)
+        
+    whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],dict['obs_operator']]
+    DCData = organizeArray(visdem_data_adj,whatArr_tmp)
+    
+    pandas_dict = {'DN': DNData, 'DC': DCData, 'DE': DEData}
+    order_dict = {0: 'DN', 1: 'DC', 2: 'DE'}
+    
+    # 2. Make response time plots
+    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    plotRTGraphs(boxes, labels, path_res, dict)
+    
+    # 3. Make Accuracy plots
+    accuracies = preparePandas4AccuracyPlots(pandas_dict)
+    plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
+    
+    # 4. Make median test 
+    dict.update({'filename': dict['filename']+'-RT'})
+    makeMedianTest(boxes, path_res, labels, dict)
+              
+    # 5. Make Chi2 contingency test
+    obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
+        
+    dict.update({'filename': dict['filename']+'-ACC'})
+    makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict)
+
+   
+    # 6. Make Chi2 contingency test matrix
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
+    
+
+def visdemPlots53thru60(visdem_data,path,dict):
+    
+    print "Starting SAMSEM_RES#53-60: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
+    
+    
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    filename_orig = dict['filename']
+    
+    coldef_type = dict['coldef_type']
+    dict.update({'investigated-item': 'daltonization method'})
+    
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+        
+    visdem_data_adj = pandas.DataFrame()
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
+    visdem_data_adj.reset_index()
+    
+    dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    
+    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
+    for dalt_method_id in dalt_method_ids:
+        
+        dalt_method = settings.id2Dalt[dalt_method_id]
+        whatArray = [['dalt_id', operator.eq, dalt_method_id],['version_id',operator.eq,1],dict['obs_operator']]
+        if (dalt_method_id != 0)  and (dalt_method_id != 2) and (dalt_method_id != 99):
+            whatArray.append(['coldef_type',operator.eq,coldef_type])
+        relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
+        
+        pandas_dict.update({dalt_method: relevant_data_tmp})
+        order_dict.update({i: dalt_method}); i += 1
+        dalt_names.append(dalt_method)
+    
+    # Make response time plots
+    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    plotRTGraphs(boxes, labels, path_res, dict)
+    
+    # Make Accuracy plots
+    accuracies = preparePandas4AccuracyPlots(pandas_dict)
+    plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
+    
+    dict.update({'filename': filename_orig+'-RT'})
+    makeMedianTest(boxes, path_res, labels, dict)
+    
+    # Make Chi2 contingency test
+    obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
+    
+    start = 1; end = 5
+    res = [start,end]
+    dict.update({'filename': filename_orig+'-ACC'})
+    
+    makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res)
+    
+    # Make Chi2 contingency test matrix
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)   
+
+def visdemPlots53thru60Paired(visdem_data,path,dict):
+    
+    print "Starting SAMSEM_RES#53-60-paired: Plotting Paired RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
+    
+    
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    orig_filenmae = dict['filename']
+    
+    coldef_type = dict['coldef_type']
+    
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+        
+    visdem_data_adj = pandas.DataFrame()
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
+    visdem_data_adj.reset_index()
+    
+    dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    
+    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
+    for dalt_method_id in dalt_method_ids:
+        
+        dalt_method = settings.id2Dalt[dalt_method_id]
+        whatArray = [['dalt_id', operator.eq, dalt_method_id],['version_id',operator.eq,1],dict['obs_operator']]
+        if (dalt_method_id != 0)  and (dalt_method_id != 2) and (dalt_method_id != 99):
+            whatArray.append(['coldef_type',operator.eq,coldef_type])
+        relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
+        
+        pandas_dict.update({dalt_method: relevant_data_tmp})
+        order_dict.update({i: dalt_method}); i += 1
+        dalt_names.append(dalt_method)
+    
+    makePairedDataForViSDEM(visdem_data, path, dict)
+    # Make response time plots
+    #boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    #plotRTGraphs(boxes, labels, path_res, dict)
+    
+    # Make median test
+    #makeMedianTest(boxes, path_res, labels, dict)
+    
+     
+def vsplots71thru74(visual_search_data,path,dict):
+    
+    result_id = dict['result_id']
+    intro_string = result_id if result_id else dict['filename'] 
+    sys.stdout.write("Starting Res#"+str(intro_string)+' -> ')    
+    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    beforeData = pandas.DataFrame(); afterData = pandas.DataFrame();
+    
+    for set_id in set_ids:
+        # get all the data before daltonization
+        whatArr_tmp = [['dalt_id',operator.eq,0],['version_id',operator.eq,1],dict['obs_operator'],];howArr_tmp = []
+        beforeData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        beforeData = pandas.concat([beforeData_tmp,beforeData])
+        
+        # get all the data after daltonization
+        whatArr_tmp = [['dalt_id',operator.eq,2],['version_id',operator.eq,1],dict['obs_operator'],];howArr_tmp = []
+        afterData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        afterData = pandas.concat([afterData_tmp,afterData])
+        
+    boxes_tmp = [];labels_tmp = []
+    before_values = beforeData[beforeData['is_correct']==True]['resp_time'].values; labels_tmp.append('before daltonization') if before_values.size else labels_tmp.append('before - No data'); boxes_tmp.append(before_values)
+    after_values = afterData[afterData['is_correct']==True]['resp_time'].values; labels_tmp.append('after daltonization') if after_values.size else labels_tmp.append('after - No data'); boxes_tmp.append(after_values)
+    
+    plt.figure(); plt.boxplot(boxes_tmp, notch=1)
+    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,3])
+    plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); 
+    plt.close()
+    
+    # 3. Accuracy plots
+    before_acc = getAccuracy(beforeData)
+    before_acc.append(labels_tmp[0])
+    after_acc = getAccuracy(afterData)
+    after_acc.append(labels_tmp[1])
+    accuracies = {'before': before_acc,
+                  'after': after_acc}
+    plotAccuracyGraphs(accuracies,path,dict,order=['before','after'])
+
+def visdemPlot75(visual_search_data,path,dict):
+    
+    
+    if dict.has_key('filename'):
+        filename = dict['filename']
+    else:    
+        filename = "visdem-normal-deutan-observers"
+    
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = ''
+    
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 18
+        
+    if dict.has_key('y_lim_ACC'):
+        y_lim_ACC = dict['y_lim_ACC']
+    else:
+        y_lim_ACC = [.0,1.] 
+        
+    if dict.has_key('y_lim_RT'):
+        y_lim_RT = dict['y_lim_RT']
+    else:
+        y_lim_RT = [0,3000]
+    
+    if dict.has_key('result_id'):
+        result_id = dict['result_id']
+    else:
+        result_id = ''
+    intro_string = result_id if result_id else filename
+         
+    sys.stdout.write("Starting Res#"+str(intro_string))    
+    if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
+    
+    Data_norm = pandas.DataFrame()
+    Data_deut = pandas.DataFrame()
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    # 1. Retrieving data from the image versions
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
+        Data_norm_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        Data_norm = pandas.concat([Data_norm_tmp,Data_norm])
+        
+        # Getting data from all variant for all deutan color deficient observers
+        whatArr_tmp = [['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
+        Data_deut_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        Data_deut = pandas.concat([Data_deut_tmp,Data_deut])
+    
+    # 2. Plot reponse times
+    # Normal sighted observers
+    boxes_tmp = []; labels_tmp = []
+    Data_norm_values = Data_norm[Data_norm['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('Normal') if Data_norm_values.size else labels_tmp.append('Normal - No data'); 
+    boxes_tmp.append(Data_norm_values)
+    
+    # Deutan color deficient observers
+    Data_deut_values = Data_deut[Data_deut['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('Deutan') if Data_deut_values.size else labels_tmp.append('Deutan - No data'); 
+    boxes_tmp.append(Data_deut_values)
+             
+    # Let's start plotting!
+    plt.figure(); 
+    plt.boxplot(boxes_tmp, notch=1)
+    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(obs_title, fontsize=fontsize); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
+    plt.ylim(y_lim_RT); plt.grid(axis='y')
+    plt.savefig(os.path.join(path,str(result_id),filename+"-R.pdf")); 
+    plt.close()
+    
+    # 3. Run median test on RT data
+    test_array = []
+    test_array.append(Data_norm_values)
+    test_array.append(Data_deut_values)
+    test_array = numpy.array(test_array)
+    print
+    makeMedianTest(test_array,path,labels_tmp,dict)
+     
+    # 4. Accuracy plots
+    # Normal sighted
+    norm_acc = getAccuracy(Data_norm)
+    norm_acc.append(labels_tmp[0])
+    # Deutan color deficient
+    deut_acc = getAccuracy(Data_deut)
+    deut_acc.append(labels_tmp[1])
+    accuracies_norm = {'Normal': norm_acc,
+                       'Deutan': deut_acc}
+    
+    # Lets start plotting
+    dict.update({'fontsize':fontsize,'filename': filename})
+    plotAccuracyGraphs(accuracies_norm,path,dict,order={1:'Normal', 2:'Deutan'})
+        
+    sys.stdout.write(".")
+
+ 
+    
+def visdemPlot76(visual_search_data,path,dict):
+    
+    filename_norm = "visdem-normal-observers"
+    filename_deut = "visdem-deutan-observers"
+    filename_norm_deut = "visdem-normal-deutan-observers"
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 18
+    
+    result_id = dict['result_id']
+    intro_string = result_id if result_id else dict['filename'] 
+    sys.stdout.write("Starting Res#"+str(intro_string))    
+    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    
+    DNData_norm = pandas.DataFrame(); DCData_norm = pandas.DataFrame()
+    DNData_deut = pandas.DataFrame(); DCData_deut = pandas.DataFrame()
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = []
+    
+    # 1. Retrieving data from the image versions
+    for set_id in set_ids:
+        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DNData_norm_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DNData_norm = pandas.concat([DNData_norm_tmp,DNData_norm])
+        
+        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DCData_norm_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DCData_norm = pandas.concat([DCData_norm_tmp,DCData_norm])
+        
+        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DNData_deut_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DNData_deut = pandas.concat([DNData_deut_tmp,DNData_deut])
+        
+        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
+        DCData_deut_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
+        DCData_deut = pandas.concat([DCData_deut_tmp,DCData_deut])
+    
+    # 2. Plot reponse times
+    boxes_norm_tmp = []; boxes_deut_tmp = []; labels_tmp = []
+    DND_norm_values = DNData_norm[DNData_norm['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DN') if DND_norm_values.size else labels_tmp.append('DN - No data'); 
+    boxes_norm_tmp.append(DND_norm_values)
+    DCD_norm_values = DCData_norm[DCData_norm['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DC') if DCD_norm_values.size else labels_tmp.append('DC - No data'); 
+    boxes_norm_tmp.append(DCD_norm_values) 
+    
+    DND_deut_values = DNData_deut[DNData_deut['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DN') if DND_deut_values.size else labels_tmp.append('DN - No data'); 
+    boxes_deut_tmp.append(DND_deut_values)
+    DCD_deut_values = DCData_deut[DCData_deut['is_correct']==True]['resp_time'].values*1000; 
+    labels_tmp.append('DC') if DCD_deut_values.size else labels_tmp.append('DC - No data'); 
+    boxes_deut_tmp.append(DCD_deut_values) 
+             
+    plt.figure(); 
+    plt.boxplot(boxes_norm_tmp, notch=1)
+    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(dict['obs_title']); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
+    plt.ylim([0,3000]); plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),filename_norm+"-R.pdf")); 
+    plt.close()
+    
+    plt.figure(); 
+    plt.boxplot(boxes_deut_tmp, notch=1)
+    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(dict['obs_title']); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
+    plt.ylim([0,3000]); plt.grid(axis='y')
+    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
+    plt.savefig(os.path.join(path,str(dict['result_id']),filename_deut+"-R.pdf")); 
+    plt.close()
+     
+    # 4. Accuracy plots
+    dn_norm_acc = getAccuracy(DNData_norm)
+    dn_norm_acc.append(labels_tmp[0])
+    dc_norm_acc = getAccuracy(DCData_norm)
+    dc_norm_acc.append(labels_tmp[1])
+    accuracies_norm = {'DN': dn_norm_acc,
+                       'DC': dc_norm_acc}
+    
+    dn_deut_acc = getAccuracy(DNData_deut)
+    dn_deut_acc.append(labels_tmp[0])
+    dc_deut_acc = getAccuracy(DCData_deut)
+    dc_deut_acc.append(labels_tmp[1])
+    accuracies_deut = {'DN': dn_deut_acc,
+                       'DC': dc_deut_acc}
+    
+    dict.update({'fontsize':fontsize,'filename': filename_norm_deut})
+    plt.figure()
+    dict.update({'fmt': 'or', 'color': 'red'})
+    plotAccuracyGraphs(accuracies_norm,path,dict,order={1:'DN', 2:'DC'})
+    dict.update({'fmt': 'D', 'color': 'blue'})
+    plotAccuracyGraphs(accuracies_deut,path,dict,order={1:'DN', 2:'DC'})
+    plt.close()
+        
+    sys.stdout.write(".")
+
+# if 0:
+#     test_path = "/Users/thomas/Desktop/tull/colordeficiency_tools/visual-search/colordeficiency-data/"
+#     test_file = "/Users/thomas/Desktop/tull/colordeficiency_tools/visual-search/colordeficiency-data/11_2014_mai_16_1356.xlsx"
+#     #dataArray, testArray, extraDataDict = extractVisualSearchData(test_file)
+#     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
+#     #print dataArray
+#     #print testArray
+#     #print extraDataDict
+#     analyzeViSDEMData(test_path)
+#     #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/colordeficiency_tools/results",'VS-plots'),'../colordeficiency-data/visual-search-data.csv')   
+# elif 0:
+#     test_path = "/Users/thomas/Desktop/tull/colordeficiency_tools/sample-2-match/colordeficiency-data/"
+#     test_file = "/Users/thomas/Desktop/tull/colordeficiency_tools/sample-2-match/colordeficiency-data/11_2014_mai_16_1307.xlsx"
+#     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
+#     #print dataArray
+#     #print testArray
+#     #print extraDataDict
+#     analyzeSaMSEMData(test_path)
+#     #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/colordeficiency_tools/results/",'S2M-plots'), '../colordeficiency-data/sample-2-match-data.csv')
+# #plotEI2015_SaMSEM_ViSDEM()
+
 def makePairedDataForSimulation(samsem_data,path,dict):
     """
     Make paired data for all observers and all images collapsed of all algorithms individually.
@@ -1118,6 +1544,97 @@ def makePairedDataForSimulation(samsem_data,path,dict):
     f = open(os.path.join(path,'meta-data.txt'), 'w')
     json.dump(sim_ids, f)
     f.close()
+
+def makePairedDataForViSDEM(visdem_data,path,dict):
+    """
+    Make paired data for all observers and all images collapsed of all algorithms individually.
+    The result images are stored in (subfolders) defined by the path input.
+    Input: * samsem_data:    SaMSEM data that is to be analyzed
+           * path:           Path to the folder, where the result images should be stored.
+    """
+    
+    # 1. Restrict data to only one type of observer color deficiency
+    coldef_type = dict['coldef_type']
+    whatArr_tmp = [['observer_coldef_type',operator.eq,coldef_type],['version_id',operator.eq,1]]
+    visdem_data_restr = organizeArray(visdem_data,whatArr_tmp)
+
+    dalt_ids = sorted(set(visdem_data_restr['dalt_id'].values.astype(int)))
+    observer_ids = sorted(set(visdem_data_restr['observer_id'].values.astype(int)))
+    
+    columns=['observer_id', 'observer_coldef_type', 'coldef_type', 'set_id', 'scene_id', 'image_id']
+    for dalt_id in dalt_ids:
+        col_tmp = "dalt_id_"+str(dalt_id).zfill(2)
+        columns.append(col_tmp)
+        
+    visdem_data_template = pandas.DataFrame(columns=columns)
+    visdem_data_RT_paired = visdem_data_template.copy()
+    index = 0
+    
+    #print visdem_data_RT_paired
+    
+    for observer_id in observer_ids:
+        whatArray_tmp = [['observer_id',operator.eq,observer_id]]
+        visdem_data_restr_obs = organizeArray(visdem_data_restr, whatArray_tmp)
+        
+        set_ids = sorted(set(visdem_data_restr_obs['set_id'].values.astype(int)))
+        #print visdem_data_restr_obs
+        
+        for set_id in set_ids:
+            whatArray_tmp = [['set_id', operator.eq, set_id]]
+            visdem_data_restr_set = organizeArray(visdem_data_restr_obs, whatArray_tmp)
+            scene_ids = sorted(set(visdem_data_restr_set['scene_id'].values.astype(int)))
+
+            
+            for scene_id in scene_ids:
+                whatArray_tmp = [['scene_id',operator.eq,scene_id]]
+                visdem_data_restr_scene =organizeArray(visdem_data_restr_set, whatArray_tmp)
+                
+                pandas_RT_tmp = pandas.DataFrame({'observer_id': observer_id,
+                                                  'observer_coldef_type': coldef_type,
+                                                  'coldef_type': coldef_type,
+                                                  'set_id': set_id,
+                                                  'scene_id': scene_id,
+                                                  'image_id': 'nix'
+                                                  },[index])
+                #print pandas_RT_tmp
+                
+                for dalt_id in dalt_ids:
+                    if dalt_id not in [0,99]:
+                        whatArray_tmp = [['dalt_id',operator.eq,dalt_id],['coldef_type',operator.eq,coldef_type]]
+                    else: 
+                        whatArray_tmp = [['dalt_id',operator.eq,dalt_id]]
+                    field = organizeArray(visdem_data_restr_scene, whatArray_tmp).reset_index().loc[0]
+                    if not field.empty:
+                        #RT_tmp = field['resp_time'] if bool(field['is_correct']) else float('NaN')
+                        RT_tmp = field['resp_time']
+                        pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
+                        pandas_RT_tmp['image_id'] = field['image_id']
+                        pandas_RT_tmp['coldef_type'] = field['coldef_type']
+                    else:
+                        RT_tmp = float('NaN')
+                        pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
+                    
+                visdem_data_RT_paired = visdem_data_RT_paired.append(pandas_RT_tmp)
+                index += 1
+    # Layout RT for storage in path
+    visdem_data_RT_paired = visdem_data_RT_paired[columns]
+    #print visdem_data_RT_paired
+    visdem_data_RT_paired.observer_id = visdem_data_RT_paired.observer_id.astype(int)
+    visdem_data_RT_paired.observer_coldef_type = visdem_data_RT_paired.observer_coldef_type.astype(int)
+    visdem_data_RT_paired.set_id = visdem_data_RT_paired.set_id.astype(int)
+    visdem_data_RT_paired.scene_id = visdem_data_RT_paired.scene_id.astype(int)
+    visdem_data_RT_paired.image_id = visdem_data_RT_paired.image_id.astype(int)
+    visdem_data_RT_paired.coldef_type = visdem_data_RT_paired.coldef_type.astype(int)
+    visdem_data_RT_paired.to_csv(os.path.join(path,'visdem-data-RT-paired.csv'),sep=";")
+    
+    dalt_names = [settings.id2Dalt[i] for i in dalt_ids]
+    res_str = str(dalt_ids) + "\n"
+    res_str += str(dalt_names)
+    
+    f = open(os.path.join(path,'visdem-data-RT-paired_meta-data.txt'), 'w')
+    json.dump(res_str, f)
+    f.close()
+
 
 #import copy
 
@@ -1337,9 +1854,7 @@ def makeMedianTest(data,path,methods,dict):
     """
     
     num_methods = numpy.shape(methods)[0]
-    #print numpy.shape(methods)
     num_columns = numpy.shape(data)[0]
-    #print numpy.shape(data)
     if not num_methods == num_columns:
         print "Error: Number of columns does not match the labels for the median test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns)
         return
@@ -1348,7 +1863,7 @@ def makeMedianTest(data,path,methods,dict):
         filename_csv = dict['filename']+"_median-test_p-values.csv"
         filename_latex = dict['filename']+"_median-test_p-values.tex"
     else:
-        filename_csv = "median-test_p-values.csv"
+        filename_csv = "_median-test_p-values.csv"
     
     range_methods = range(num_methods)
     
@@ -1382,556 +1897,44 @@ def makeMedianTest(data,path,methods,dict):
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
 
     writePandastoLatex(matrix,os.path.join(path,filename_latex))
-    
-# def writePandastoLatex(pandasArr,path):
-#     columns =  pandasArr.columns
-#     num_columns = numpy.shape(columns)[0]
-#     range_columns = sorted(range(0,num_columns))
-#     
-#     index =  pandasArr.index
-#     num_index = numpy.shape(index)[0]
-#     #print num_index
-#     range_index = sorted(range(0,num_index))
-#     
-#     order = "| c ||"
-#     header = "& "
-#     for i in range_columns:
-#         order += " c "
-#         header += " "+str(columns[i])+" "
-#         if i != num_columns-1:
-#             order += "|"
-#             header += "& "
-#     order += "|"
-#     
-#     res_str = "\\begin{center}\n"
-#     res_str += "\t\\begin{tabular}{"+order+"}\n"
-#     res_str += "\t\t\\hline\n"
-#     res_str += "\t\t"+header+"\\\\ \\hline\\hline\n"
-#     #res_str += 
-#     counter_row = 0
-#     for index, row in  pandasArr.iterrows():
-#         counter_row +=1
-#         #print counter_row
-#         res_str += "\t\t"+index+" & "
-#         for i in sorted(range(0,num_index)):
-#             if type(row[i]) == str:
-#                 res_str += row[i]+" "
-#             else:
-#                 res_str += "%.4f"%(row[i])+" "
-#             if i != num_columns-1:
-#                 res_str += "& "
-#         if counter_row != num_index:   
-#             res_str += "\\\\ \\hline\n"
-#         else:
-#             res_str += "\\\\ \n"
-#     res_str += "\t\t\\hline\n"
-#     res_str += "\t\\end{tabular}\n"
-#     res_str += "\\end{center}"
-#     
-#     text_file = open(path, "w+")
-#     text_file.write(res_str)
-#     text_file.close()
-    
 
-###
-###  ViSDEM result plots
-###
-
-def vsplots1thru4(visual_search_data,path,dict):
-    sys.stdout.write("Starting Res#"+str(dict['result_id'])+':')    
-    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+def preparePandas4AccuracyPlots(pandas_dict):
     
-    set_ids = set(visual_search_data['set_id'].values.astype(int))        
-    for set_id in set_ids:
-        sys.stdout.write("Set#"+str(set_id)+'.')
-        # extract only DN and DE images for norm.sigh.obs.
-        filename_tmp = '000999'+dict['obs_coldef_type']+str(set_id).zfill(3)+'9999-v'
-            
-        whatArr_tmp = [['version_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id],['is_correct',operator.eq,True]];howArr_tmp = []
-        DNData =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-            
-        whatArr_tmp = [['version_id',operator.eq,2],['dalt_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id],['is_correct',operator.eq,True]];howArr_tmp = []
-        DEData = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-            
-        boxes_tmp = [];labels_tmp = []
-        DND_values = DNData['resp_time'].values; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
-        DED_values = DEData['resp_time'].values; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
-            
-        plt.figure(); plt.boxplot(boxes_tmp, notch=1)
-        plt.xticks([1,2],labels_tmp); plt.title('Set '+str(set_id)+': '+dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,5])
-        plt.savefig(os.path.join(path,str(dict['result_id']),filename_tmp+".png")); plt.close()
+    accuracies = {}
     
-    sys.stdout.write('\n')
-  
-def vsplots5thru8(visual_search_data,path,dict):
-    sys.stdout.write("Starting Res#"+str(dict['result_id'])+':')    
-    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
-    
-    scene_ids = set(visual_search_data['scene_id'].values.astype(int))        
-    for scene_id in scene_ids:
-        sys.stdout.write("Scene#"+str(scene_id)+'.')
-        # extract only DN and DE images for norm.sigh.obs.
-        filename_tmp = '000999'+dict['obs_coldef_type']+str(getSetFromScene(scene_id)).zfill(3)+str(scene_id).zfill(3)+'9-v'
-            
-        whatArr_tmp = [['version_id',operator.eq,0],dict['obs_operator'],['scene_id',operator.eq,scene_id],['is_correct',operator.eq,True]];howArr_tmp = []
-        DNData =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-            
-        whatArr_tmp = [['version_id',operator.eq,2],['dalt_id',operator.eq,0],dict['obs_operator'],['scene_id',operator.eq,scene_id],['is_correct',operator.eq,True]];howArr_tmp = []
-        DEData = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-            
-        boxes_tmp = [];labels_tmp = []
-        DND_values = DNData['resp_time'].values; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
-        DED_values = DEData['resp_time'].values; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
-            
-        plt.figure(); plt.boxplot(boxes_tmp, notch=1)
-        plt.xticks([1,2],labels_tmp); plt.title('Scene '+str(scene_id)+': '+dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,5])
-        plt.savefig(os.path.join(path,str(dict['result_id']),filename_tmp+".png")); plt.close()
-    
-    sys.stdout.write('\n')
-
-
-    
-def vsplots67thru70(visual_search_data,path,dict):
-    
-    result_id = dict['result_id']
-    intro_string = result_id if result_id else dict['filename'] 
-    sys.stdout.write("Starting Res#"+str(intro_string))    
-    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
-    
-    DNData = pandas.DataFrame(); DEData = pandas.DataFrame(); DCData = pandas.DataFrame()
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = []
-    
-    # 1. Retrieving data from the image versions
-    for set_id in set_ids:
-        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DNData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DNData = pandas.concat([DNData_tmp,DNData])
-            
-        whatArr_tmp = [['version_id',operator.eq,2],['dalt_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DEData_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DEData = pandas.concat([DEData_tmp,DEData])
+    for key in pandas_dict:
+        ACC_tmp = getAccuracy(pandas_dict[key])
+        ACC_tmp.append(key)
+        accuracies.update({key: ACC_tmp})
         
-        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],dict['obs_operator'],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DCData_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DCData = pandas.concat([DCData_tmp,DCData])
-    
-    
-    
-    # 2. Plot reponse times
-    boxes_tmp = [];labels_tmp = []
-    DND_values = DNData[DNData['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('DN') if DND_values.size else labels_tmp.append('DN - No data'); boxes_tmp.append(DND_values)
-    DCD_values = DCData[DCData['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('DC') if DCD_values.size else labels_tmp.append('DC - No data'); boxes_tmp.append(DCD_values) 
-    DED_values = DEData[DEData['is_correct']==True]['resp_time'].values*1000; labels_tmp.append('DE') if DED_values.size else labels_tmp.append('DE - No data'); boxes_tmp.append(DED_values)
-            
-    plt.figure(); plt.boxplot(boxes_tmp, notch=1)
-    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('Response time (ms)'); 
-    plt.ylim([0,3000]); plt.grid(axis='y')
-    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); 
-    plt.close()
-    
-    # 3. Save data in file
-    for_bruno = pandas.DataFrame(boxes_tmp)
-    for_bruno = for_bruno.rename({0:labels_tmp[0],1:labels_tmp[1],2:labels_tmp[2]})
-    #for_bruno.to_csv(os.path.join(path,str(dict['result_id']),dict['filename']+".csv"),sep=';')
-    
-     
-    # 4. Accuracy plots
-    dn_acc = getAccuracy(DNData)
-    dn_acc.append(labels_tmp[0])
-    dc_acc = getAccuracy(DCData)
-    dc_acc.append(labels_tmp[1])
-    de_acc = getAccuracy(DEData)
-    de_acc.append(labels_tmp[2])
-    accuracies = {'DN': dn_acc,
-                  'DC': dc_acc,
-                  'DE': de_acc}
-    plotAccuracyGraphs(accuracies,path,dict,order={1:'DN', 2:'DC', 3:'DE'})
+    return accuracies
         
-    sys.stdout.write(".")
-
-def vsplots71thru74(visual_search_data,path,dict):
+def preparePandas4Chi2(pandas_dict,order_dict):
+    data = {}; corrArr = []; uncorrArr = []; labels_array = []
+    for i in range(len(order_dict)):
+        key = order_dict[i]
+        corr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values)[0]
+        uncorr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==False]['resp_time'].values)[0]
+        corrArr.append(corr_tmp)
+        uncorrArr.append(uncorr_tmp)
+        labels_array.append(key)
+        data.update({key: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
     
-    result_id = dict['result_id']
-    intro_string = result_id if result_id else dict['filename'] 
-    sys.stdout.write("Starting Res#"+str(intro_string)+' -> ')    
-    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
+    obs_array = numpy.array([corrArr, uncorrArr])
+    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[labels_array]
     
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = []
-    
-    beforeData = pandas.DataFrame(); afterData = pandas.DataFrame();
-    
-    for set_id in set_ids:
-        # get all the data before daltonization
-        whatArr_tmp = [['dalt_id',operator.eq,0],['version_id',operator.eq,1],dict['obs_operator'],];howArr_tmp = []
-        beforeData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        beforeData = pandas.concat([beforeData_tmp,beforeData])
-        
-        # get all the data after daltonization
-        whatArr_tmp = [['dalt_id',operator.eq,2],['version_id',operator.eq,1],dict['obs_operator'],];howArr_tmp = []
-        afterData_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        afterData = pandas.concat([afterData_tmp,afterData])
-        
-    boxes_tmp = [];labels_tmp = []
-    before_values = beforeData[beforeData['is_correct']==True]['resp_time'].values; labels_tmp.append('before daltonization') if before_values.size else labels_tmp.append('before - No data'); boxes_tmp.append(before_values)
-    after_values = afterData[afterData['is_correct']==True]['resp_time'].values; labels_tmp.append('after daltonization') if after_values.size else labels_tmp.append('after - No data'); boxes_tmp.append(after_values)
-    
-    plt.figure(); plt.boxplot(boxes_tmp, notch=1)
-    plt.xticks([1,2,3],labels_tmp); plt.title(dict['obs_title']); plt.ylabel('response time'); plt.ylim([0,3])
-    plt.grid(axis='y')
-    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
-    plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.pdf")); 
-    plt.close()
-    
-    # 3. Accuracy plots
-    before_acc = getAccuracy(beforeData)
-    before_acc.append(labels_tmp[0])
-    after_acc = getAccuracy(afterData)
-    after_acc.append(labels_tmp[1])
-    accuracies = {'before': before_acc,
-                  'after': after_acc}
-    plotAccuracyGraphs(accuracies,path,dict,order=['before','after'])
-
-def visdemPlot75(visual_search_data,path,dict):
-    
-    
-    if dict.has_key('filename'):
-        filename = dict['filename']
-    else:    
-        filename = "visdem-normal-deutan-observers"
-    
-    if dict.has_key('obs_title'):
-        obs_title = dict['obs_title']
-    else:
-        obs_title = ''
-    
-    if dict.has_key('fontsize'):
-        fontsize = dict['fontsize']
-    else:
-        fontsize = 18
-        
-    if dict.has_key('y_lim_ACC'):
-        y_lim_ACC = dict['y_lim_ACC']
-    else:
-        y_lim_ACC = [.0,1.] 
-        
-    if dict.has_key('y_lim_RT'):
-        y_lim_RT = dict['y_lim_RT']
-    else:
-        y_lim_RT = [0,3000]
-    
-    if dict.has_key('result_id'):
-        result_id = dict['result_id']
-    else:
-        result_id = ''
-    intro_string = result_id if result_id else filename
-         
-    sys.stdout.write("Starting Res#"+str(intro_string))    
-    if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
-    
-    Data_norm = pandas.DataFrame()
-    Data_deut = pandas.DataFrame()
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = []
-    
-    # 1. Retrieving data from the image versions
-    for set_id in set_ids:
-        # Getting data from all variants for all normal sighted observers
-        whatArr_tmp = [['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
-        Data_norm_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        Data_norm = pandas.concat([Data_norm_tmp,Data_norm])
-        
-        # Getting data from all variant for all deutan color deficient observers
-        whatArr_tmp = [['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
-        Data_deut_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        Data_deut = pandas.concat([Data_deut_tmp,Data_deut])
-    
-    # 2. Plot reponse times
-    # Normal sighted observers
-    boxes_tmp = []; labels_tmp = []
-    Data_norm_values = Data_norm[Data_norm['is_correct']==True]['resp_time'].values*1000; 
-    labels_tmp.append('Normal') if Data_norm_values.size else labels_tmp.append('Normal - No data'); 
-    boxes_tmp.append(Data_norm_values)
-    
-    # Deutan color deficient observers
-    Data_deut_values = Data_deut[Data_deut['is_correct']==True]['resp_time'].values*1000; 
-    labels_tmp.append('Deutan') if Data_deut_values.size else labels_tmp.append('Deutan - No data'); 
-    boxes_tmp.append(Data_deut_values)
-             
-    # Let's start plotting!
-    plt.figure(); 
-    plt.boxplot(boxes_tmp, notch=1)
-    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(obs_title, fontsize=fontsize); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
-    plt.ylim(y_lim_RT); plt.grid(axis='y')
-    plt.savefig(os.path.join(path,str(result_id),filename+"-R.pdf")); 
-    plt.close()
-    
-    # 3. Run median test on RT data
-    test_array = []
-    test_array.append(Data_norm_values)
-    test_array.append(Data_deut_values)
-    test_array = numpy.array(test_array)
-    #print test_array[0]
-    print
-    dict.update({'filename': dict['filename']+"-RT"})
-    makeMedianTest(test_array,path,labels_tmp,dict)
-     
-    # 4. Accuracy plots
-    # Normal sighted
-    norm_acc = getAccuracy(Data_norm)
-    norm_acc.append(labels_tmp[0])
-    # Deutan color deficient
-    deut_acc = getAccuracy(Data_deut)
-    deut_acc.append(labels_tmp[1])
-    accuracies_norm = {'Normal': norm_acc,
-                       'Deutan': deut_acc}
-    
-    # Lets start plotting
-    dict.update({'fontsize':fontsize,'filename': filename})
-    plotAccuracyGraphs(accuracies_norm,path,dict,order={1:'Normal', 2:'Deutan'})
-        
-    sys.stdout.write(".")
-
- 
-    
-def visdemPlot76(visual_search_data,path,dict):
-    
-    filename_norm = "visdem-normal-observers"
-    filename_deut = "visdem-deutan-observers"
-    filename_norm_deut = "visdem-normal-deutan-observers"
-    if dict.has_key('fontsize'):
-        fontsize = dict['fontsize']
-    else:
-        fontsize = 18
-    
-    result_id = dict['result_id']
-    intro_string = result_id if result_id else dict['filename'] 
-    sys.stdout.write("Starting Res#"+str(intro_string))    
-    if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
-    
-    DNData_norm = pandas.DataFrame(); DCData_norm = pandas.DataFrame()
-    DNData_deut = pandas.DataFrame(); DCData_deut = pandas.DataFrame()
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = []
-    
-    # 1. Retrieving data from the image versions
-    for set_id in set_ids:
-        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DNData_norm_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DNData_norm = pandas.concat([DNData_norm_tmp,DNData_norm])
-        
-        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,0],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DCData_norm_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DCData_norm = pandas.concat([DCData_norm_tmp,DCData_norm])
-        
-        whatArr_tmp = [['version_id',operator.eq,0],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DNData_deut_tmp =  organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DNData_deut = pandas.concat([DNData_deut_tmp,DNData_deut])
-        
-        whatArr_tmp = [['version_id',operator.eq,1],['dalt_id',operator.eq,0],['observer_coldef_type',operator.eq,2],['set_id',operator.eq,set_id]];howArr_tmp = []
-        DCData_deut_tmp = organizeArray(visual_search_data,whatArr_tmp,howArr_tmp)
-        DCData_deut = pandas.concat([DCData_deut_tmp,DCData_deut])
-    
-    # 2. Plot reponse times
-    boxes_norm_tmp = []; boxes_deut_tmp = []; labels_tmp = []
-    DND_norm_values = DNData_norm[DNData_norm['is_correct']==True]['resp_time'].values*1000; 
-    labels_tmp.append('DN') if DND_norm_values.size else labels_tmp.append('DN - No data'); 
-    boxes_norm_tmp.append(DND_norm_values)
-    DCD_norm_values = DCData_norm[DCData_norm['is_correct']==True]['resp_time'].values*1000; 
-    labels_tmp.append('DC') if DCD_norm_values.size else labels_tmp.append('DC - No data'); 
-    boxes_norm_tmp.append(DCD_norm_values) 
-    
-    DND_deut_values = DNData_deut[DNData_deut['is_correct']==True]['resp_time'].values*1000; 
-    labels_tmp.append('DN') if DND_deut_values.size else labels_tmp.append('DN - No data'); 
-    boxes_deut_tmp.append(DND_deut_values)
-    DCD_deut_values = DCData_deut[DCData_deut['is_correct']==True]['resp_time'].values*1000; 
-    labels_tmp.append('DC') if DCD_deut_values.size else labels_tmp.append('DC - No data'); 
-    boxes_deut_tmp.append(DCD_deut_values) 
-             
-    plt.figure(); 
-    plt.boxplot(boxes_norm_tmp, notch=1)
-    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(dict['obs_title']); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
-    plt.ylim([0,3000]); plt.grid(axis='y')
-    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
-    plt.savefig(os.path.join(path,str(dict['result_id']),filename_norm+"-R.pdf")); 
-    plt.close()
-    
-    plt.figure(); 
-    plt.boxplot(boxes_deut_tmp, notch=1)
-    plt.xticks([1,2],labels_tmp,fontsize=fontsize); plt.title(dict['obs_title']); plt.ylabel('Response Time (ms)',fontsize=fontsize); 
-    plt.ylim([0,3000]); plt.grid(axis='y')
-    #plt.savefig(os.path.join(path,str(dict['result_id']),dict['filename']+"-R.eps"));
-    plt.savefig(os.path.join(path,str(dict['result_id']),filename_deut+"-R.pdf")); 
-    plt.close()
-     
-    # 4. Accuracy plots
-    dn_norm_acc = getAccuracy(DNData_norm)
-    dn_norm_acc.append(labels_tmp[0])
-    dc_norm_acc = getAccuracy(DCData_norm)
-    dc_norm_acc.append(labels_tmp[1])
-    accuracies_norm = {'DN': dn_norm_acc,
-                       'DC': dc_norm_acc}
-    
-    dn_deut_acc = getAccuracy(DNData_deut)
-    dn_deut_acc.append(labels_tmp[0])
-    dc_deut_acc = getAccuracy(DCData_deut)
-    dc_deut_acc.append(labels_tmp[1])
-    accuracies_deut = {'DN': dn_deut_acc,
-                       'DC': dc_deut_acc}
-    
-    dict.update({'fontsize':fontsize,'filename': filename_norm_deut})
-    plt.figure()
-    dict.update({'fmt': 'or', 'color': 'red'})
-    plotAccuracyGraphs(accuracies_norm,path,dict,order={1:'DN', 2:'DC'})
-    dict.update({'fmt': 'D', 'color': 'blue'})
-    plotAccuracyGraphs(accuracies_deut,path,dict,order={1:'DN', 2:'DC'})
-    plt.close()
-        
-    sys.stdout.write(".")
-
-  
-    
+    return obs_array, obs_pandas
 
 
-# def plotSample2MatchData(path,sample2MatchDataPath):
-#     
-#     """
-#     Input:  * path                 - Path where the plots should be saved
-#             * sample2MatchDataPath - Path to the CSV-file containing Pandas array with the sample-2-match data.
-#     """
-#     
-#     sample2match_data = pandas.read_csv(sample2MatchDataPath,sep=';')
-#     """
-#     dict = {'result_id': 1, 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All norm.sight.obs. on prot.', 'filename': '9919990999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     dict = {'result_id': 2, 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All norm.sight.obs. on deut.', 'filename': '9929990999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     dict = {'result_id': 3, 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.gt,0], 'obs_title': 'All coldef.obs. on prot.', 'filename': '9919999999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     dict = {'result_id': 4, 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.gt,0], 'obs_title': 'All coldef.obs. on deut.', 'filename': '9929999999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     
-#     dict = {'result_id': 9, 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,1], 'obs_title': 'All prot.obs. on prot.', 'filename': '9919991999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     dict = {'result_id': 10, 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,1], 'obs_title': 'All prot.obs. on deut.', 'filename': '9929991999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     dict = {'result_id': 11, 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All deut.obs. on prot.', 'filename': '9919992999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     dict = {'result_id': 12, 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All deut.obs. on deut.', 'filename': '9929992999-a' }; s2mplots1thru4(sample2match_data, path, dict)
-#     """
-#     dict = {'result_id': 29, 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.prot.', 'filename': 'C-9919999999' }; s2mplots29and30(sample2match_data, path, dict)
-#     dict = {'result_id': 30, 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.deut.', 'filename': 'C-9929999999' }; s2mplots29and30(sample2match_data, path, dict)
-#     
-  
 
-# def extractVisualSearchData(dataSheet,dataArray=pandas.DataFrame(),testArray=pandas.DataFrame()):
-#     """
-#     This function takes the url an xlsx file containing the result data from a visual search experiment, extracts the data and returns the contained information as numpy array.
-#     Input:
-#     * dataSheet:     URL to XLSX data sheet containing the information.
-#     * dataArray:     Pandas data array containing information from previous experiments, to which the new data is concatenated. Empty array by default.
-#     Output:
-#     * dataArray:     Pandas data array containing the new relevant information (plus the optional previously existed data).
-#     * testArray:     Pandas data array containing the new colordeficiency_tools information (plus the optional previously existed colordeficiency_tools data)
-#     * extraDataDict: Dictionary containing the additional data from the experiments
-#     """
-#     
-#     #Get all the sheet names from the excel file
-#     sheet_names = pandas.ExcelFile(dataSheet).sheet_names
-#     # Create empty array for colordeficiency_tools and relevant datam create empty dictionary for the extra data
-#     if dataArray.empty: dataArray = pandas.DataFrame(); 
-#     if testArray.empty: testArray = pandas.DataFrame(); 
-#     extraDataDict= {}
-#     # Read file sheet by sheet
-#     for sheet_name in sheet_names:    
-#         if not "~" in sheet_name:
-#             if ('practSets' in sheet_name) or ('sets' in sheet_name): pass # Ignore data about the order of sets and samples for now
-#             else:
-#                 # Read excel sheet and extract data
-#                 excel_sheet = pandas.read_excel(dataSheet, sheet_name)
-#                 array_tmp, extraDataDict_tmp = extractDataFromPsychoPyXLSX(excel_sheet)
-#                 # Update dictionary containing extra data
-#                 extraDataDict.update(extraDataDict_tmp)
-#                 # Append colordeficiency_tools or relevant data to respective data array
-#                 if 'practTrials' in sheet_name: testArray = pandas.concat([array_tmp,testArray]) if not testArray.empty else array_tmp
-#                 else: dataArray = pandas.concat([array_tmp,dataArray]) if not dataArray.empty else array_tmp
-#     
-#     testArray = testArray.reset_index() 
-#     dataArray = dataArray.reset_index()
-#     
-#     return dataArray, testArray, extraDataDict
-
-  
- 
-
-# def plotVisualSearchData(path,visualSearchDataPath):
-#     
-#     """
-#     Input:  * path                 - Path where the plots should be saved
-#             * visualSearchDataPath - Path to the CSV-file containing Pandas array with the visual search data.
-#     """
-#     
-#     visual_search_data = pandas.read_csv(visualSearchDataPath,index_col=False,header=0,sep=';')
-#     #print visual_search_data
-#     
-#     """
-#     # Compute img#1-4 from https://docs.google.com/document/d/1w305_EUYiReLrQ34H-teJwsNICXvRK-cv7E6TgVfukM/edit#heading=h.khuve23asvax
-#     dict = {'result_id': 1, 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All norm.sight.obs.' }; vsplots1thru4(visual_search_data, path, dict)
-#     dict = {'result_id': 2, 'obs_coldef_type': str(9), 'obs_operator': ['observer_coldef_type',operator.gt,0], 'obs_title': 'All col.def.obs.' }; vsplots1thru4(visual_search_data, path, dict) 
-#     dict = {'result_id': 3, 'obs_coldef_type': str(1), 'obs_operator': ['observer_coldef_type',operator.eq,1], 'obs_title': 'All prot.obs.' }; vsplots1thru4(visual_search_data, path, dict)
-#     dict = {'result_id': 4, 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All deut.obs.' }; vsplots1thru4(visual_search_data, path, dict)
-#     
-#     # Compute img#5-8 from https://docs.google.com/document/d/1w305_EUYiReLrQ34H-teJwsNICXvRK-cv7E6TgVfukM/edit#heading=h.khuve23asvax
-#     dict = {'result_id': 5, 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All norm.sight.obs.' }; vsplots5thru8(visual_search_data, path, dict)
-#     dict = {'result_id': 6, 'obs_coldef_type': str(9), 'obs_operator': ['observer_coldef_type',operator.gt,0], 'obs_title': 'All col.def.obs.' }; vsplots5thru8(visual_search_data, path, dict) 
-#     dict = {'result_id': 7, 'obs_coldef_type': str(1), 'obs_operator': ['observer_coldef_type',operator.eq,1], 'obs_title': 'All prot.obs.' }; vsplots5thru8(visual_search_data, path, dict)
-#     dict = {'result_id': 8, 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All deut.obs.' }; vsplots5thru8(visual_search_data, path, dict)
-#     """
-#     
-#     # Compute img#67-70 from https://docs.google.com/document/d/1w305_EUYiReLrQ34H-teJwsNICXvRK-cv7E6TgVfukM/edit#heading=h.khuve23asvax
-#     dict = {'result_id': 67, 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All sets for all norm.sight.obs.', 'filename': 'V-00099909999999' }; vsplots67thru70(visual_search_data, path, dict)
-#     dict = {'result_id': 68, 'obs_coldef_type': str(9), 'obs_operator': ['observer_coldef_type',operator.gt,0], 'obs_title': 'All sets for all col.def.obs.', 'filename': 'V-00099999999999' }; vsplots67thru70(visual_search_data, path, dict)
-#     dict = {'result_id': 69, 'obs_coldef_type': str(1), 'obs_operator': ['observer_coldef_type',operator.eq,1], 'obs_title': 'All sets for all prot.obs.', 'filename': 'V-00099919999999' }; vsplots67thru70(visual_search_data, path, dict)
-#     dict = {'result_id': 70, 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All sets for all deut.obs.', 'filename': 'V-00099929999999' }; vsplots67thru70(visual_search_data, path, dict)
-#     
-
+def preparePandas4RTPlots(pandas_dict,order_dict):
     
-# def plotEI2015_SaMSEM_ViSDEM():
-#     path = "/Users/thomas/Dropbox/01_NZT/01_PhD/02_Conferences/EI-2015_Color-Imaging-XX/01_Artikler/02_Evaluation-methods/images/"
-#     
-#     # Plots for ViSDEM
-#     visualSearchDataPath = '../colordeficiency-data/visual-search-data.csv'
-#     visual_search_data = pandas.read_csv(visualSearchDataPath,index_col=False,header=0,sep=';')
-#     dict = {'result_id': '', 'obs_coldef_type': str(0), 'obs_operator': ['observer_coldef_type',operator.eq,0], 'obs_title': 'All sets for all norm.sight.obs.', 'filename': 'visdem-normal-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#67
-#     dict = {'result_id': '', 'obs_coldef_type': str(2), 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All sets for all deut.obs.', 'filename': 'visdem-deutan-observers' }; vsplots67thru70(visual_search_data, path, dict) #Res#70
-#     
-#     # Plots for SaMSEM
-#     sample2MatchDataPath = '../colordeficiency-data/sample-2-match-data.csv'
-#     sample2match_data = pandas.read_csv(sample2MatchDataPath,index_col=False,sep=';')
-#     dict = {'result_id': '', 'coldef_type': 1, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.prot.', 'filename': 'samsem-protanopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#29
-#     dict = {'result_id': '', 'coldef_type': 2, 'obs_operator': ['observer_coldef_type',operator.eq,2], 'obs_title': 'All img.s for all obs.s sim.deut.', 'filename': 'samsem-deuteranopia' }; s2mplots29and30(sample2match_data, path, dict) #Res#30
-#     
-    
-# if 0:
-#     test_path = "/Users/thomas/Desktop/tull/colordeficiency_tools/visual-search/colordeficiency-data/"
-#     test_file = "/Users/thomas/Desktop/tull/colordeficiency_tools/visual-search/colordeficiency-data/11_2014_mai_16_1356.xlsx"
-#     #dataArray, testArray, extraDataDict = extractVisualSearchData(test_file)
-#     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
-#     #print dataArray
-#     #print testArray
-#     #print extraDataDict
-#     analyzeViSDEMData(test_path)
-#     #plotVisualSearchData(os.path.join("/Users/thomas/Desktop/tull/colordeficiency_tools/results",'VS-plots'),'../colordeficiency-data/visual-search-data.csv')   
-# elif 0:
-#     test_path = "/Users/thomas/Desktop/tull/colordeficiency_tools/sample-2-match/colordeficiency-data/"
-#     test_file = "/Users/thomas/Desktop/tull/colordeficiency_tools/sample-2-match/colordeficiency-data/11_2014_mai_16_1307.xlsx"
-#     #dataArray, testArray, extraDataDict = extractExperimentData(test_file)
-#     #print dataArray
-#     #print testArray
-#     #print extraDataDict
-#     analyzeSaMSEMData(test_path)
-#     #plotSample2MatchData(os.path.join("/Users/thomas/Desktop/tull/colordeficiency_tools/results/",'S2M-plots'), '../colordeficiency-data/sample-2-match-data.csv')
-# #plotEI2015_SaMSEM_ViSDEM()
+    boxes = []; labels = []
+    for i in range(len(order_dict)):
+        key = order_dict[i]
+        
+        values_tmp = pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values*1000; 
+        labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
+        boxes.append(values_tmp)
+        
+    return boxes, labels
