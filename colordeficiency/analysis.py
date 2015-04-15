@@ -407,7 +407,7 @@ def samsemPlots1thru4(samsem_data,path,dict):
             
         order.update({i:method_id})
         i += 1
-    
+        
     if 'RT_boxplots' in plot_types:
         # 6. Plot response time data
         plotRTGraphs(boxes,labels,path_res,dict,order)

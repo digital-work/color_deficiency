@@ -72,7 +72,7 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
         y_lim = [.0,1750.]
     plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(meanData)+1]); plt.grid(axis='y');
     
-    mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
+    mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=0
     
     if not order:
         for key,value in meanData.iteritems():
@@ -82,7 +82,7 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
             howMany.append(counter);counter+=1
     else:
         end = len(order);
-        while counter <= end:
+        while counter < end:
             key = order[counter]
             value = meanData[key]
             mean_plots.append(value[0])
