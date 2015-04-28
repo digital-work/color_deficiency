@@ -89,7 +89,10 @@ colDef2ID = {'p': 1,
 default = {'simulation_type': 'brettel',
            'daltonization_type': 'anagnastopoulos',
            'coldef_type': 'p'}
-module_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),os.pardir)
+
+#os.path.abspath(os.path.join(yourpath, os.pardir))
+
+module_path =  os.path.abspath(os.path.join(__file__,os.pardir))#(os.path.dirname (os.path.abspath(__file__)),os.pardir)
 
 pts_default = 10
 its_default = 100
