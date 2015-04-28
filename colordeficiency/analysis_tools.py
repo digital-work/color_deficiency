@@ -150,15 +150,17 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
         
     if not multiple_graphs: 
         plt.figure() 
+        
     fig = plt.gcf()
     plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
     #plt.fontsize(fontsize)
-    acc_plots = [];labels_tmp=[];se=[];howMany=[];counter=1
+    acc_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[];howMany=[];counter=1
     if not order:
         for key,value in accData.iteritems():
             acc_plots.append(value[0])
-            se.append(value[1])
-            labels_tmp.append(value[2])
+            lower_bound.append(value[1])
+            upper_bound.append(value[2])
+            labels_tmp.append(value[3])
             howMany.append(counter);counter+=1
     else:
         end = len(order);
@@ -166,16 +168,15 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
             key = order[counter-1]
             value = accData[key]
             acc_plots.append(value[0])
-            se.append(value[1])
-            labels_tmp.append(value[2])
+            lower_bound.append(value[1])
+            upper_bound.append(value[2])
+            labels_tmp.append(key)
             howMany.append(counter);counter+=1
             
     acc_plots = numpy.array(acc_plots)
-    se = numpy.array(se)
-    se_int = 1.96*se
-    lower_bound = acc_plots-se_int
-    upper_bound = acc_plots+se_int
-    plt.errorbar(howMany,acc_plots,se_int,fmt=fmt, color=color)
+    bounds = numpy.array([lower_bound,upper_bound])
+    
+    plt.errorbar(howMany,acc_plots,bounds,fmt=fmt, color=color)
     plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
     title_default = ''
     if dict.has_key('obs_title'):
@@ -194,7 +195,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     if not multiple_graphs:
         plt.close()
         
-    data = {'l-bounds': lower_bound,'acc': acc_plots, 'u-bounds':upper_bound}
+    data = {'l-bounds': acc_plots-lower_bound,'acc': acc_plots, 'u-bounds': acc_plots+upper_bound}
     a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','acc', 'u-bounds'])
     a.to_csv(os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.csv"),sep=';')
     writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
@@ -223,9 +224,20 @@ def plotRTGraphs(boxes,labels,path,dict,order=[]):
         save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
     counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
     
-    plt.figure(); plt.boxplot(boxes, notch=1)
-    plt.xticks(counter,labels,fontsize=fontsize); plt.title(obs_title,fontsize=fontsize); plt.tick_params(axis='y', labelsize=fontsize);plt.tick_params(axis='x', labelsize=fontsize); plt.ylabel('Response Times (ms)', fontsize=fontsize); plt.ylim(y_lim); plt.grid(axis='y');
-    plt.savefig(save_to_file); plt.close()
+    plt.figure(); 
+    
+    plt.boxplot(boxes, notch=1)
+    
+    plt.xticks(counter,labels,fontsize=fontsize); 
+    plt.title(obs_title,fontsize=fontsize); 
+    plt.tick_params(axis='y', labelsize=fontsize);
+    plt.tick_params(axis='x', labelsize=fontsize); 
+    plt.ylabel('Response Times (ms)', fontsize=fontsize); 
+    plt.ylim(y_lim); 
+    plt.grid(axis='y');
+    plt.savefig(save_to_file); 
+    
+    plt.close()
 
 def plotHistogram(distribution,path,dict):
     
@@ -300,21 +312,34 @@ def getSetFromScene(sce_id):
     set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==sce_id].set_id.values[0]) 
     
     
-def getAccuracy(data):
+def getAccuracy(data,c,type):
     
-    num_total =  numpy.shape(data.values)[0]
-    num_correct = numpy.shape(data[data['is_correct']==True].values)[0] 
-    num_incorrect = numpy.shape(data[data['is_correct']==False].values)[0]
+    num_total =  float(numpy.shape(data.values)[0])
+    num_correct = float(numpy.shape(data[data['is_correct']==True].values)[0]) 
+    num_incorrect = float(numpy.shape(data[data['is_correct']==False].values)[0])
     
     if data.values.size:
-        acc = float(num_correct)/float(num_total)
-        se = math.sqrt((acc)*(1-acc)/float(num_total))
-        #lb = acc-1.96*se # lower bound
-        #ub = acc+1.96*se # upper bound
-        #return [acc,lb,ub]
-        return [acc,se]
+        if type == 'normal':
+            p_hat = num_correct/num_total
+            acc = p_hat
+            se = c*math.sqrt((p_hat)*(1.0-p_hat)/num_total)
+            lower_bound = se
+            upper_bound = se
+            
+        elif type == 'wilson-score':
+            p_hat = num_correct/num_total
+            p_hat_adj = (p_hat + (c**2.)/(2.*num_total)) / (1.+(c**2.)/num_total)
+            acc = p_hat
+            se = c * math.sqrt(p_hat*(1.-p_hat)/num_total+(c**2.)/(4.*num_total**2.)) / (1.+(c**2.)/num_total)
+            lower_bound = p_hat - (p_hat_adj - se)
+            upper_bound = (p_hat_adj + se) - p_hat
+        else:
+            acc = float('NaN')
+            se = float('NaN')
+            
+        return [acc,lower_bound,upper_bound]
     else:
-        return [.0,.0]
+        return [float('NaN'),float('NaN')]
 
 
 def getCIAverage(data):
@@ -361,11 +386,11 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"_pearson-chi2-contingency-2x2-test-matrix_p-values.csv"
-        filename_tex = dict['filename']+"_pearson-chi2-contingency-2x2-test-matrix_p-values.tex"
+        filename_csv = dict['filename']+"_pairwise-pearson-chi2-contingency-test-matrix_p-values.csv"
+        filename_tex = dict['filename']+"_pairwise-pearson-chi2-contingency-test-matrix_p-values.tex"
     else:
-        filename_csv = "pearson-chi2-test_p-values-matrix.csv"
-        filename_tex = "pearson-chi2-test_p-values-matrix.tex"
+        filename_csv = "pairwise-pearson-chi2-test_p-values-matrix.csv"
+        filename_tex = "pairwise-pearson-chi2-test_p-values-matrix.tex"
         
     range_methods = range(num_methods)
     
@@ -386,7 +411,7 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
             for to_method in method_counter: # Get current to_values
                 to_values = data[:,to_method]
                 curr_distr = numpy.array([values,to_values])
-                chi2, p, dof, ex = stats.chi2_contingency(curr_distr) # Compare only simulation methods
+                chi2, p, dof, ex = stats.chi2_contingency(curr_distr) # Compare only two methods
                 curr_row[methods[to_method]] = p
         matrix = matrix.append(curr_row)
     matrix.index = methods

@@ -38,7 +38,8 @@ def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=panda
     # Read file sheet by sheet
     for sheet_name in sheet_names:
         if not "~" in sheet_name:
-            if ("roundTrials" in sheet_name) or ('practSets' in sheet_name) or ('sets' in sheet_name): pass # Ignore data about the order of set and samples for now
+            if ("roundTrials" in sheet_name) or ('practSets' in sheet_name) or ('sets' in sheet_name): 
+                pass # Ignore data about the order of set and samples for now
             else:
                 # Read excel and extract data
                 excel_sheet = pandas.read_excel(dataSheet, sheet_name)
@@ -74,8 +75,11 @@ def analyzeSaMSEMData(dict):
         print "Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default)
         path_out = path_out_default
     
+    
+    path = os.path.join(os.path.dirname(os.path.abspath(os.path.join(__file__,os.pardir))),'colordeficiency-data')
+    
     # 0. Step: Get all the relevant information, i.e. obs_col_defs etc.
-    observer_ids = "../colordeficiency-data/observer_ids.csv"
+    observer_ids = os.path.join(path,"observer_ids.csv")
     obs_ids_sheet = pandas.read_csv(observer_ids,sep=";")
     
     # 1. Step: Read all the XLSX data in the path
@@ -90,7 +94,7 @@ def analyzeSaMSEMData(dict):
             experiment_type = extraDataDict['expName'] if extraDataDict.has_key('expName') else 'none'
             if experiment_type == "sample-2-match":
                 newDataArray = dataArray_tmp[['sim_id','coldef_type','resp.corr_raw','resp.rt_raw','origFile']]
-            
+                
             if extraDataDict.has_key('0. Participant ID'):
                 obsID = int(extraDataDict['0. Participant ID'])
                 newDataArray['observer_id'] = obsID
@@ -129,12 +133,13 @@ def analyzeSaMSEMData(dict):
             dict_tmp = getStatsFromFilename(filename)
             imgID_tmp = int(dict_tmp['img_id'])
             dataArray.at[index,'image_id'] = int(imgID_tmp)
-        dataArray.image_id = dataArray.image_id.astype(int)
         
-        dataArray = dataArray[['image_id','sim_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath']]
     elif experiment_type == "visual-search":
         pass
-    dataArray.is_correct = dataArray.is_correct.astype(bool) 
+    dataArray.is_correct = dataArray.is_correct.astype(bool)
+    dataArray.image_id = dataArray.image_id.astype(int)
+    dataArray = dataArray[['image_id','sim_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath']]
+        
     
     # 3. Saving data to file
     try:
@@ -142,7 +147,6 @@ def analyzeSaMSEMData(dict):
         if experiment_type == "sample-2-match":
             dataArray.to_csv(os.path.join(path_out,'samsem-data.csv'),sep=";")
             sys.stdout.write("Success: Sample-to-match data successfully saved in '"+str(path_out)+"'.\n")
-            print
         elif experiment_type == "visual-search":
             dataArray.to_csv(os.path.join(path_out,'visdem-data.csv'),sep=";")
             sys.stdout.write("Visual-search data successfully saved.")
@@ -267,14 +271,7 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
     else:
         print "Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM."
         return
-
-    path_out_default = '../colordeficiency-data/'
-    if dict.has_key('path_out'):
-        path_out = dict['path_out']
-    else:
-        print "Caution: No output path has been chosen for the meta data file. Using default value for output path instead: '"+str(path_out_default)+"'."
-        path_out = os.path.join(path_out_default,'metadata-generic')
-    
+  
     if dict.has_key('filename'):
         filename = dict['filename']
     else:
@@ -333,104 +330,96 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
 
 def samsemPlots1thru4(samsem_data,path,dict):
     """
-    Plots the SaMSEM Res#1-4, and effectively also SaMSEM Res#9-12. 
-    Meaning that all images are collapsed together for different simulations and different groups of normal sighted or color deficient people.
-    On the x-axis, there are the different algorithm ids. The result images are stored in (subfolders) defined by path input.
-    Input: * samsem_data:    SaMSEM data that is to be analyzed
+    Comparing RT and ACC data of different simulation methods of one specific observer groups and their corresponding color deficiency simulation type. Color deficiency type of the observer group matches the color deficiency type of the simulation method.
+    All images simulating a specific color deficiency are collapsed.
+    On the x-axis, we have the the individual simulation methods.
+    Input: * samsem_data:    SaMSEM data that is to be analyzed.
            * path:           Path to the folder, where the result images should be stored. 
            * dict:           A dictionary containing different options.
-                             ** result_id:    ID of the result images according to the meeting from 18/09/2014. 
-                             ** coldef_type:  The color deficiency type of the simulation being used. 
-                             ** obs_operator: Color deficiency of the observer group as array in the form: ['observer_coldef_type',operator.eq,1]
-    Before: s2mplots1thru4       
+                             ** coldef_type:      The color deficiency type of the simulation method being used.
+                             ** filename:         Name of the file as which the result image should be stored.
+                             ** method_ids:       IDs of methods that are included in the analyis. By default: All available simulation methods included in samsem_data. 
+                             ** subfolder:        Subfolder in path in which the images should be stored.
+    Plots the SaMSEM Res#29+30.
+    Before: s2mplots29and30
     """
     
     # Defining the subfolder for the results
     path_res = path
-    if dict.has_key('result_id'):
-        sys.stdout.write("Starting Res#"+str(dict['result_id'])+'.')
-        path_res = os.path.join(path,str(dict['result_id']))    
-        if not os.path.exists(path_res): os.makedirs(path_res)
-        
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
     
-    # 1. Retrieving data from data set
-    coldef_type = dict['coldef_type']
-    #whatArr_tmp = [['coldef_type',operator.eq,coldef_type],dict['obs_operator']];howArr_tmp = []; # Only observations that use simulations of the chosen color deficiency are needed 
-    #samsem_data_reduced =  organizeArray(samsem_data, whatArr_tmp,howArr_tmp)
-    # HDEG: get the missing data for deuteranopes from method 3 and 99.
+    # Retrieving data from data set
+    coldef_type = dict['coldef_type'] # Color deficiency type of the simulation method
+    dict.update({'investigated-item': 'simulation method'})
+    filename_orig = dict['filename']
     
-    
-    boxes = []; labels = []; accuracies = {}; mean_cis = {}; order = {}; i=0
     if dict.has_key('method_ids'):
         method_ids = dict['method_ids']
     else:
-        method_ids = set(samsem_data['sim_id'].values.astype(int))
-        if 99 in method_ids: method_ids.remove(99)
-        
-    if dict.has_key('plot_types'):
-        plot_types = dict['plot_types']
-    else:
-        plot_types = ['RT_boxplots', 'RT_means', 'ACC_CIs', 'median']
-        
-    method_names = []
-    # 2. Retrieving data from each algorithm
-    for method_id in method_ids:
-        method_names.append(settings.id2Sim[method_id])
-        
-        if (method_id != 3) and (method_id != 99):
-            whatArr_tmp = [['coldef_type',operator.eq,coldef_type],dict['obs_operator'],['sim_id',operator.eq,method_id]];howArr_tmp=[];
-        else:
-            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,method_id]];howArr_tmp=[];
-        relevant_data_tmp = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)   
-        
-        # 3. Get response time data
-        alg_values = relevant_data_tmp[relevant_data_tmp['is_correct']==True]['resp_time'].values*1000; 
-        if 'RT_boxplots' in plot_types:
-            boxes.append(alg_values)
-        labels.append(settings.id2Sim[method_id]) if alg_values.size else labels.append(str(method_id) + ' - No data'); 
-            
-        # 4. Get CI of RT means
-        if 'RT_means' in plot_types:
-            alg_mean = getCIAverage(alg_values);
-            alg_mean.append(labels[i-1])
-            mean_cis.update({method_id: alg_mean})
-            
-        # 5. Get accuracy data
-        if 'ACC_CIs' in plot_types:
-            alg_acc = getAccuracy(relevant_data_tmp)
-            alg_acc.append(labels[i-1])
-            accuracies.update({method_id: alg_acc})
-            
-        order.update({i:method_id})
-        i += 1
-        
-    if 'RT_boxplots' in plot_types:
-        # 6. Plot response time data
-        plotRTGraphs(boxes,labels,path_res,dict,order)
+        method_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
+    method_ids = sorted(method_ids) # IDs of the methods that need to be plotted
     
-    if 'RT_means' in plot_types:
-        # 7. Plot CI means of RT data
-        plotCIAverageGraphs(mean_cis,path_res,dict,order)
+    print "Starting SAMSEM_RES#01+04: Analyzing data for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+"."
+    
+    pandas_dict = {}; i = 0; order_dict = {}; sim_names = []
+    # Retrieving data for each of the algorithms algorithm
+    for sim_id in method_ids:
         
-    if 'ACC_CIs' in plot_types:
-        # 8. Plot accuracy data
-        plotAccuracyGraphs(accuracies,path_res,dict,order)
+        sim_method = settings.id2Sim[sim_id]
+        if (sim_id != 3) and (sim_id != 99): # The kotera and the dummy method have the same implementation for both protanopia and deuteranopia
+            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id],['coldef_type',operator.eq,coldef_type]]
+        else:
+            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id]]
+        relevant_data_tmp = organizeArray(samsem_data,whatArr_tmp)   
+               
+        pandas_dict.update({sim_method: relevant_data_tmp})
+        order_dict.update({i: sim_method}); i += 1
+        sim_names.append(sim_method)
+    
+    # Plot response time data as boxplots
+    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    plotRTGraphs(boxes,labels,path_res,dict,order_dict)
         
-    if 'median-test' in plot_types:
-        # 9. Make median test
-        dict.update({'filename': dict['filename']+"-RT"})
-        makeMedianTest(numpy.array(boxes), path_res, method_names,dict)
+    # Plot accuracy data with confidence intervals
+    c = 1.96; type = 'wilson-score';
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,c,type)
+    plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
+        
+    # Make median test as csv file
+    dict.update({'filename': filename_orig+"-RT"})
+    makeMedianTest(numpy.array(boxes), path_res, sim_names,dict)
+    
+    # Make Chi2 contingency test as text file
+    obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
+    
+    start = 0; end = 4 # For the global Chi2 test, we are excluding the dummy method.
+    res = [start,end]
+    dict.update({'filename': filename_orig+'-ACC'})
+    makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res)
+    
+    # Make pairwise Chi2 contingency test matrix as csv file
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
+    
+    # Make normality Q-Q and log-Q-Q plots
+    for i in range(numpy.shape(boxes)[0]):
+        distribution_tmp = boxes[i]
+        label_tmp = labels[i]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+        plotQQPlot(distribution_tmp, path_res, dict)
+        
+        distribution_log_tmp = numpy.log(distribution_tmp)
+        distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+        plotQQPlot(distribution_log_tmp, path_res, dict)
     
 def samsemPlots9thru12(samsem_data,path,dict):
     """
     Literally identical to samsemPlots1thru4. Check documentation there.
     """
     
-    print "Starting SAMSEM_RES#9+12: Analyzing data for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods."
     samsemPlots1thru4(samsem_data,path,dict)
 
 def samsemPlots17thru20(samsem_data, path, dict):
@@ -513,44 +502,41 @@ def samsemPlots17thru20(samsem_data, path, dict):
         
 def samsemPlots29and30(samsem_data,path,dict):
     """
-    Plots the SaMSEM Res#29+30.
-    Meaning that all images simulating one specific color deficiency are collapsed together for all algorithms.
-    On the x-axis, we have the the observer groups with different color deficiency types. The result images are stored in (subfolders) defined by the path input.
-    Input: * samsem_data:    SaMSEM data that is to be analyzed
+    Comparing RT and ACC data of different observer groups of all simulation methods for a chosen color deficiency type.
+    All images simulating a specific color deficiency of all simulation methods are collapsed.
+    On the x-axis, we have the the observer groups.
+    Input: * samsem_data:    SaMSEM data that is to be analyzed.
            * path:           Path to the folder, where the result images should be stored. 
            * dict:           A dictionary containing different options.
-                             ** result_id:    ID of the result images according to the meeting from 18/09/2014. 
-                             ** coldef_type:  The color deficiency type of the simulation being used. 
-                             ** filename:     Name of the file as which the result image should be stored.
+                             ** coldef_type:      The color deficiency type of the simulation method being used.
+                             ** filename:         Name of the file as which the result image should be stored.
+                             ** method_ids:       IDs of methods that are included in the analyis. By default: All available simulation methods included in samsem_data. 
+                             ** observer_groups:  ID of the observer groups that should be included in the analyis.
+                             ** subfolder:        Subfolder in path in which the images should be stored.
+    Plots the SaMSEM Res#29+30.
     Before: s2mplots29and30
     """
     
-    # Defining the subfolder for the results
+    # Retrieving input data for the analysis
     path_res = path    
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
-    filename = dict['filename']
+    filename_orig = dict['filename']
     coldef_type = dict['coldef_type']
-    print "Starting SAMSEM_RES#29+30: Analyzing data of all observer groups for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods."
-    
-    # Ignore dummy algorithm
-    #whatArr_tmp = [['sim_id',operator.ne,99],];howArr_tmp=[]
-    #samsem_data = organizeArray(samsem_data,whatArr_tmp,howArr_tmp)
-    #sim_ids = set(samsem_data['sim_id'].values.astype(int))
+    observer_groups = dict['observer_groups']
+    dict.update({'investigated-item': 'observer groups'})
     
     if dict.has_key('method_ids'):
         method_ids = dict['method_ids']
     else:
-        method_ids = set(samsem_data['sim_id'].values.astype(int))
-        if 99 in method_ids: method_ids.remove(99)
-        
-    if dict.has_key('plot_types'):
-        plot_types = dict['plot_types']
-    else:
-        plot_types = ['RT_boxplots', 'ACC_CIs', 'median']
+        method_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
+    method_ids = sorted(method_ids)
     
+    print "Starting SAMSEM_RES#29+30: Analyzing data of observer groups "+ str(keys2values(observer_groups,settings.id2ColDefShort))+" for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+"."
+    
+    # Restricting input data to only include the sets that have been chosen for the analysis
     rel_data = pandas.DataFrame()
     for method_id in method_ids:
         if (method_id != 3) and (method_id != 99):
@@ -561,36 +547,52 @@ def samsemPlots29and30(samsem_data,path,dict):
         rel_data = pandas.concat([rel_data_tmp, rel_data])
     samsem_data_adj = rel_data.reset_index()
     
-    # 1. Retrieving data for the three observer groups
-    # Data for normal sighted observers
-    whatArr_tmp = [['observer_coldef_type',operator.eq,0]]
-    normal_data = organizeArray(samsem_data_adj,whatArr_tmp)
-    # Data for protan observers
-    whatArr_tmp = [['observer_coldef_type',operator.eq,1]]
-    protan_data = organizeArray(samsem_data_adj,whatArr_tmp)
-    # Data for deutan observers
-    whatArr_tmp = [['observer_coldef_type',operator.eq,2]]
-    deutan_data = organizeArray(samsem_data_adj,whatArr_tmp)
+    # Retrieving data for each of the observation groups
+    i = 0; pandas_dict = {}; order_dict = {}
+    for observer_group in observer_groups:
+        observer_coldef_type = observer_group
+        observer_coldef_type_short = settings.id2ColDefShort[observer_coldef_type]
+        
+        whatArr_tmp = [['observer_coldef_type',operator.eq,observer_coldef_type]]
+        obs_group_data_tmp = organizeArray(samsem_data_adj,whatArr_tmp)
+        
+        pandas_dict.update({observer_coldef_type_short:obs_group_data_tmp})
+        order_dict.update({i:observer_coldef_type_short}) ; i += 1
     
-    pandas_dict = {'normal':normal_data, 'protan':protan_data, 'deutan': deutan_data}
-    order_dict = {0: 'normal', 1: 'protan', 2: 'deutan'}
-    observer_group_names = ['normal', 'protan', 'deutan']
+    # Plot response time data as boxplots
+    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    plotRTGraphs(boxes,labels,path_res, dict)
     
-    # 2. Make response time boxplots
-    if 'RT_boxplots' in plot_types:
-        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
-        plotRTGraphs(boxes,labels,path_res, dict)
+    # Plot accuracy with confidence intervals
+    c = 1.96; type = 'wilson-score'
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,c,type)
+    plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
+        
+    # Make median test as csv file
+    dict.update({'filename': filename_orig+"-RT"})
+    makeMedianTest(boxes, path_res, labels, dict)
     
-    # 3. Make median test
-    if 'median-test' in plot_types:
-        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
-        makeMedianTest(boxes, path_res, labels, dict)
+    # Make Chi2 contingency test as txt file
+    obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
+    dict.update({'filename': filename_orig+'-ACC'})
+    makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict)
     
-    # 4. Plot accuracy confidence intervals        
-    if 'ACC_CIs' in plot_types:
-        accuracies = preparePandas4AccuracyPlots(pandas_dict)
-        plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
-
+    # Make Chi2 contingency test matrix as csv file
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
+    
+    # Make normality plots as Q-Q and log-Q-Q plots
+    for i in range(numpy.shape(boxes)[0]):
+        distribution_tmp = boxes[i]
+        label_tmp = labels[i]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+        plotQQPlot(distribution_tmp, path_res, dict)
+        
+        distribution_log_tmp = numpy.log(distribution_tmp)
+        distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+        plotQQPlot(distribution_log_tmp, path_res, dict)
+        
+    
 def samsemPlots31and32(samsem_data,path,dict):
     """
     Plots the SaMSEM Res#29+30.
@@ -733,8 +735,9 @@ def samsemPlots35and36(samsem_data,path,dict):
     sim_ids = set(samsem_data['sim_id'].values.astype(int))
     for sim_id in sim_ids:
         
-        filename = str(settings.id2ColDefLong[coldef_type])+"-method-"+str(settings.id2Sim[sim_id])+"-RT"
+        filename = str(settings.id2ColDefLong[coldef_type])+"-method-RT-"+str(sim_id)+"-"+str(settings.id2Sim[sim_id])
         dict.update({'filename': filename})
+        
         
         if (sim_id != 3) and (sim_id != 99):
             whatArr_tmp = [['coldef_type',operator.eq,coldef_type],['observer_coldef_type',operator.eq,coldef_type],['sim_id',operator.eq,sim_id]]
@@ -751,6 +754,12 @@ def samsemPlots35and36(samsem_data,path,dict):
             labels.append(settings.id2Sim[sim_id]) if alg_RT_values.size else labels.append(str(sim_id) + ' - No data');
         if "q-q" in plot_types:
             plotQQPlot(alg_RT_values, path_res, dict)
+            
+            alg_RT_log_values = numpy.log(alg_RT_values)
+            alg_RT_log_values = alg_RT_log_values[~numpy.isnan(alg_RT_log_values)]
+            filename_log = str(settings.id2ColDefLong[coldef_type])+"-method-RT-"+str(sim_id)+"-"+str(settings.id2Sim[sim_id])+"-log"
+            dict.update({'filename': filename_log})
+            plotQQPlot(alg_RT_log_values, path_res, dict)
     
     if "residual" in plot_types:
         filename = "99"+str(coldef_type)+"999"+str(coldef_type)+"999"
@@ -829,26 +838,43 @@ def samsemPlots37and38(samsem_data,path,dict):
     deutan_response_values = deutan_data[deutan_data['is_correct']==True]['resp_time'].values*1000; labels.append('Deutan') if deutan_response_values.size else labels.append('Protan - No data'); 
     
     if "histogram" in plot_types:
-        filename_tmp = filename + "-normal-RT"
+        filename_tmp = filename + "RT-normal-RT"
         plotHistogram(normal_response_values, path_res, dict.update({'filename': filename_tmp}))
-        filename_tmp = filename + "-protan-RT"
+        filename_tmp = filename + "RT-protan-RT"
         plotHistogram(protan_response_values, path_res, dict.update({'filename': filename_tmp}))
-        filename_tmp = filename + "-deutan-RT"
+        filename_tmp = filename + "RT-deutan-RT"
         plotHistogram(deutan_response_values, path_res, dict.update({'filename': filename_tmp}))
     
     if "q-q" in plot_types:
-        filename_tmp = filename + "-normal-RT"
+        filename_tmp = filename + "-RT-normal"
         dict.update({'filename': filename_tmp})
         plotQQPlot(normal_response_values, path_res, dict)
+        
+        filename_tmp = filename + "-RT-normal-log"
+        normal_response_log_values = numpy.log(normal_response_values)
+        normal_response_log_values = normal_response_log_values[~numpy.isnan(normal_response_log_values)]
+        dict.update({'filename': filename_tmp})
+        plotQQPlot(normal_response_log_values, path_res, dict)
 
-        filename_tmp = filename + "-protan-RT"
+        filename_tmp = filename + "-RT-protan"
         dict.update({'filename': filename_tmp})
         plotQQPlot(protan_response_values, path_res, dict)
         
-        filename_tmp = filename + "-deutan-RT"
+        filename_tmp = filename + "-RT-protan-log"
+        protan_response_log_values = numpy.log(protan_response_values)
+        protan_response_log_values = protan_response_log_values[~numpy.isnan(protan_response_log_values)]
+        dict.update({'filename': filename_tmp})
+        plotQQPlot(protan_response_log_values, path_res, dict)
+        
+        filename_tmp = filename + "-RT-deutan"
         dict.update({'filename': filename_tmp})
         plotQQPlot(deutan_response_values, path_res, dict)
-
+        
+        filename_tmp = filename + "-RT-deutan-log"
+        deutan_response_log_values = numpy.log(deutan_response_values)
+        deutan_response_log_values = deutan_response_log_values[~numpy.isnan(deutan_response_log_values)]
+        dict.update({'filename': filename_tmp})
+        plotQQPlot(deutan_response_log_values, path_res, dict)
 
 def samsemPlots41and42(samsem_data,path,dict):
     """
@@ -1024,17 +1050,166 @@ def vsplots5thru8(visual_search_data,path,dict):
     sys.stdout.write('\n')
 
 
+
+def visdemPlots53thru60(visdem_data,path,dict):
     
-def visdemPlots67thru70(visdem_data,path,dict):
-    
-    print "Starting SAMSEM_RES#67-70: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for observer group " + dict['filename']+"."
+    print "Starting ViSDEM_RES#53-60: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
     
     path_res = path
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
+    filename_orig = dict['filename']
     
+    coldef_type = dict['coldef_type']
+    dict.update({'investigated-item': 'daltonization method'})
+    
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+        
+    #Retrieving data    
+    visdem_data_adj = pandas.DataFrame()
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
+    visdem_data_adj.reset_index()
+    
+    dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    
+    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
+    for dalt_method_id in dalt_method_ids:
+        
+        dalt_method = settings.id2Dalt[dalt_method_id]
+        whatArray = [['dalt_id', operator.eq, dalt_method_id],['version_id',operator.eq,1],dict['obs_operator']]
+        if (dalt_method_id != 0)  and (dalt_method_id != 99):
+            whatArray.append(['coldef_type',operator.eq,coldef_type])
+        relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
+        
+        pandas_dict.update({dalt_method: relevant_data_tmp})
+        order_dict.update({i: dalt_method}); i += 1
+        dalt_names.append(dalt_method)
+    
+    # Make response time plots
+    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    plotRTGraphs(boxes, labels, path_res, dict)
+    
+    # Make Accuracy plots
+    c = 1.96; type = 'wilson-score';
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,c,type)
+    plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
+    
+    # Make median test
+    dict.update({'filename': filename_orig+'-RT'})
+    makeMedianTest(boxes, path_res, labels, dict)
+    
+    # Make Chi2 contingency test
+    obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
+    
+    start = 1; end = 5
+    res = [start,end]
+    dict.update({'filename': filename_orig+'-ACC'})
+    
+    makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res)
+    
+    # Make Chi2 contingency test matrix
+    makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
+    
+    # 7. Make normality plots
+    for i in range(numpy.shape(boxes)[0]):
+        distribution_tmp = boxes[i]
+        label_tmp = labels[i]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+        plotQQPlot(distribution_tmp, path_res, dict)
+        
+        distribution_log_tmp = numpy.log(distribution_tmp)
+        distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+        plotQQPlot(distribution_log_tmp, path_res, dict)
+
+def visdemPlots53thru60Paired(visdem_data,path,dict):
+    
+    print "Starting ViSDEM_RES#53-60-paired: Plotting Paired RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
+    
+    compute_paired_data = 1
+    filename_orig = dict['filename'] 
+    
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    orig_filenmae = dict['filename']
+    
+    coldef_type = dict['coldef_type']
+    
+    if dict.has_key('sets'):
+        set_ids = dict['sets']
+    else:
+        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+        
+    visdem_data_adj = pandas.DataFrame()
+    for set_id in set_ids:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
+    visdem_data_adj.reset_index()
+    
+    if compute_paired_data:
+        makePairedDataForViSDEM(visdem_data_adj, dict['path_data'], dict)
+    
+    visdem_data_paired_path = os.path.join(dict['path_data'],dict['filename']+'_visdem-data-RT-paired.csv')
+    visdem_data_paired = pandas.read_csv(visdem_data_paired_path,index_col=False,sep=';')    
+    
+    f = open(os.path.join(dict['path_data'],dict['filename']+'_visdem-data-RT-paired_meta-data.txt'), 'r')
+    b = json.load(f)
+    f.close()
+    
+    visdem_data_paired_array, labels = makePairedRTData(visdem_data_paired, b, 'dalt_id')
+    
+    # Remove NaN values from array
+    visdem_data_paired_wonan_array = []
+    for a in visdem_data_paired_array:
+        visdem_data_paired_wonan_array.append(a[~numpy.isnan(a)])
+        #distribution[~numpy.isnan(distribution)]
+    
+    # Plot response times
+    start = 0; end = 5
+    #dict.update({'filename': filename_orig+'-paired'})
+    plotRTGraphs(visdem_data_paired_wonan_array[start:end], labels[start:end], path_res, dict)
+    
+    # Make median test
+    dict.update({'filename': filename_orig+'-RT'})
+    makeMedianTest(visdem_data_paired_wonan_array[start:end], path_res, labels[start:end], dict)
+    
+    # 7. Make normality plots
+    for i in range(numpy.shape(visdem_data_paired_wonan_array[start:end])[0]-1):
+        distribution_tmp = visdem_data_paired_wonan_array[i]
+        label_tmp = labels[i]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+        plotQQPlot(distribution_tmp, path_res, dict)
+        
+        distribution_log_tmp = numpy.log(distribution_tmp)
+        distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+        plotQQPlot(distribution_log_tmp, path_res, dict)
+  
+    
+def visdemPlots67thru70(visdem_data,path,dict):
+    
+    print "Starting ViSDEM_RES#67-70: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for observer group " + dict['filename']+"."
+    
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    filename_orig = dict['filename']
     dict.update({'investigated-item': 'daltonization method'})
     
     DNData = pandas.DataFrame(); DEData = pandas.DataFrame(); DCData = pandas.DataFrame()
@@ -1069,7 +1244,8 @@ def visdemPlots67thru70(visdem_data,path,dict):
     plotRTGraphs(boxes, labels, path_res, dict)
     
     # 3. Make Accuracy plots
-    accuracies = preparePandas4AccuracyPlots(pandas_dict)
+    c = 1.96; type = 'wilson-score';
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,c,type)
     plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
     
     # 4. Make median test 
@@ -1082,150 +1258,22 @@ def visdemPlots67thru70(visdem_data,path,dict):
     dict.update({'filename': dict['filename']+'-ACC'})
     makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict)
 
-   
     # 6. Make Chi2 contingency test matrix
     makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
     
-
-def visdemPlots53thru60(visdem_data,path,dict):
-    
-    print "Starting SAMSEM_RES#53-60: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
-    
-    
-    path_res = path
-    if dict.has_key('subfolder'):
-        subfolder = dict['subfolder']
-        path_res = os.path.join(path,subfolder)
-        if not os.path.exists(path_res): os.makedirs(path_res)
-    filename_orig = dict['filename']
-    
-    coldef_type = dict['coldef_type']
-    dict.update({'investigated-item': 'daltonization method'})
-    
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+    # 7. Make normality plots
+    for i in range(numpy.shape(boxes)[0]):
+        distribution_tmp = boxes[i]
+        label_tmp = labels[i]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+        plotQQPlot(distribution_tmp, path_res, dict)
         
-    visdem_data_adj = pandas.DataFrame()
-    for set_id in set_ids:
-        # Getting data from all variants for all normal sighted observers
-        whatArr_tmp = [['set_id',operator.eq,set_id]]
-        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
-        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
-    visdem_data_adj.reset_index()
-    
-    dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
-    
-    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
-    for dalt_method_id in dalt_method_ids:
+        distribution_log_tmp = numpy.log(distribution_tmp)
+        distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+        dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+        plotQQPlot(distribution_log_tmp, path_res, dict)
         
-        dalt_method = settings.id2Dalt[dalt_method_id]
-        whatArray = [['dalt_id', operator.eq, dalt_method_id],['version_id',operator.eq,1],dict['obs_operator']]
-        if (dalt_method_id != 0)  and (dalt_method_id != 99):
-            whatArray.append(['coldef_type',operator.eq,coldef_type])
-        relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
-        
-        pandas_dict.update({dalt_method: relevant_data_tmp})
-        order_dict.update({i: dalt_method}); i += 1
-        dalt_names.append(dalt_method)
-    
-    # Make response time plots
-    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
-    plotRTGraphs(boxes, labels, path_res, dict)
-    
-    # Make Accuracy plots
-    accuracies = preparePandas4AccuracyPlots(pandas_dict)
-    plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
-    
-    # Make median test
-    dict.update({'filename': filename_orig+'-RT'})
-    makeMedianTest(boxes, path_res, labels, dict)
-    
-    # Make Chi2 contingency test
-    obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
-    
-    start = 1; end = 5
-    res = [start,end]
-    dict.update({'filename': filename_orig+'-ACC'})
-    
-    makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res)
-    
-    # Make Chi2 contingency test matrix
-    makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)   
-
-def visdemPlots53thru60Paired(visdem_data,path,dict):
-    
-    print "Starting SAMSEM_RES#53-60-paired: Plotting Paired RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
-    
-    compute_paired_data = 1
-    filename_orig = dict['filename'] 
-    
-    path_res = path
-    if dict.has_key('subfolder'):
-        subfolder = dict['subfolder']
-        path_res = os.path.join(path,subfolder)
-        if not os.path.exists(path_res): os.makedirs(path_res)
-    orig_filenmae = dict['filename']
-    
-    coldef_type = dict['coldef_type']
-    
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
-        
-    visdem_data_adj = pandas.DataFrame()
-    for set_id in set_ids:
-        # Getting data from all variants for all normal sighted observers
-        whatArr_tmp = [['set_id',operator.eq,set_id]]
-        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
-        visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
-    visdem_data_adj.reset_index()
-    
-    dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
-    
-    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
-    for dalt_method_id in dalt_method_ids:
-        
-        dalt_method = settings.id2Dalt[dalt_method_id]
-        whatArray = [['dalt_id', operator.eq, dalt_method_id],['version_id',operator.eq,1],dict['obs_operator']]
-        if (dalt_method_id != 0)  and (dalt_method_id != 2) and (dalt_method_id != 99):
-            whatArray.append(['coldef_type',operator.eq,coldef_type])
-        relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
-        
-        pandas_dict.update({dalt_method: relevant_data_tmp})
-        order_dict.update({i: dalt_method}); i += 1
-        dalt_names.append(dalt_method)
-    
-    if compute_paired_data:
-        makePairedDataForViSDEM(visdem_data_adj, dict['path_data'], dict)
-    
-    visdem_data_paired_path = os.path.join(dict['path_data'],dict['filename']+'_visdem-data-RT-paired.csv')
-    visdem_data_paired = pandas.read_csv(visdem_data_paired_path,index_col=False,sep=';')    
-    
-    f = open(os.path.join(dict['path_data'],dict['filename']+'_visdem-data-RT-paired_meta-data.txt'), 'r')
-    b = json.load(f)
-    f.close()
-    
-    start = 0; end = 5
-    visdem_data_paired_array, labels = makePairedRTData(visdem_data_paired, b, 'dalt_id')
-    
-    # Remove NaN values from array
-    visdem_data_paired_wonan_array = []
-    for a in visdem_data_paired_array:
-        visdem_data_paired_wonan_array.append(a[numpy.isnan(a)==False])
-    
-    # Plot response times
-    dict.update({'filename': filename_orig+'-paired'})
-    plotRTGraphs(visdem_data_paired_wonan_array[start:end], labels[start:end], path_res, dict)
-    
-    # Make median test
-    makeMedianTest(visdem_data_paired_wonan_array[start:end], path_res, labels[start:end], dict)
-    
-    #print visdem_data_paired_wonan_array
-    #x[~numpy.isnan(x)]
-    
+  
      
 def vsplots71thru74(visual_search_data,path,dict):
     
@@ -1576,8 +1624,12 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
            * path:           Path to the folder, where the result images should be stored.
     """
     
+    #print dict
+    
     # 1. Restrict data to only one type of observer color deficiency
     coldef_type = dict['coldef_type']
+    #print coldef_type
+    observer_coldef_type = dict['observer_coldef_type']
     whatArr_tmp = [dict['obs_operator'],['version_id',operator.eq,1]]
     visdem_data_restr = organizeArray(visdem_data,whatArr_tmp)
 
@@ -1589,7 +1641,7 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
         col_tmp = "dalt_id_"+str(dalt_id).zfill(2)
         columns.append(col_tmp)
     
-    observer_coldef_types = set(visdem_data_restr['observer_coldef_type'].values)
+    #observer_coldef_types = set(visdem_data_restr['observer_coldef_type'].values)
     #print observer_coldef_types
         
     visdem_data_template = pandas.DataFrame(columns=columns)
@@ -1614,28 +1666,30 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
                 visdem_data_restr_scene =organizeArray(visdem_data_restr_set, whatArray_tmp)
                 
                 pandas_RT_tmp = pandas.DataFrame({'observer_id': observer_id,
-                                                  'observer_coldef_type': coldef_type,
+                                                  'observer_coldef_type': observer_coldef_type,
                                                   'coldef_type': coldef_type,
                                                   'set_id': set_id,
                                                   'scene_id': scene_id,
                                                   'image_id': 'nix'
                                                   },[index])
-                
+                tmp_cdt = 'a'
                 for dalt_id in dalt_ids:
                     if dalt_id not in [0,99]:
                         whatArray_tmp = [['dalt_id',operator.eq,dalt_id],['coldef_type',operator.eq,coldef_type]]
                     else: 
                         whatArray_tmp = [['dalt_id',operator.eq,dalt_id]]
                     field = organizeArray(visdem_data_restr_scene, whatArray_tmp).reset_index().loc[0]
+                    #print field
                     if not field.empty:
                         RT_tmp = field['resp_time']*1000 if bool(field['is_correct']) else float('NaN')
                         #RT_tmp = field['resp_time']*1000
-                        pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
                         pandas_RT_tmp['image_id'] = field['image_id']
-                        pandas_RT_tmp['coldef_type'] = field['coldef_type']
+                        tmp_cdt += str(field['coldef_type'])
                     else:
                         RT_tmp = float('NaN')
-                        pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
+                    pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
+                    
+                    pandas_RT_tmp['coldef_type'] = str(tmp_cdt)
                     
                 visdem_data_RT_paired = visdem_data_RT_paired.append(pandas_RT_tmp)
                 index += 1
@@ -1646,14 +1700,22 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     visdem_data_RT_paired.set_id = visdem_data_RT_paired.set_id.astype(int)
     visdem_data_RT_paired.scene_id = visdem_data_RT_paired.scene_id.astype(int)
     visdem_data_RT_paired.image_id = visdem_data_RT_paired.image_id.astype(int)
-    visdem_data_RT_paired.coldef_type = visdem_data_RT_paired.coldef_type.astype(int)
+    visdem_data_RT_paired.coldef_type = visdem_data_RT_paired.coldef_type.astype(str)
     visdem_data_RT_paired.to_csv(os.path.join(path,dict['filename']+'_visdem-data-RT-paired.csv'),sep=";")
     
     f = open(os.path.join(path,dict['filename']+'_visdem-data-RT-paired_meta-data.txt'), 'w')
     json.dump(dalt_ids, f)
     f.close()
 
-
+def keys2values(keyArray, valueDict):
+    valueArray = []
+    for key in keyArray:
+        if valueDict.has_key(key):
+            valueArray.append(valueDict[key])
+        else:
+            valueArray.append(float('NaN'))
+    return valueArray
+    
 #import copy
 
 def makePairedRTData(data_RT_paired, methods,id_label):
@@ -1686,7 +1748,7 @@ def makePairedRTData(data_RT_paired, methods,id_label):
                 labels.append(label_tmp)
     return comparisons, labels
 
-def checkNormality(distributions,labels,path,options,project_str="",plot_types={'q-q','hist','boxplot','residuals'}):
+def checkNormality(distributions,labels,path,options,project_str="",plot_types={'q-q','hist','boxplot','residuals'},isLog = False):
     """
     Similar to samsemPlots35thru37
     """
@@ -1727,6 +1789,7 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
         for distribution in distributions:
             nonnan_distribution =  distribution[~numpy.isnan(distribution)]
             sys.stdout.write('.')
+            
             plotQQPlot(nonnan_distribution, save_to_tmp, {"filename":labels[i]})
             i+=1
         
@@ -1875,10 +1938,10 @@ def makeMedianTest(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"_median-test_p-values.csv"
-        filename_latex = dict['filename']+"_median-test_p-values.tex"
+        filename_csv = dict['filename']+"_pairwise-median-test_p-values.csv"
+        filename_latex = dict['filename']+"_pairwise-median-test_p-values.tex"
     else:
-        filename_csv = "_median-test_p-values.csv"
+        filename_csv = "_pairwise-median-test_p-values.csv"
     
     range_methods = range(num_methods)
     
@@ -1913,13 +1976,15 @@ def makeMedianTest(data,path,methods,dict):
 
     writePandastoLatex(matrix,os.path.join(path,filename_latex))
 
-def preparePandas4AccuracyPlots(pandas_dict):
+def preparePandas4AccuracyPlots(pandas_dict,c=1.96,type="normal"):
     
+    #print "Type of computation for confidence intervals: "+ str(type)
+    #print "Length of confidence interval c: " + str(c)
     accuracies = {}
     
     for key in pandas_dict:
-        ACC_tmp = getAccuracy(pandas_dict[key])
-        ACC_tmp.append(key)
+        ACC_tmp = getAccuracy(pandas_dict[key],c,type)
+        #ACC_tmp.append(key)
         accuracies.update({key: ACC_tmp})
         
     return accuracies

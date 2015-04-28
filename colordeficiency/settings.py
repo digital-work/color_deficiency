@@ -68,6 +68,10 @@ id2ColDefLong = {0: "normal",
                  1: 'protanopia',
                  2: 'deuteranopia',
                  3: 'tritanopia'}
+id2ColDefShort = {0: "normal",
+                 1: 'protan',
+                 2: 'deutan',
+                 3: 'tritan'}
 
 id2ColDef = { 1: 'p',
               2: 'd',
