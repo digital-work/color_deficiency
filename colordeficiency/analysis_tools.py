@@ -13,6 +13,101 @@ import math
 import copy
 import sys
 
+##########
+###
+###   General methods
+###
+##########
+
+
+def organizeArray(dataArray,whatArray,howArray=[]):
+    """
+    Returns an adjusted dataArray according to the logical operations mentioned in the logical dictionary
+    Input: 
+    * logDict:      Contains the name of the columns, the value of interest and the logial operation, i.e. ["num", 3, operator.qt] means operator.qt(dataArray["num"],3)
+    * dataArray:    Pandas data array with the original values.
+    * sortArray:    Titles of the columns that should be extracted to show.
+    Output:
+    *dataArray_out: Pandas data array with the adjusted values. 
+    """
+    
+    dataArray_out = dataArray.copy(); i = bool(1);
+    
+    for entry in whatArray:
+        column_tmp = entry[0]
+        eval_funct = entry[1]
+        data_value = entry[2]
+        
+        # Check if column exist
+        if column_tmp in dataArray.columns:
+            i = i & (eval_funct(dataArray[column_tmp],data_value))
+    
+    # Check if column of sorting interest exists
+    sortArray_new = []
+    for sort in howArray:
+        if sort in dataArray.columns:
+            sortArray_new.append(sort)
+    
+    # Show only columns of interests or everything if array is empty
+    dataArray_out = dataArray_out[i][sortArray_new] if sortArray_new else dataArray_out[i]
+    
+    return dataArray_out
+
+
+def writePandastoLatex(pandasArr,path):
+    columns =  pandasArr.columns
+    num_columns = numpy.shape(columns)[0]
+    range_columns = sorted(range(0,num_columns))
+    
+    index =  pandasArr.index
+    num_index = numpy.shape(index)[0]
+    range_index = sorted(range(0,num_index))
+    
+    order = "| c ||"
+    header = "& "
+    for i in range_columns:
+        order += " c "
+        header += " "+str(columns[i])+" "
+        if i != num_columns-1:
+            order += "|"
+            header += "& "
+    order += "|"
+    
+    res_str = "\\begin{tabular}{"+order+"}\n"
+    res_str += "\t\\hline\n"
+    res_str += "\t"+header+"\\\\ \\hline \\hline\n"
+    counter_row = 0
+    for index, row in  pandasArr.iterrows():
+        
+        counter_row +=1
+        res_str += "\t"+index+" & "
+        for i in range_columns:
+            if type(row[i]) == str:
+                res_str += row[i]+" "
+            elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
+                res_str += "%.4e"%(float(row[i]))+" "
+            elif (type(row[i]) == int) or (type(row[i]) == numpy.int64):
+                res_str += str(int(row[i]))+" "
+            if i != num_columns-1:
+                res_str += "& "
+        if counter_row != num_index:   
+            res_str += "\\\\ \\hline\n"
+        else:
+            res_str += "\\\\ \n"
+    res_str += "\t\\hline\n"
+    res_str += "\\end{tabular}\n"
+    
+    text_file = open(path, "w+")
+    text_file.write(res_str)
+    text_file.close()
+
+
+##########
+###
+###   Reading data from PsychoPy experiment
+###
+##########
+
 
 def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=pandas.DataFrame()):
     """
@@ -64,82 +159,118 @@ def extractDataFromPsychoPyXLSX(pandasDataSheet):
     return relevant_data, extra_data
 
 
-def organizeArray(dataArray,whatArray,howArray=[]):
+def writeMetaDataOfExperiments(experimentData,path,dict):
     """
-    Returns an adjusted dataArray according to the logical operations mentioned in the logical dictionary
-    Input: 
-    * logDict:      Contains the name of the columns, the value of interest and the logial operation, i.e. ["num", 3, operator.qt] means operator.qt(dataArray["num"],3)
-    * dataArray:    Pandas data array with the original values.
-    * sortArray:    Titles of the columns that should be extracted to show.
-    Output:
-    *dataArray_out: Pandas data array with the adjusted values. 
+    This function returns the meta data of a SaMSEM or ViSDEM experiment like for example number of sessions, sets, simulations or daltonizations used etc.
+    The information is stored inside a text file that is saved at the path defined by path_out.
+    Input: experimentData:    * A pandas array with either the SaMSEM or ViSDEM data.
+           dict:              * A dictionary containing all options for the computation of the meta data. 
+                              Requiree are: ** exp_type: Whether the experiment was SaMSEM or ViSDEM.
+                              Optional are: ** path_out: Path to the folder, where the text file containing the meta data should be stored.
     """
     
-    dataArray_out = dataArray.copy(); i = bool(1);
-    
-    for entry in whatArray:
-        column_tmp = entry[0]
-        eval_funct = entry[1]
-        data_value = entry[2]
+    if dict.has_key('exp_type'):
+        exp_type = dict['exp_type']
+    else:
+        print "Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM."
+        return
+  
+    if dict.has_key('filename'):
+        filename = dict['filename']
+    else:
+        filename = 'meta-data'
+    path_out = os.path.join(path, filename)
         
-        # Check if column exist
-        if column_tmp in dataArray.columns:
-            i = i & (eval_funct(dataArray[column_tmp],data_value))
-    
-    # Check if column of sorting interest exists
-    sortArray_new = []
-    for sort in howArray:
-        if sort in dataArray.columns:
-            sortArray_new.append(sort)
-    
-    # Show only columns of interests or everything if array is empty
-    dataArray_out = dataArray_out[i][sortArray_new] if sortArray_new else dataArray_out[i]
-    
-    return dataArray_out
+    if exp_type == "visdem":
+        f = open(path_out,'w+')
+        f.write("ViSDEM meta data\n")
+        sessions = sorted(set(experimentData['session_id']))
+        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
+        sets = sorted(set(experimentData['set_id']))
+        f.write('... # of sets: '+str(len(sets))+' ; '+str(sets)+'\n')
+        daltonizations = sorted(set(experimentData['dalt_id']))
+        f.write('... # of daltonization ids: '+str(len(daltonizations))+' ; '+str(daltonizations)+'\n')
+        observers = sorted(set(experimentData['observer_id']))
+        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
+        observers_norm = sorted(set(experimentData[experimentData['observer_coldef_type']==0]['observer_id']))
+        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
+        observers_prot = sorted(set(experimentData[experimentData['observer_coldef_type']==1]['observer_id']))
+        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')  
+        observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
+        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')         
+        f.close()
+    elif exp_type == 'samsem':
+        f = open(path_out,'w+')
+        f.write("SaMSEM meta data\n")
+        sessions = sorted(set(experimentData['session_id']))
+        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
+        images = sorted(set(experimentData['image_id']))
+        f.write('... # of images: '+str(len(images))+' ; '+str(images)+'\n')
+        simulations = sorted(set(experimentData['sim_id']))
+        f.write('... # of simulations: '+str(len(simulations))+' ; '+str(simulations)+'\n')
+        observers = sorted(set(experimentData['observer_id']))
+        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
+        observers_norm = sorted(set(experimentData[experimentData['observer_coldef_type']==0]['observer_id']))
+        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
+        observers_prot = sorted(set(experimentData[experimentData['observer_coldef_type']==1]['observer_id']))
+        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')
+        observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
+        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')
+    else:
+        print "Error: No valid experiment format has been chosen. Choose either visdem or samsem."
+        return
 
 
-def plotCIAverageGraphs(meanData,path,dict,order=[]):
+##########
+###
+###   Plotting ACC data
+###
+##########
+
+
+def preparePandas4AccuracyPlots(pandas_dict,c=1.96,type="normal"):
     
-    if dict.has_key('result_id'):
-        path_res = os.path.join(path,str(dict['result_id']))
-    else:
-        path_res = path        
+    #print "Type of computation for confidence intervals: "+ str(type)
+    #print "Length of confidence interval c: " + str(c)
+    accuracies = {}
     
-    if dict.has_key('y_lim_RT'):
-        y_lim = dict['y_lim_RT']
-    else:
-        y_lim = [.0,1750.]
-    plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(meanData)+1]); plt.grid(axis='y');
+    for key in pandas_dict:
+        ACC_tmp = getAccuracy(pandas_dict[key],c,type)
+        #ACC_tmp.append(key)
+        accuracies.update({key: ACC_tmp})
+        
+    return accuracies
+
+
+def getAccuracy(data,c,type):
     
-    mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=0
+    num_total =  float(numpy.shape(data.values)[0])
+    num_correct = float(numpy.shape(data[data['is_correct']==True].values)[0]) 
+    num_incorrect = float(numpy.shape(data[data['is_correct']==False].values)[0])
     
-    if not order:
-        for key,value in meanData.iteritems():
-            mean_plots.append(value[0])
-            se.append(value[1])
-            labels_tmp.append(value[2])
-            howMany.append(counter);counter+=1
-    else:
-        end = len(order);
-        while counter < end:
-            key = order[counter]
-            value = meanData[key]
-            mean_plots.append(value[0])
-            se.append(value[1])
-            labels_tmp.append(value[2])
-            howMany.append(counter);counter+=1
+    if data.values.size:
+        if type == 'normal':
+            p_hat = num_correct/num_total
+            acc = p_hat
+            se = c*math.sqrt((p_hat)*(1.0-p_hat)/num_total)
+            lower_bound = se
+            upper_bound = se
             
-    se = 1.96*numpy.array(se)
-    plt.errorbar(howMany,mean_plots,se,fmt='or')
-    plt.xticks(howMany,labels_tmp); 
-    if dict.has_key('obs_title'):
-        plt.title(dict['obs_title']+' - CI mean');
+        elif type == 'wilson-score':
+            p_hat = num_correct/num_total
+            p_hat_adj = (p_hat + (c**2.)/(2.*num_total)) / (1.+(c**2.)/num_total)
+            acc = p_hat
+            se = c * math.sqrt(p_hat*(1.-p_hat)/num_total+(c**2.)/(4.*num_total**2.)) / (1.+(c**2.)/num_total)
+            lower_bound = p_hat - (p_hat_adj - se)
+            upper_bound = (p_hat_adj + se) - p_hat
+        else:
+            acc = float('NaN')
+            se = float('NaN')
+            
+        return [acc,lower_bound,upper_bound]
     else:
-        plt.title('')  
-    plt.ylabel('Response Times (ms)');
-    plt.savefig(os.path.join(path_res,dict['filename']+"-CI.pdf")) 
-    plt.close()
-
+        return [float('NaN'),float('NaN')]
+    
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
@@ -239,163 +370,31 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','acc', 'u-bounds'])
     a.to_csv(os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.csv"),sep=';')
     writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
-    
-
-def plotRTGraphs(boxes,labels,path,dict,order=[]):
-    
-    if dict.has_key('y_lim_RT'):
-        y_lim = dict['y_lim_RT']
-    else:
-        y_lim = [.0,1750]
-        
-    if dict.has_key('obs_title'):
-        obs_title = dict['obs_title']
-    else:
-        obs_title = ""
-    
-    if dict.has_key('fontsize'):
-        fontsize = dict['fontsize']
-    else:
-        fontsize = 12
-    
-    if dict.has_key('result_id'):
-        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
-    if dict.has_key('filename'):
-        save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
-    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
-    
-    plt.figure(); 
-    
-    plt.boxplot(boxes, notch=1)
-    
-    plt.xticks(counter,labels,fontsize=fontsize); 
-    plt.title(obs_title,fontsize=fontsize); 
-    plt.tick_params(axis='y', labelsize=fontsize);
-    plt.tick_params(axis='x', labelsize=fontsize); 
-    plt.ylabel('Response Times (ms)', fontsize=fontsize); 
-    plt.ylim(y_lim); 
-    plt.grid(axis='y');
-    plt.savefig(save_to_file); 
-    
-    plt.close()
 
 
-def plotHistogram(distribution,path,dict):
-    
-    if dict.has_key('bins'):
-        bins = dict['bins']
-    else:
-        bins = 20
-        
-    if dict.has_key('x_lim_hist'):
-        x_lim = dict['x_lim_hist']
-    else:
-        x_lim = [.0,1750.]
-        
-    if dict.has_key('filename') and dict.has_key('result_id'):
-        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
-    elif dict.has_key('filename'): 
-        save_to_file = os.path.join(path,dict['filename']+"-HIST.pdf")
-        
-    if dict.has_key('obs_title'):
-        obs_title = dict['obs_title']
-    else:
-        obs_title = dict['filename']
-    
-    plt.figure(); plt.hist(distribution, bins = bins);
-    plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.xlim(x_lim); plt.grid(axis='y');
-    plt.savefig(save_to_file); plt.close()
+##########
+###
+###   Making Chi2 test
+###
+##########
 
 
-def plotResidualPlots(boxes,labels,path,dict):
+def preparePandas4Chi2(pandas_dict,order_dict):
+    data = {}; corrArr = []; uncorrArr = []; labels_array = []
+    for i in range(len(order_dict)):
+        key = order_dict[i]
+        corr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values)[0]
+        uncorr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==False]['resp_time'].values)[0]
+        corrArr.append(corr_tmp)
+        uncorrArr.append(uncorr_tmp)
+        labels_array.append(key)
+        data.update({key: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
     
-    if dict.has_key('y_lim_RES'):
-        y_lim = dict['y_lim_RES']
-    else:
-        y_lim = [-1750.,1750.]
+    obs_array = numpy.array([corrArr, uncorrArr])
+    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[labels_array]
     
-    if dict.has_key('filename') and dict.has_key('result_id'):
-        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
-    elif dict.has_key('filename'): 
-        save_to_file = os.path.join(path,dict['filename']+"-RES.pdf")
+    return obs_array, obs_pandas
     
-    
-    if dict.has_key('obs_title'):
-        obs_title = dict['obs_title']
-    else:
-        obs_title = dict['filename']
-    
-    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
-    res_boxes = []
-    i=1
-    for box in boxes:
-        i +=1
-        mean_tmp = stats.nanmean(box)
-        residual_values_tmp = box-mean_tmp
-        res_boxes.append(residual_values_tmp)
-    
-    plt.figure(); plt.boxplot(res_boxes, notch=1);
-    plt.xticks(counter,labels); plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.ylim(y_lim); plt.grid(axis='y');
-    plt.savefig(save_to_file); plt.close()
-
-
-def plotQQPlot(distribution,path,dict):
-    
-    if dict.has_key('filename') and dict.has_key('result_id'):
-        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-QQ.pdf") # This is only for samsemPlots35Thru37. Please remove it
-    elif dict.has_key('filename'): 
-        save_to_file = os.path.join(path,dict['filename']+"-QQ.pdf")
-    
-    stats.probplot(distribution, dist="norm", plot=plt)
-    plt.savefig(save_to_file); plt.close()
-    
-def getSetFromScene(sce_id):
-    visualsearch_ids = "../colordeficiency-data/visualsearch_ids.xlsx"
-    vs_ids_sheet = pandas.read_excel(visualsearch_ids)
-    set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==sce_id].set_id.values[0]) 
-    
-    
-def getAccuracy(data,c,type):
-    
-    num_total =  float(numpy.shape(data.values)[0])
-    num_correct = float(numpy.shape(data[data['is_correct']==True].values)[0]) 
-    num_incorrect = float(numpy.shape(data[data['is_correct']==False].values)[0])
-    
-    if data.values.size:
-        if type == 'normal':
-            p_hat = num_correct/num_total
-            acc = p_hat
-            se = c*math.sqrt((p_hat)*(1.0-p_hat)/num_total)
-            lower_bound = se
-            upper_bound = se
-            
-        elif type == 'wilson-score':
-            p_hat = num_correct/num_total
-            p_hat_adj = (p_hat + (c**2.)/(2.*num_total)) / (1.+(c**2.)/num_total)
-            acc = p_hat
-            se = c * math.sqrt(p_hat*(1.-p_hat)/num_total+(c**2.)/(4.*num_total**2.)) / (1.+(c**2.)/num_total)
-            lower_bound = p_hat - (p_hat_adj - se)
-            upper_bound = (p_hat_adj + se) - p_hat
-        else:
-            acc = float('NaN')
-            se = float('NaN')
-            
-        return [acc,lower_bound,upper_bound]
-    else:
-        return [float('NaN'),float('NaN')]
-
-
-def getCIAverage(data):
-    
-    if data.size:
-        num_total = numpy.shape(data)[0]
-        mean = stats.nanmean(data)
-        se = stats.nanstd(data)/math.sqrt(num_total)
-        
-        return [mean,se]
-    else:
-        return [.0,.0]
-
 
 def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res=[] ):
     
@@ -463,210 +462,123 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     matrix = matrix[methods[1:num_methods]]
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
     writePandastoLatex(matrix, os.path.join(path,filename_tex))
+
+
+##########
+###
+###   Plotting RT data
+###
+##########
+
+
+def preparePandas4RTPlots(pandas_dict,order_dict):
     
-    
-def writePandastoLatex(pandasArr,path):
-    columns =  pandasArr.columns
-    num_columns = numpy.shape(columns)[0]
-    range_columns = sorted(range(0,num_columns))
-    
-    index =  pandasArr.index
-    num_index = numpy.shape(index)[0]
-    range_index = sorted(range(0,num_index))
-    
-    order = "| c ||"
-    header = "& "
-    for i in range_columns:
-        order += " c "
-        header += " "+str(columns[i])+" "
-        if i != num_columns-1:
-            order += "|"
-            header += "& "
-    order += "|"
-    
-    res_str = "\\begin{tabular}{"+order+"}\n"
-    res_str += "\t\\hline\n"
-    res_str += "\t"+header+"\\\\ \\hline \\hline\n"
-    counter_row = 0
-    for index, row in  pandasArr.iterrows():
+    boxes = []; labels = []
+    for i in range(len(order_dict)):
+        key = order_dict[i]
         
-        counter_row +=1
-        res_str += "\t"+index+" & "
-        for i in range_columns:
-            if type(row[i]) == str:
-                res_str += row[i]+" "
-            elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
-                res_str += "%.4e"%(float(row[i]))+" "
-            elif (type(row[i]) == int) or (type(row[i]) == numpy.int64):
-                res_str += str(int(row[i]))+" "
-            if i != num_columns-1:
-                res_str += "& "
-        if counter_row != num_index:   
-            res_str += "\\\\ \\hline\n"
-        else:
-            res_str += "\\\\ \n"
-    res_str += "\t\\hline\n"
-    res_str += "\\end{tabular}\n"
+        values_tmp = pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values*1000; 
+        labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
+        boxes.append(values_tmp)
+        
+    return boxes, labels
+
+
+def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
-    text_file = open(path, "w+")
-    text_file.write(res_str)
-    text_file.close()
-    
-    
-def writeMetaDataOfExperiments(experimentData,path,dict):
-    """
-    This function returns the meta data of a SaMSEM or ViSDEM experiment like for example number of sessions, sets, simulations or daltonizations used etc.
-    The information is stored inside a text file that is saved at the path defined by path_out.
-    Input: experimentData:    * A pandas array with either the SaMSEM or ViSDEM data.
-           dict:              * A dictionary containing all options for the computation of the meta data. 
-                              Requiree are: ** exp_type: Whether the experiment was SaMSEM or ViSDEM.
-                              Optional are: ** path_out: Path to the folder, where the text file containing the meta data should be stored.
-    """
-    
-    if dict.has_key('exp_type'):
-        exp_type = dict['exp_type']
+    if dict.has_key('y_lim_RT'):
+        y_lim = dict['y_lim_RT']
     else:
-        print "Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM."
-        return
-  
+        y_lim = [.0,1750]
+        
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = ""
+    
+    if dict.has_key('fontsize'):
+        fontsize = dict['fontsize']
+    else:
+        fontsize = 12
+    
+    if dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
     if dict.has_key('filename'):
-        filename = dict['filename']
-    else:
-        filename = 'meta-data'
-    path_out = os.path.join(path, filename)
-        
-    if exp_type == "visdem":
-        f = open(path_out,'w+')
-        f.write("ViSDEM meta data\n")
-        sessions = sorted(set(experimentData['session_id']))
-        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
-        sets = sorted(set(experimentData['set_id']))
-        f.write('... # of sets: '+str(len(sets))+' ; '+str(sets)+'\n')
-        daltonizations = sorted(set(experimentData['dalt_id']))
-        f.write('... # of daltonization ids: '+str(len(daltonizations))+' ; '+str(daltonizations)+'\n')
-        observers = sorted(set(experimentData['observer_id']))
-        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
-        observers_norm = sorted(set(experimentData[experimentData['observer_coldef_type']==0]['observer_id']))
-        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
-        observers_prot = sorted(set(experimentData[experimentData['observer_coldef_type']==1]['observer_id']))
-        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')  
-        observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
-        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')         
-        f.close()
-    elif exp_type == 'samsem':
-        f = open(path_out,'w+')
-        f.write("SaMSEM meta data\n")
-        sessions = sorted(set(experimentData['session_id']))
-        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
-        images = sorted(set(experimentData['image_id']))
-        f.write('... # of images: '+str(len(images))+' ; '+str(images)+'\n')
-        simulations = sorted(set(experimentData['sim_id']))
-        f.write('... # of simulations: '+str(len(simulations))+' ; '+str(simulations)+'\n')
-        observers = sorted(set(experimentData['observer_id']))
-        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
-        observers_norm = sorted(set(experimentData[experimentData['observer_coldef_type']==0]['observer_id']))
-        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
-        observers_prot = sorted(set(experimentData[experimentData['observer_coldef_type']==1]['observer_id']))
-        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')
-        observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
-        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')
-    else:
-        print "Error: No valid experiment format has been chosen. Choose either visdem or samsem."
-        return
+        save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
+    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
     
+    plt.figure(); 
     
-def checkNormality(distributions,labels,path,options,project_str="",plot_types={'q-q','hist','boxplot','residuals'},isLog = False):
+    plt.boxplot(boxes, notch=1)
+    
+    plt.xticks(counter,labels,fontsize=fontsize); 
+    plt.title(obs_title,fontsize=fontsize); 
+    plt.tick_params(axis='y', labelsize=fontsize);
+    plt.tick_params(axis='x', labelsize=fontsize); 
+    plt.ylabel('Response Times (ms)', fontsize=fontsize); 
+    plt.ylim(y_lim); 
+    plt.grid(axis='y');
+    plt.savefig(save_to_file); 
+    
+    plt.close()
+
+def makePairedRTData(data_RT_paired, methods,id_label):
     """
-    Similar to samsemPlots35thru37
+    Input: * RT Pandas data frame paired
+           * IDs of methods to compare
+           * Label of columns being compared
+    Output: * All possible combinations
+            * Labels for the combinations
     """
-    if project_str:
-        folder_name = project_str.lower().replace(" ","-")+"_normality-check"
-        project = project_str
-    else:
-        folder_name = "new-normality-check"
-        project = "New normality check"
-    print "* Start checking normality of \'"+str(project)+"\'"
     
-    # 1. Check that dimensions of distribtions and labels are the same
-    distr_size = numpy.shape(distributions)
-    labels_size = numpy.shape(labels)
-    try:
-        pass
-    except:
-        print "Error: Dimensions of labels and distributions have to match."
-        return
+    method_counter = copy.copy(methods)
     
-    # 2. Check that all plot types are accepted
-    try:
-        plot_types_acc = plot_types
-    except:
-        print "Caution: Plot type has to be one of the following: \'q-q\', \'hist\', \'boxplot\' or \'residuals\'"
+    comparisons = []; labels = [];
     
-    # 4. Create folder if necessary
-    save_to_path = os.path.join(path,folder_name)
-    if not os.path.exists(save_to_path): os.makedirs(save_to_path)
-        
-    # 3. Make q-q plot
-    if 'q-q' in plot_types_acc:
-        sys.stdout.write("** Making Q-Q plots ")
-        save_to_tmp = os.path.join(save_to_path,'q-q')
-        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
-        
-        i = 0;
-        for distribution in distributions:
-            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
-            sys.stdout.write('.')
+    for method in methods:
+        method_counter.pop(0)
+        if method_counter:
+            col_tmp = id_label+"_"+str(method).zfill(2)
+            values_RT_tmp = data_RT_paired[col_tmp].values
             
-            plotQQPlot(nonnan_distribution, save_to_tmp, {"filename":labels[i]})
-            i+=1
-        
-        sys.stdout.write('\n')
-    
-    # . Make histograms
-    if 'hist' in plot_types_acc:
-        sys.stdout.write("** Making histograms ")
-        save_to_tmp = os.path.join(save_to_path,'hist')
-        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
-        
-        
-        i = 0;
-        for distribution in distributions:
-            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
-            sys.stdout.write('.')
-            options.update({"filename":labels[i]})
-            plotHistogram(nonnan_distribution, save_to_tmp,options)
-            i+=1
-        
-        sys.stdout.write('\n')
-    
-    # . Make boxplots
-    if 'boxplot' in plot_types_acc:
-        
-        sys.stdout.write("** Making boxplots .")
-        save_to_tmp = os.path.join(save_to_path,'boxplots')
-        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
-        
-        
-        options.update({'filename': project_str.lower().replace(" ","-")})
-        plotRTGraphs(distributions, labels, save_to_tmp,options)
-    
-        sys.stdout.write('\n')
-    
-    # . Make residuals
-    if 'residuals' in plot_types_acc:
-        sys.stdout.write("** Making boxplots of the residuals .")
-        save_to_tmp = os.path.join(save_to_path,'residuals')
-        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
-        
-        
-        options.update({'filename': project_str.lower().replace(" ","-")})
-        plotResidualPlots(distributions, labels, save_to_tmp, options)
-        sys.stdout.write('\n')
-    
-    print "* Stop checking normality"
+            for to_method in method_counter:
+                label_tmp = str(method).zfill(2)+'-to-'+str(to_method).zfill(2)
+                
+                to_col_tmp = id_label+"_"+str(to_method).zfill(2)
+                to_values_RT_tmp = data_RT_paired[to_col_tmp].values
+                
+                difference_paired = values_RT_tmp - to_values_RT_tmp
+                comparisons.append(difference_paired)
+                labels.append(label_tmp)
+    return comparisons, labels
 
 
-def signTest(data,path,methods):
+##########
+###
+###   Making normality plots of RT data
+###
+##########
+
+
+def plotQQPlot(distribution,path,dict):
+    
+    if dict.has_key('filename') and dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-QQ.pdf") # This is only for samsemPlots35Thru37. Please remove it
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-QQ.pdf")
+    
+    stats.probplot(distribution, dist="norm", plot=plt)
+    plt.savefig(save_to_file); plt.close()
+        
+
+##########
+###
+###   General statistics methods
+###
+##########
+
+    
+def makeSignTest(data,path,methods):
     """
     Input: * data:    Pandas data frame with relevant data that should be compared
            * path:    Path, to which the results should be save to as matrix
@@ -805,76 +717,213 @@ def makeMedianTest(data,path,methods,dict):
     writePandastoLatex(matrix,os.path.join(path,filename_latex))
 
 
-def preparePandas4AccuracyPlots(pandas_dict,c=1.96,type="normal"):
-    
-    #print "Type of computation for confidence intervals: "+ str(type)
-    #print "Length of confidence interval c: " + str(c)
-    accuracies = {}
-    
-    for key in pandas_dict:
-        ACC_tmp = getAccuracy(pandas_dict[key],c,type)
-        #ACC_tmp.append(key)
-        accuracies.update({key: ACC_tmp})
-        
-    return accuracies
-        
-        
-def preparePandas4Chi2(pandas_dict,order_dict):
-    data = {}; corrArr = []; uncorrArr = []; labels_array = []
-    for i in range(len(order_dict)):
-        key = order_dict[i]
-        corr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values)[0]
-        uncorr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==False]['resp_time'].values)[0]
-        corrArr.append(corr_tmp)
-        uncorrArr.append(uncorr_tmp)
-        labels_array.append(key)
-        data.update({key: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
-    
-    obs_array = numpy.array([corrArr, uncorrArr])
-    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[labels_array]
-    
-    return obs_array, obs_pandas
+##########
+###
+###   Obsolete functions
+###
+##########
 
 
-def preparePandas4RTPlots(pandas_dict,order_dict):
+def getCIAverage(data):
     
-    boxes = []; labels = []
-    for i in range(len(order_dict)):
-        key = order_dict[i]
+    if data.size:
+        num_total = numpy.shape(data)[0]
+        mean = stats.nanmean(data)
+        se = stats.nanstd(data)/math.sqrt(num_total)
         
-        values_tmp = pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values*1000; 
-        labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
-        boxes.append(values_tmp)
-        
-    return boxes, labels
+        return [mean,se]
+    else:
+        return [.0,.0]
 
 
-def makePairedRTData(data_RT_paired, methods,id_label):
-    """
-    Input: * RT Pandas data frame paired
-           * IDs of methods to compare
-           * Label of columns being compared
-    Output: * All possible combinations
-            * Labels for the combinations
-    """
+def plotCIAverageGraphs(meanData,path,dict,order=[]):
     
-    method_counter = copy.copy(methods)
+    if dict.has_key('result_id'):
+        path_res = os.path.join(path,str(dict['result_id']))
+    else:
+        path_res = path        
     
-    comparisons = []; labels = [];
+    if dict.has_key('y_lim_RT'):
+        y_lim = dict['y_lim_RT']
+    else:
+        y_lim = [.0,1750.]
+    plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(meanData)+1]); plt.grid(axis='y');
     
-    for method in methods:
-        method_counter.pop(0)
-        if method_counter:
-            col_tmp = id_label+"_"+str(method).zfill(2)
-            values_RT_tmp = data_RT_paired[col_tmp].values
+    mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=0
+    
+    if not order:
+        for key,value in meanData.iteritems():
+            mean_plots.append(value[0])
+            se.append(value[1])
+            labels_tmp.append(value[2])
+            howMany.append(counter);counter+=1
+    else:
+        end = len(order);
+        while counter < end:
+            key = order[counter]
+            value = meanData[key]
+            mean_plots.append(value[0])
+            se.append(value[1])
+            labels_tmp.append(value[2])
+            howMany.append(counter);counter+=1
             
-            for to_method in method_counter:
-                label_tmp = str(method).zfill(2)+'-to-'+str(to_method).zfill(2)
-                
-                to_col_tmp = id_label+"_"+str(to_method).zfill(2)
-                to_values_RT_tmp = data_RT_paired[to_col_tmp].values
-                
-                difference_paired = values_RT_tmp - to_values_RT_tmp
-                comparisons.append(difference_paired)
-                labels.append(label_tmp)
-    return comparisons, labels
+    se = 1.96*numpy.array(se)
+    plt.errorbar(howMany,mean_plots,se,fmt='or')
+    plt.xticks(howMany,labels_tmp); 
+    if dict.has_key('obs_title'):
+        plt.title(dict['obs_title']+' - CI mean');
+    else:
+        plt.title('')  
+    plt.ylabel('Response Times (ms)');
+    plt.savefig(os.path.join(path_res,dict['filename']+"-CI.pdf")) 
+    plt.close()
+    
+
+def plotHistogram(distribution,path,dict):
+    
+    if dict.has_key('bins'):
+        bins = dict['bins']
+    else:
+        bins = 20
+        
+    if dict.has_key('x_lim_hist'):
+        x_lim = dict['x_lim_hist']
+    else:
+        x_lim = [.0,1750.]
+        
+    if dict.has_key('filename') and dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-HIST.pdf")
+        
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = dict['filename']
+    
+    plt.figure(); plt.hist(distribution, bins = bins);
+    plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.xlim(x_lim); plt.grid(axis='y');
+    plt.savefig(save_to_file); plt.close()
+
+
+def plotResidualPlots(boxes,labels,path,dict):
+    
+    if dict.has_key('y_lim_RES'):
+        y_lim = dict['y_lim_RES']
+    else:
+        y_lim = [-1750.,1750.]
+    
+    if dict.has_key('filename') and dict.has_key('result_id'):
+        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
+    elif dict.has_key('filename'): 
+        save_to_file = os.path.join(path,dict['filename']+"-RES.pdf")
+    
+    
+    if dict.has_key('obs_title'):
+        obs_title = dict['obs_title']
+    else:
+        obs_title = dict['filename']
+    
+    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
+    res_boxes = []
+    i=1
+    for box in boxes:
+        i +=1
+        mean_tmp = stats.nanmean(box)
+        residual_values_tmp = box-mean_tmp
+        res_boxes.append(residual_values_tmp)
+    
+    plt.figure(); plt.boxplot(res_boxes, notch=1);
+    plt.xticks(counter,labels); plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.ylim(y_lim); plt.grid(axis='y');
+    plt.savefig(save_to_file); plt.close()
+    
+    
+def checkNormality(distributions,labels,path,options,project_str="",plot_types={'q-q','hist','boxplot','residuals'},isLog = False):
+    """
+    Similar to samsemPlots35thru37
+    """
+    if project_str:
+        folder_name = project_str.lower().replace(" ","-")+"_normality-check"
+        project = project_str
+    else:
+        folder_name = "new-normality-check"
+        project = "New normality check"
+    print "* Start checking normality of \'"+str(project)+"\'"
+    
+    # 1. Check that dimensions of distribtions and labels are the same
+    distr_size = numpy.shape(distributions)
+    labels_size = numpy.shape(labels)
+    try:
+        pass
+    except:
+        print "Error: Dimensions of labels and distributions have to match."
+        return
+    
+    # 2. Check that all plot types are accepted
+    try:
+        plot_types_acc = plot_types
+    except:
+        print "Caution: Plot type has to be one of the following: \'q-q\', \'hist\', \'boxplot\' or \'residuals\'"
+    
+    # 4. Create folder if necessary
+    save_to_path = os.path.join(path,folder_name)
+    if not os.path.exists(save_to_path): os.makedirs(save_to_path)
+        
+    # 3. Make q-q plot
+    if 'q-q' in plot_types_acc:
+        sys.stdout.write("** Making Q-Q plots ")
+        save_to_tmp = os.path.join(save_to_path,'q-q')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        i = 0;
+        for distribution in distributions:
+            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
+            sys.stdout.write('.')
+            
+            plotQQPlot(nonnan_distribution, save_to_tmp, {"filename":labels[i]})
+            i+=1
+        
+        sys.stdout.write('\n')
+    
+    # . Make histograms
+    if 'hist' in plot_types_acc:
+        sys.stdout.write("** Making histograms ")
+        save_to_tmp = os.path.join(save_to_path,'hist')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        i = 0;
+        for distribution in distributions:
+            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
+            sys.stdout.write('.')
+            options.update({"filename":labels[i]})
+            plotHistogram(nonnan_distribution, save_to_tmp,options)
+            i+=1
+        
+        sys.stdout.write('\n')
+    
+    # . Make boxplots
+    if 'boxplot' in plot_types_acc:
+        
+        sys.stdout.write("** Making boxplots .")
+        save_to_tmp = os.path.join(save_to_path,'boxplots')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        options.update({'filename': project_str.lower().replace(" ","-")})
+        plotRTGraphs(distributions, labels, save_to_tmp,options)
+    
+        sys.stdout.write('\n')
+    
+    # . Make residuals
+    if 'residuals' in plot_types_acc:
+        sys.stdout.write("** Making boxplots of the residuals .")
+        save_to_tmp = os.path.join(save_to_path,'residuals')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        options.update({'filename': project_str.lower().replace(" ","-")})
+        plotResidualPlots(distributions, labels, save_to_tmp, options)
+        sys.stdout.write('\n')
+    
+    print "* Stop checking normality"

@@ -65,6 +65,13 @@ def getStatsFromFilename(filename):
         dict["sim_id"] = int(filename[7:9])
         dict["coldef_type"] = int(filename[9])
         return dict
+
+
+def getSetFromScene(sce_id):
+    visualsearch_ids = "../colordeficiency-data/visualsearch_ids.xlsx"
+    vs_ids_sheet = pandas.read_excel(visualsearch_ids)
+    set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==sce_id].set_id.values[0]) 
+    
         
 def setStatsToFilename(img_id,dalt,dalt_id,sim,sim_id,coldef_type):
     """

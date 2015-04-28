@@ -8,8 +8,8 @@ import copy, json, matplotlib.pyplot as plt, numpy, operator, os, pandas, sys
 from scipy import stats
 
 from colordeficiency import settings
-from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename, keys2values
-from analysis_tools import writeMetaDataOfExperiments, extractExperimentData, writePandastoLatex, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getSetFromScene, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
+from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename, getSetFromScene, keys2values
+from analysis_tools import writeMetaDataOfExperiments, extractExperimentData, writePandastoLatex, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
 from analysis_tools import preparePandas4AccuracyPlots, preparePandas4Chi2, preparePandas4RTPlots
 from analysis_tools import makeMedianTest, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test
 from analysis_tools import makePairedRTData
