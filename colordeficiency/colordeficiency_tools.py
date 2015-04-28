@@ -18,6 +18,15 @@ import numpy
 
 from openpyxl import Workbook, load_workbook
 
+def keys2values(keyArray, valueDict):
+    valueArray = []
+    for key in keyArray:
+        if valueDict.has_key(key):
+            valueArray.append(valueDict[key])
+        else:
+            valueArray.append(float('NaN'))
+    return valueArray
+
     
 def writeArrayToXLSX(dict,filename):
     

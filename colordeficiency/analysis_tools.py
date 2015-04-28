@@ -11,6 +11,43 @@ import numpy
 from scipy import stats
 import math
 import copy
+import sys
+
+
+def extractExperimentData(dataSheet,dataArray=pandas.DataFrame(),testArray=pandas.DataFrame()):
+    """
+    This function takes the url an xlsx file containing the result data from a sample-to-match experiment, extracts the data and returns the contained information as numpy array.
+    Is this the same as analyze SaMSEMData? What does it do?
+    """
+    
+    # Get all the sheet names for the excel file
+    
+    sheet_names = pandas.ExcelFile(dataSheet).sheet_names
+    # Create empty array for colordeficiency_tools and relevatn data. Create empty dictionary for the extra data
+    if dataArray.empty: dataArray = pandas.DataFrame();
+    if testArray.empty: testArray = pandas.DataFrame();
+    extraDataDict = {}
+    
+    # Read file sheet by sheet
+    for sheet_name in sheet_names:
+        if not "~" in sheet_name:
+            if ("roundTrials" in sheet_name) or ('practSets' in sheet_name) or ('sets' in sheet_name): 
+                pass # Ignore data about the order of set and samples for now
+            else:
+                # Read excel and extract data
+                excel_sheet = pandas.read_excel(dataSheet, sheet_name)
+                array_tmp, extraDataDict_tmp = extractDataFromPsychoPyXLSX(excel_sheet)
+                #Update dictionary containing extra data
+                extraDataDict.update(extraDataDict_tmp)
+                # Append colordeficiency_tools or relevant data to respective data array
+                if ("testTrials" in sheet_name) or ("practTrials" in sheet_name): testArray = pandas.concat([array_tmp, testArray]) if not testArray.empty else array_tmp
+                else: dataArray = pandas.concat([array_tmp,dataArray]) if not dataArray.empty else array_tmp
+    
+    dataArray = dataArray.reset_index()
+    testArray = testArray.reset_index()
+            
+    return dataArray, testArray, extraDataDict
+
 
 def extractDataFromPsychoPyXLSX(pandasDataSheet):
     """
@@ -25,6 +62,7 @@ def extractDataFromPsychoPyXLSX(pandasDataSheet):
     extra_data = dict(pandasDataSheet.iloc[end_index+2:-1,0:2].values)
     
     return relevant_data, extra_data
+
 
 def organizeArray(dataArray,whatArray,howArray=[]):
     """
@@ -58,6 +96,7 @@ def organizeArray(dataArray,whatArray,howArray=[]):
     dataArray_out = dataArray_out[i][sortArray_new] if sortArray_new else dataArray_out[i]
     
     return dataArray_out
+
 
 def plotCIAverageGraphs(meanData,path,dict,order=[]):
     
@@ -100,6 +139,7 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
     plt.ylabel('Response Times (ms)');
     plt.savefig(os.path.join(path_res,dict['filename']+"-CI.pdf")) 
     plt.close()
+
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
@@ -239,6 +279,7 @@ def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
     plt.close()
 
+
 def plotHistogram(distribution,path,dict):
     
     if dict.has_key('bins'):
@@ -264,6 +305,7 @@ def plotHistogram(distribution,path,dict):
     plt.figure(); plt.hist(distribution, bins = bins);
     plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.xlim(x_lim); plt.grid(axis='y');
     plt.savefig(save_to_file); plt.close()
+
 
 def plotResidualPlots(boxes,labels,path,dict):
     
@@ -295,6 +337,7 @@ def plotResidualPlots(boxes,labels,path,dict):
     plt.figure(); plt.boxplot(res_boxes, notch=1);
     plt.xticks(counter,labels); plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.ylim(y_lim); plt.grid(axis='y');
     plt.savefig(save_to_file); plt.close()
+
 
 def plotQQPlot(distribution,path,dict):
     
@@ -352,6 +395,7 @@ def getCIAverage(data):
         return [mean,se]
     else:
         return [.0,.0]
+
 
 def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res=[] ):
     
@@ -467,3 +511,370 @@ def writePandastoLatex(pandasArr,path):
     text_file = open(path, "w+")
     text_file.write(res_str)
     text_file.close()
+    
+    
+def writeMetaDataOfExperiments(experimentData,path,dict):
+    """
+    This function returns the meta data of a SaMSEM or ViSDEM experiment like for example number of sessions, sets, simulations or daltonizations used etc.
+    The information is stored inside a text file that is saved at the path defined by path_out.
+    Input: experimentData:    * A pandas array with either the SaMSEM or ViSDEM data.
+           dict:              * A dictionary containing all options for the computation of the meta data. 
+                              Requiree are: ** exp_type: Whether the experiment was SaMSEM or ViSDEM.
+                              Optional are: ** path_out: Path to the folder, where the text file containing the meta data should be stored.
+    """
+    
+    if dict.has_key('exp_type'):
+        exp_type = dict['exp_type']
+    else:
+        print "Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM."
+        return
+  
+    if dict.has_key('filename'):
+        filename = dict['filename']
+    else:
+        filename = 'meta-data'
+    path_out = os.path.join(path, filename)
+        
+    if exp_type == "visdem":
+        f = open(path_out,'w+')
+        f.write("ViSDEM meta data\n")
+        sessions = sorted(set(experimentData['session_id']))
+        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
+        sets = sorted(set(experimentData['set_id']))
+        f.write('... # of sets: '+str(len(sets))+' ; '+str(sets)+'\n')
+        daltonizations = sorted(set(experimentData['dalt_id']))
+        f.write('... # of daltonization ids: '+str(len(daltonizations))+' ; '+str(daltonizations)+'\n')
+        observers = sorted(set(experimentData['observer_id']))
+        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
+        observers_norm = sorted(set(experimentData[experimentData['observer_coldef_type']==0]['observer_id']))
+        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
+        observers_prot = sorted(set(experimentData[experimentData['observer_coldef_type']==1]['observer_id']))
+        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')  
+        observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
+        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')         
+        f.close()
+    elif exp_type == 'samsem':
+        f = open(path_out,'w+')
+        f.write("SaMSEM meta data\n")
+        sessions = sorted(set(experimentData['session_id']))
+        f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
+        images = sorted(set(experimentData['image_id']))
+        f.write('... # of images: '+str(len(images))+' ; '+str(images)+'\n')
+        simulations = sorted(set(experimentData['sim_id']))
+        f.write('... # of simulations: '+str(len(simulations))+' ; '+str(simulations)+'\n')
+        observers = sorted(set(experimentData['observer_id']))
+        f.write("... # of observers: " +str(len(observers))+' ; '+str(observers)+'\n')
+        observers_norm = sorted(set(experimentData[experimentData['observer_coldef_type']==0]['observer_id']))
+        f.write("...... # of normal observers: "+str(len(observers_norm))+' ; '+str(observers_norm)+'\n')
+        observers_prot = sorted(set(experimentData[experimentData['observer_coldef_type']==1]['observer_id']))
+        f.write("...... # of protan observers: "+str(len(observers_prot))+' ; '+str(observers_prot)+'\n')
+        observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
+        f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')
+    else:
+        print "Error: No valid experiment format has been chosen. Choose either visdem or samsem."
+        return
+    
+    
+def checkNormality(distributions,labels,path,options,project_str="",plot_types={'q-q','hist','boxplot','residuals'},isLog = False):
+    """
+    Similar to samsemPlots35thru37
+    """
+    if project_str:
+        folder_name = project_str.lower().replace(" ","-")+"_normality-check"
+        project = project_str
+    else:
+        folder_name = "new-normality-check"
+        project = "New normality check"
+    print "* Start checking normality of \'"+str(project)+"\'"
+    
+    # 1. Check that dimensions of distribtions and labels are the same
+    distr_size = numpy.shape(distributions)
+    labels_size = numpy.shape(labels)
+    try:
+        pass
+    except:
+        print "Error: Dimensions of labels and distributions have to match."
+        return
+    
+    # 2. Check that all plot types are accepted
+    try:
+        plot_types_acc = plot_types
+    except:
+        print "Caution: Plot type has to be one of the following: \'q-q\', \'hist\', \'boxplot\' or \'residuals\'"
+    
+    # 4. Create folder if necessary
+    save_to_path = os.path.join(path,folder_name)
+    if not os.path.exists(save_to_path): os.makedirs(save_to_path)
+        
+    # 3. Make q-q plot
+    if 'q-q' in plot_types_acc:
+        sys.stdout.write("** Making Q-Q plots ")
+        save_to_tmp = os.path.join(save_to_path,'q-q')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        i = 0;
+        for distribution in distributions:
+            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
+            sys.stdout.write('.')
+            
+            plotQQPlot(nonnan_distribution, save_to_tmp, {"filename":labels[i]})
+            i+=1
+        
+        sys.stdout.write('\n')
+    
+    # . Make histograms
+    if 'hist' in plot_types_acc:
+        sys.stdout.write("** Making histograms ")
+        save_to_tmp = os.path.join(save_to_path,'hist')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        i = 0;
+        for distribution in distributions:
+            nonnan_distribution =  distribution[~numpy.isnan(distribution)]
+            sys.stdout.write('.')
+            options.update({"filename":labels[i]})
+            plotHistogram(nonnan_distribution, save_to_tmp,options)
+            i+=1
+        
+        sys.stdout.write('\n')
+    
+    # . Make boxplots
+    if 'boxplot' in plot_types_acc:
+        
+        sys.stdout.write("** Making boxplots .")
+        save_to_tmp = os.path.join(save_to_path,'boxplots')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        options.update({'filename': project_str.lower().replace(" ","-")})
+        plotRTGraphs(distributions, labels, save_to_tmp,options)
+    
+        sys.stdout.write('\n')
+    
+    # . Make residuals
+    if 'residuals' in plot_types_acc:
+        sys.stdout.write("** Making boxplots of the residuals .")
+        save_to_tmp = os.path.join(save_to_path,'residuals')
+        if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
+        
+        
+        options.update({'filename': project_str.lower().replace(" ","-")})
+        plotResidualPlots(distributions, labels, save_to_tmp, options)
+        sys.stdout.write('\n')
+    
+    print "* Stop checking normality"
+
+
+def signTest(data,path,methods):
+    """
+    Input: * data:    Pandas data frame with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * labels:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    
+    # Remove all rows that contain nan
+    data_wonan = data.dropna()
+    
+    method_counter = copy.copy(methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in methods:
+        
+        method_counter.pop(0)
+        values = data_wonan[method].values
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter:
+                
+                # Get current to_values
+                to_values = data_wonan[to_method].values
+                
+                diff_values = values-to_values # Make difference
+                num_positive = sum(diff_values>0) # Find all the values that are greater than zero
+                num_total = numpy.shape(diff_values)[0]
+                
+                p_value = stats.binom_test(num_positive,num_total)
+                curr_row[to_method] = p_value
+        matrix = matrix.append(curr_row)
+        #sys.stdout.write("\n")
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,"sign_test_p-values.csv"),sep=';')
+
+
+def makeKruskalWallisTest(data,path,methods):
+    """
+    Input: * data:    Pandas data frame with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * methods:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    
+    # Remove all rows that contain nan
+    data_wonan = data.dropna()
+    
+    method_counter = copy.copy(methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in methods:
+        
+        method_counter.pop(0)
+        values = data_wonan[method].values
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data_wonan[to_method].values
+                H,p_value = stats.mstats.kruskalwallis(values,to_values)
+                curr_row[to_method] = p_value
+        matrix = matrix.append(curr_row)
+        #sys.stdout.write("\n")
+    matrix.index = methods
+    matrix.to_csv(os.path.join(path,"kruskal-wallis-test_p-values.csv"),sep=';')
+
+
+def makeMedianTest(data,path,methods,dict):
+    """
+    Input: * data:    Numpy data array with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * labels:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    num_methods = numpy.shape(methods)[0]
+    num_columns = numpy.shape(data)[0]
+    if not num_methods == num_columns:
+        print "Error: Number of columns does not match the labels for the median test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns)
+        return
+    
+    if dict.has_key('filename'):
+        filename_csv = dict['filename']+"_pairwise-median-test_p-values.csv"
+        filename_latex = dict['filename']+"_pairwise-median-test_p-values.tex"
+    else:
+        filename_csv = "_pairwise-median-test_p-values.csv"
+    
+    range_methods = range(num_methods)
+    
+    method_counter = copy.copy(range_methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in range_methods:
+        method_counter.pop(0)
+        values = data[method]
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data[to_method]
+                
+                if (len(values) !=0) and (len(to_values) != 0):
+                    stat, p_value, m, table =  stats.median_test(values,to_values)
+                else:
+                    p_value = "Nix"
+                curr_row[methods[to_method]] = p_value
+        matrix = matrix.append(curr_row)
+    matrix.index = methods
+    matrix = matrix.drop(matrix.index[[num_methods-1]])
+    matrix = matrix[methods[1:num_methods]]
+    matrix.to_csv(os.path.join(path,filename_csv),sep=';')
+
+    writePandastoLatex(matrix,os.path.join(path,filename_latex))
+
+
+def preparePandas4AccuracyPlots(pandas_dict,c=1.96,type="normal"):
+    
+    #print "Type of computation for confidence intervals: "+ str(type)
+    #print "Length of confidence interval c: " + str(c)
+    accuracies = {}
+    
+    for key in pandas_dict:
+        ACC_tmp = getAccuracy(pandas_dict[key],c,type)
+        #ACC_tmp.append(key)
+        accuracies.update({key: ACC_tmp})
+        
+    return accuracies
+        
+        
+def preparePandas4Chi2(pandas_dict,order_dict):
+    data = {}; corrArr = []; uncorrArr = []; labels_array = []
+    for i in range(len(order_dict)):
+        key = order_dict[i]
+        corr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values)[0]
+        uncorr_tmp = numpy.shape(pandas_dict[key][pandas_dict[key]['is_correct']==False]['resp_time'].values)[0]
+        corrArr.append(corr_tmp)
+        uncorrArr.append(uncorr_tmp)
+        labels_array.append(key)
+        data.update({key: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
+    
+    obs_array = numpy.array([corrArr, uncorrArr])
+    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[labels_array]
+    
+    return obs_array, obs_pandas
+
+
+def preparePandas4RTPlots(pandas_dict,order_dict):
+    
+    boxes = []; labels = []
+    for i in range(len(order_dict)):
+        key = order_dict[i]
+        
+        values_tmp = pandas_dict[key][pandas_dict[key]['is_correct']==True]['resp_time'].values*1000; 
+        labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
+        boxes.append(values_tmp)
+        
+    return boxes, labels
+
+
+def makePairedRTData(data_RT_paired, methods,id_label):
+    """
+    Input: * RT Pandas data frame paired
+           * IDs of methods to compare
+           * Label of columns being compared
+    Output: * All possible combinations
+            * Labels for the combinations
+    """
+    
+    method_counter = copy.copy(methods)
+    
+    comparisons = []; labels = [];
+    
+    for method in methods:
+        method_counter.pop(0)
+        if method_counter:
+            col_tmp = id_label+"_"+str(method).zfill(2)
+            values_RT_tmp = data_RT_paired[col_tmp].values
+            
+            for to_method in method_counter:
+                label_tmp = str(method).zfill(2)+'-to-'+str(to_method).zfill(2)
+                
+                to_col_tmp = id_label+"_"+str(to_method).zfill(2)
+                to_values_RT_tmp = data_RT_paired[to_col_tmp].values
+                
+                difference_paired = values_RT_tmp - to_values_RT_tmp
+                comparisons.append(difference_paired)
+                labels.append(label_tmp)
+    return comparisons, labels
