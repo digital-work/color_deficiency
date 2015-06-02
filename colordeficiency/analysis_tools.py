@@ -54,7 +54,7 @@ def organizeArray(dataArray,whatArray,howArray=[]):
     return dataArray_out
 
 
-def writePandastoLatex(pandasArr,path):
+def writePandastoLatex(pandasArr,path,dict={}):
     columns =  pandasArr.columns
     num_columns = numpy.shape(columns)[0]
     range_columns = sorted(range(0,num_columns))
@@ -73,27 +73,75 @@ def writePandastoLatex(pandasArr,path):
             header += "& "
     order += "|"
     
-    res_str = "\\begin{tabular}{"+order+"}\n"
+    res_str = "\\sisetup{\n"
+    res_str += "detect-weight = true,\n"
+    res_str += "detect-inline-weight = math\n"
+    res_str += "}%\n"
+    res_str += "\\begin{tabular}{"+order+"}\n"
     res_str += "\t\\hline\n"
     res_str += "\t"+header+"\\\\ \\hline \\hline\n"
     counter_row = 0
+    
+    # Loop thru rows
     for index, row in  pandasArr.iterrows():
-        
         counter_row +=1
         res_str += "\t"+index+" & "
+        
+        # Loop thru cells
         for i in range_columns:
+            cell = ''
+            
             if type(row[i]) == str:
-                res_str += row[i]+" "
+                cell = row[i]
+                
             elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
-                res_str += "%.4e"%(float(row[i]))+" "
+                scientific_notation = True
+                
+                if dict.has_key('scientific_notation'):
+                    scientific_notation = dict['scientific_notation']
+                    
+                if scientific_notation:
+                    numerals = 2
+                    value = float(row[i])
+                    
+                    if dict.has_key('numerals'):
+                        numerals = int(dict['numerals']) 
+                    
+                    if value < 0.01:
+                        cell = "\\num[round-precision="+str(numerals)+", round-mode=figures, scientific-notation=true]{"+str(float(row[i]))+"}"
+                    else:
+                        cell = ("%."+str(numerals)+"f")%(value)
+                        
+                    p_values = False
+                    if dict.has_key('p_values'):
+                        p_values = dict['p_values']
+                    if p_values:
+                        if value <= 0.05:
+                            bkgcolor = "red"
+                            if dict.has_key('bkgcolor'):
+                                bkgcolor = dict['bkgcolor']
+                            textcolor = "white"
+                            if dict.has_key('textcolor'):
+                                textcolor = dict['textcolor']
+                            cell = "\\cellcolor{"+bkgcolor+"}\\textbf{\\textcolor{"+textcolor+"}{"+cell+"}}"
+                    
+                else:
+                    cell = str(float(row[i]))
+                
             elif (type(row[i]) == int) or (type(row[i]) == numpy.int64):
-                res_str += str(int(row[i]))+" "
+                cell = str(int(row[i]))
+            
+            res_str += cell + " "
+            
             if i != num_columns-1:
                 res_str += "& "
+                
         if counter_row != num_index:   
             res_str += "\\\\ \\hline\n"
+            
         else:
             res_str += "\\\\ \n"
+            
     res_str += "\t\\hline\n"
     res_str += "\\end{tabular}\n"
     
@@ -228,13 +276,15 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
 ##########
 
 
-def preparePandas4AccuracyPlots(pandas_dict,c=1.96,type="normal"):
+def preparePandas4AccuracyPlots(pandas_dict,order_dict,c=1.96,type="normal"):
     
     #print "Type of computation for confidence intervals: "+ str(type)
     #print "Length of confidence interval c: " + str(c)
     accuracies = {}
     
-    for key in pandas_dict:
+    for i in range(len(order_dict)):
+        key = order_dict[i]
+        
         ACC_tmp = getAccuracy(pandas_dict[key],c,type)
         #ACC_tmp.append(key)
         accuracies.update({key: ACC_tmp})
@@ -242,17 +292,22 @@ def preparePandas4AccuracyPlots(pandas_dict,c=1.96,type="normal"):
     return accuracies
 
 
-def getAccuracy(data,c,type):
+def getAccuracy(data,c,type, dict={}):
+    
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
     
     num_total =  float(numpy.shape(data.values)[0])
     num_correct = float(numpy.shape(data[data['is_correct']==True].values)[0]) 
     num_incorrect = float(numpy.shape(data[data['is_correct']==False].values)[0])
+    
+    if telleoevelse: print int(num_incorrect), int(num_correct)
     
     if data.values.size:
         if type == 'normal':
             p_hat = num_correct/num_total
             acc = p_hat
             se = c*math.sqrt((p_hat)*(1.0-p_hat)/num_total)
+            
             lower_bound = se
             upper_bound = se
             
@@ -261,71 +316,44 @@ def getAccuracy(data,c,type):
             p_hat_adj = (p_hat + (c**2.)/(2.*num_total)) / (1.+(c**2.)/num_total)
             acc = p_hat
             se = c * math.sqrt(p_hat*(1.-p_hat)/num_total+(c**2.)/(4.*num_total**2.)) / (1.+(c**2.)/num_total)
+            
             lower_bound = p_hat - (p_hat_adj - se)
             upper_bound = (p_hat_adj + se) - p_hat
+            
         else:
             acc = float('NaN')
-            se = float('NaN')
+            lower_bound = float('NaN')
+            upper_bound = float('NaN')
             
         return [acc,lower_bound,upper_bound]
+    
     else:
-        return [float('NaN'),float('NaN')]
+        return [float('NaN'),float('NaN'),float('NaN')]
     
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
-    if dict.has_key('y_lim_ACC'):
-        y_lim = dict['y_lim_ACC']
-    else:
-        y_lim = [.5,1.]
+    result_id = dict['result_id'] if dict.has_key('result_id') else ''
+        
+    multiple_graphs = dict['multiple_graphs'] if dict.has_key('multiple_graphs') else 0
+    figsize = dict['figsize'] if dict.has_key('figsize') else [8., 6.]
     
-    if dict.has_key('fontsize'):
-        fontsize = dict['fontsize']
-    else:
-        fontsize = 12
-        
-    if dict.has_key('fmt'):
-        fmt = dict['fmt']
-    else:
-        fmt = 'or'
-        
-    if dict.has_key('color'):
-        color = dict['color']
-    else:
-        color = 'red'
-        
-    if dict.has_key('multiple_graphs'):
-        multiple_graphs = dict['multiple_graphs']
-    else:
-        multiple_graphs = 0
-        
-    if dict.has_key('result_id'):
-        result_id = dict['result_id']
-    else:
-        result_id = ''
-    
-    if dict.has_key('figsize'):
-        figsize = dict['figsize']
-    else:
-        figsize = [8., 6.]
-    
-    if dict.has_key('xlabel'):
-        xlabel = dict['xlabel']
-    else:
-        xlabel = ''
-        
-    if dict.has_key('ylabel'):
-        ylabel = dict['ylabel']
-    else:
-        ylabel = 'Accuracy'
-        
+    xlabel = dict['xlabel'] if dict.has_key('xlabel') else ''
+    ylabel = dict['ylabel'] if dict.has_key('ylabel') else 'Accuracy'
+    y_lim = dict['y_lim_ACC'] if dict.has_key('y_lim_ACC') else [.5,1.]
+    fmt = dict['fmt'] if dict.has_key('fmt') else 'or'
+    color = dict['color'] if dict.has_key('color') else 'red'
+    fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
+      
     if not multiple_graphs: 
         plt.figure() 
         
     fig = plt.gcf()
-    plt.ylim(y_lim);plt.xlim([0,len(accData)+1]); plt.grid(axis='y');
-    #plt.fontsize(fontsize)
-    acc_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[];howMany=[];counter=1
+    plt.ylim(y_lim)
+    plt.xlim([0,len(accData)+1]) 
+    plt.grid(axis='y')
+     
+    acc_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[]; howMany=[]; counter=1
     if not order:
         for key,value in accData.iteritems():
             acc_plots.append(value[0])
@@ -369,6 +397,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     data = {'l-bounds': acc_plots-lower_bound,'acc': acc_plots, 'u-bounds': acc_plots+upper_bound}
     a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','acc', 'u-bounds'])
     a.to_csv(os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.csv"),sep=';')
+    
     writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
 
 
@@ -380,6 +409,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
 
 
 def preparePandas4Chi2(pandas_dict,order_dict):
+    
     data = {}; corrArr = []; uncorrArr = []; labels_array = []
     for i in range(len(order_dict)):
         key = order_dict[i]
@@ -391,19 +421,19 @@ def preparePandas4Chi2(pandas_dict,order_dict):
         data.update({key: numpy.array([corr_tmp, uncorr_tmp]).astype(int)})
     
     obs_array = numpy.array([corrArr, uncorrArr])
-    obs_pandas = pandas.DataFrame(data=data, index=['correct','uncorrect'])[labels_array]
+    obs_pandas = pandas.DataFrame(data=data, index=['correct','incorrect'])[labels_array]
     
     return obs_array, obs_pandas
     
 
 def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res=[] ):
     
-    if not res:
-        obs_adj = obs_array
-    else:
-        obs_adj = obs_array[:,res[0]:res[1]]
+    obs_adj = obs_array if not res else obs_array[:,res[0]:res[1]]
+    print obs_adj
         
-    chi2, p, dof, ex  = stats.chi2_contingency(obs_adj) # Compare only simulation methods
+    chi2, p, dof, ex  = stats.chi2_contingency(obs_adj, correction=False, lambda_ = 'pearson') # Compare only simulation methods
+    print p
+    
     res_str = ""
     res_str = res_str + dict['investigated-item'].capitalize()+" and observations:\n" + str(labels)
     res_str = res_str + "\n" +str(obs_array)
@@ -423,7 +453,10 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     """
     
     num_methods = numpy.shape(methods)[0]
+    range_methods = range(num_methods)
     num_columns = numpy.shape(data)[1]
+    print data
+    
     if not num_methods == num_columns:
         print "Error: Number of columns does not match the labels for Pearson Chi2 test."
         return
@@ -434,9 +467,11 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     else:
         filename_csv = "pairwise-pearson-chi2-test_p-values-matrix.csv"
         filename_tex = "pairwise-pearson-chi2-test_p-values-matrix.tex"
-        
-    range_methods = range(num_methods)
     
+    numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
+    textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
+    bkgcolor = dict['bkgcolor'] if dict.has_key('bkgcolor') else 'red'
+        
     method_counter = copy.copy(range_methods)
     result_array_template = numpy.chararray(num_methods)
     result_array_template[:] = "x"
@@ -454,15 +489,18 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
             for to_method in method_counter: # Get current to_values
                 to_values = data[:,to_method]
                 curr_distr = numpy.array([values,to_values])
-                chi2, p, dof, ex = stats.chi2_contingency(curr_distr) # Compare only two methods
+                chi2, p, dof, ex = stats.chi2_contingency(curr_distr,correction=False,lambda_="pearson") # Compare only two methods
+                print p
+                
                 curr_row[methods[to_method]] = p
         matrix = matrix.append(curr_row)
     matrix.index = methods
     matrix = matrix.drop(matrix.index[[num_methods-1]])
     matrix = matrix[methods[1:num_methods]]
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
-    writePandastoLatex(matrix, os.path.join(path,filename_tex))
-
+    
+    writePandastoLatex(matrix, os.path.join(path,filename_tex), {'scientific_notation': True, 'textcolor': textcolor, 'bkgcolor': bkgcolor, 'p_values': True, 'numerals': numerals})
+    
 
 ##########
 ###
@@ -471,7 +509,9 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
 ##########
 
 
-def preparePandas4RTPlots(pandas_dict,order_dict):
+def preparePandas4RTPlots(pandas_dict,order_dict,dict={}):
+    
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
     
     boxes = []; labels = []
     for i in range(len(order_dict)):
@@ -481,36 +521,28 @@ def preparePandas4RTPlots(pandas_dict,order_dict):
         labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
         boxes.append(values_tmp)
         
+    if telleoevelse: print [numpy.shape(i) for i in boxes]    
     return boxes, labels
 
 
 def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
-    if dict.has_key('y_lim_RT'):
-        y_lim = dict['y_lim_RT']
-    else:
-        y_lim = [.0,1750]
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
+    obs_title = dict['obs_title'] if dict.has_key('obs_title') else ""
+    y_lim = dict['y_lim_RT'] if dict.has_key('y_lim_RT') else [.0,1750]
+    fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
         
-    if dict.has_key('obs_title'):
-        obs_title = dict['obs_title']
-    else:
-        obs_title = ""
+    if dict.has_key('result_id'): save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
+    if dict.has_key('filename'): save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
     
-    if dict.has_key('fontsize'):
-        fontsize = dict['fontsize']
-    else:
-        fontsize = 12
-    
-    if dict.has_key('result_id'):
-        save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
-    if dict.has_key('filename'):
-        save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
     counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
     
-    plt.figure(); 
+    if telleoevelse: print [numpy.shape(i) for i in boxes]
+    
+    plt.figure();
     
     plt.boxplot(boxes, notch=1)
-    
     plt.xticks(counter,labels,fontsize=fontsize); 
     plt.title(obs_title,fontsize=fontsize); 
     plt.tick_params(axis='y', labelsize=fontsize);
@@ -672,6 +704,7 @@ def makeMedianTest(data,path,methods,dict):
     """
     
     num_methods = numpy.shape(methods)[0]
+    range_methods = range(num_methods)
     num_columns = numpy.shape(data)[0]
     if not num_methods == num_columns:
         print "Error: Number of columns does not match the labels for the median test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns)
@@ -683,8 +716,10 @@ def makeMedianTest(data,path,methods,dict):
     else:
         filename_csv = "_pairwise-median-test_p-values.csv"
     
-    range_methods = range(num_methods)
-    
+    numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
+    textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
+    bkgcolor = dict['bkgcolor'] if dict.has_key('bkgcolor') else 'red'
+
     method_counter = copy.copy(range_methods)
     result_array_template = numpy.chararray(num_methods)
     result_array_template[:] = "x"
@@ -704,7 +739,7 @@ def makeMedianTest(data,path,methods,dict):
                 to_values = data[to_method]
                 
                 if (len(values) !=0) and (len(to_values) != 0):
-                    stat, p_value, m, table =  stats.median_test(values,to_values)
+                    stat, p_value, m, table =  stats.median_test(values,to_values,correction=False)
                 else:
                     p_value = "Nix"
                 curr_row[methods[to_method]] = p_value
@@ -714,7 +749,7 @@ def makeMedianTest(data,path,methods,dict):
     matrix = matrix[methods[1:num_methods]]
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
 
-    writePandastoLatex(matrix,os.path.join(path,filename_latex))
+    writePandastoLatex(matrix,os.path.join(path,filename_latex), {'scientific_notation': True, 'textcolor': textcolor, 'bkgcolor': bkgcolor, 'p_values': True, 'numerals': numerals})
 
 
 ##########
@@ -738,19 +773,12 @@ def getCIAverage(data):
 
 def plotCIAverageGraphs(meanData,path,dict,order=[]):
     
-    if dict.has_key('result_id'):
-        path_res = os.path.join(path,str(dict['result_id']))
-    else:
-        path_res = path        
+    path_res = os.path.join(path,str(dict['result_id'])) if dict.has_key('result_id') else path      
     
-    if dict.has_key('y_lim_RT'):
-        y_lim = dict['y_lim_RT']
-    else:
-        y_lim = [.0,1750.]
-    plt.figure(); plt.ylim(y_lim);plt.xlim([0,len(meanData)+1]); plt.grid(axis='y');
+    y_lim = dict['y_lim_RT'] if dict.has_key('y_lim_RT') else [.0,1750.]
+    
     
     mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=0
-    
     if not order:
         for key,value in meanData.iteritems():
             mean_plots.append(value[0])
@@ -766,7 +794,11 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
             se.append(value[1])
             labels_tmp.append(value[2])
             howMany.append(counter);counter+=1
-            
+    
+    plt.figure(); 
+    plt.ylim(y_lim);
+    plt.xlim([0,len(meanData)+1]); 
+    plt.grid(axis='y');
     se = 1.96*numpy.array(se)
     plt.errorbar(howMany,mean_plots,se,fmt='or')
     plt.xticks(howMany,labels_tmp); 
@@ -781,25 +813,14 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
 
 def plotHistogram(distribution,path,dict):
     
-    if dict.has_key('bins'):
-        bins = dict['bins']
-    else:
-        bins = 20
-        
-    if dict.has_key('x_lim_hist'):
-        x_lim = dict['x_lim_hist']
-    else:
-        x_lim = [.0,1750.]
+    bins = dict['bins'] if dict.has_key('bins') else 20
+    x_lim = dict['x_lim_hist'] if dict.has_key('x_lim_hist') else [.0,1750.]
+    obs_title = dict['obs_title'] if dict.has_key('obs_title') else dict['filename']
         
     if dict.has_key('filename') and dict.has_key('result_id'):
         save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
     elif dict.has_key('filename'): 
         save_to_file = os.path.join(path,dict['filename']+"-HIST.pdf")
-        
-    if dict.has_key('obs_title'):
-        obs_title = dict['obs_title']
-    else:
-        obs_title = dict['filename']
     
     plt.figure(); plt.hist(distribution, bins = bins);
     plt.title(obs_title); plt.ylabel('Response Times (ms)'); plt.xlim(x_lim); plt.grid(axis='y');
@@ -891,7 +912,6 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
         save_to_tmp = os.path.join(save_to_path,'hist')
         if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
         
-        
         i = 0;
         for distribution in distributions:
             nonnan_distribution =  distribution[~numpy.isnan(distribution)]
@@ -904,11 +924,9 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
     
     # . Make boxplots
     if 'boxplot' in plot_types_acc:
-        
         sys.stdout.write("** Making boxplots .")
         save_to_tmp = os.path.join(save_to_path,'boxplots')
         if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
-        
         
         options.update({'filename': project_str.lower().replace(" ","-")})
         plotRTGraphs(distributions, labels, save_to_tmp,options)
@@ -920,7 +938,6 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
         sys.stdout.write("** Making boxplots of the residuals .")
         save_to_tmp = os.path.join(save_to_path,'residuals')
         if not os.path.exists(save_to_tmp): os.makedirs(save_to_tmp)
-        
         
         options.update({'filename': project_str.lower().replace(" ","-")})
         plotResidualPlots(distributions, labels, save_to_tmp, options)

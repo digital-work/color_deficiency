@@ -91,13 +91,14 @@ def analyzeSaMSEMData(dict):
             dict_tmp = getStatsFromFilename(filename)
             imgID_tmp = int(dict_tmp['img_id'])
             dataArray.at[index,'image_id'] = int(imgID_tmp)
+            
+        dataArray.is_correct = dataArray.is_correct.astype(bool)
+        dataArray.image_id = dataArray.image_id.astype(int)
+        dataArray = dataArray[['image_id','sim_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath']]
         
     elif experiment_type == "visual-search":
         pass
-    dataArray.is_correct = dataArray.is_correct.astype(bool)
-    dataArray.image_id = dataArray.image_id.astype(int)
-    dataArray = dataArray[['image_id','sim_id','coldef_type','is_correct','resp_time','observer_id','observer_coldef_type','session_id','filepath']]
-        
+       
     
     # 3. Saving data to file
     try:
@@ -246,6 +247,8 @@ def samsemPlots1thru4(samsem_data,path,dict):
     Before: s2mplots29and30
     """
     
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
     # Defining the subfolder for the results
     path_res = path
     if dict.has_key('subfolder'):
@@ -271,10 +274,10 @@ def samsemPlots1thru4(samsem_data,path,dict):
     for sim_id in method_ids:
         
         sim_method = settings.id2Sim[sim_id]
-        if (sim_id != 3) and (sim_id != 99): # The kotera and the dummy method have the same implementation for both protanopia and deuteranopia
+        if (sim_id != 3) and (sim_id != 99):
             whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id],['coldef_type',operator.eq,coldef_type]]
         else:
-            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id]]
+            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id]] # For the kotera and the dummy method, both protanopia and deuteranopia versions are identical. Thus, no distinction of coldef_type is necessary.
         relevant_data_tmp = organizeArray(samsem_data,whatArr_tmp)   
                
         pandas_dict.update({sim_method: relevant_data_tmp})
@@ -282,12 +285,15 @@ def samsemPlots1thru4(samsem_data,path,dict):
         sim_names.append(sim_method)
     
     # Plot response time data as boxplots
+    if telleoevelse: print "Observations RT plots"
     boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
     plotRTGraphs(boxes,labels,path_res,dict,order_dict)
         
     # Plot accuracy data with confidence intervals
     c = 1.96; type = 'wilson-score';
-    accuracies = preparePandas4AccuracyPlots(pandas_dict,c,type)
+    
+    if telleoevelse: print "Observations ACC plots"
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
     plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
         
     # Make median test as csv file
@@ -422,32 +428,31 @@ def samsemPlots29and30(samsem_data,path,dict):
     Before: s2mplots29and30
     """
     
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+        
     # Retrieving input data for the analysis
     path_res = path    
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
+        
     filename_orig = dict['filename']
     coldef_type = dict['coldef_type']
     observer_groups = dict['observer_groups']
     dict.update({'investigated-item': 'observer groups'})
     
-    if dict.has_key('method_ids'):
-        method_ids = dict['method_ids']
-    else:
-        method_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
-    method_ids = sorted(method_ids)
+    method_ids = dict['method_ids'] if dict.has_key('method_ids') else sorted(set(samsem_data['sim_id'].values.astype(int)))
     
     print "Starting SAMSEM_RES#29+30: Analyzing data of observer groups "+ str(keys2values(observer_groups,settings.id2ColDefShort))+" for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+"."
     
-    # Restricting input data to only include the sets that have been chosen for the analysis
+    # Restricting input data to only include the simulation methods that have been chosen for the analysis
     rel_data = pandas.DataFrame()
     for method_id in method_ids:
-        if (method_id != 3) and (method_id != 99):
+        if (method_id != 3) and (method_id != 99): 
             whatArr_tmp = [['sim_id',operator.eq,method_id],['coldef_type',operator.eq,coldef_type]]
         else:
-            whatArr_tmp = [['sim_id',operator.eq,method_id]]
+            whatArr_tmp = [['sim_id',operator.eq,method_id]] # For the kotera and the dummy method, both protanopia and deuteranopia versions are identical. Thus, no distinction of coldef_type is necessary.
         rel_data_tmp = organizeArray(samsem_data,whatArr_tmp)
         rel_data = pandas.concat([rel_data_tmp, rel_data])
     samsem_data_adj = rel_data.reset_index()
@@ -465,12 +470,14 @@ def samsemPlots29and30(samsem_data,path,dict):
         order_dict.update({i:observer_coldef_type_short}) ; i += 1
     
     # Plot response time data as boxplots
+    if telleoevelse: print "Observations RT plots"
     boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
     plotRTGraphs(boxes,labels,path_res, dict)
     
     # Plot accuracy with confidence intervals
     c = 1.96; type = 'wilson-score'
-    accuracies = preparePandas4AccuracyPlots(pandas_dict,c,type)
+    if telleoevelse: print "Observations ACC plots"
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
     plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
         
     # Make median test as csv file
