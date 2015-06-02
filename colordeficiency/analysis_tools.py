@@ -429,10 +429,8 @@ def preparePandas4Chi2(pandas_dict,order_dict):
 def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res=[] ):
     
     obs_adj = obs_array if not res else obs_array[:,res[0]:res[1]]
-    print obs_adj
         
     chi2, p, dof, ex  = stats.chi2_contingency(obs_adj, correction=False, lambda_ = 'pearson') # Compare only simulation methods
-    print p
     
     res_str = ""
     res_str = res_str + dict['investigated-item'].capitalize()+" and observations:\n" + str(labels)
@@ -455,7 +453,6 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     num_methods = numpy.shape(methods)[0]
     range_methods = range(num_methods)
     num_columns = numpy.shape(data)[1]
-    print data
     
     if not num_methods == num_columns:
         print "Error: Number of columns does not match the labels for Pearson Chi2 test."
@@ -490,10 +487,10 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
                 to_values = data[:,to_method]
                 curr_distr = numpy.array([values,to_values])
                 chi2, p, dof, ex = stats.chi2_contingency(curr_distr,correction=False,lambda_="pearson") # Compare only two methods
-                print p
-                
                 curr_row[methods[to_method]] = p
+                
         matrix = matrix.append(curr_row)
+        
     matrix.index = methods
     matrix = matrix.drop(matrix.index[[num_methods-1]])
     matrix = matrix[methods[1:num_methods]]
