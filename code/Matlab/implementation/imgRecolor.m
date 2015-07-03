@@ -94,7 +94,7 @@ end
 rotInit = atan2(thetaOrig.mu(:, 3), thetaOrig.mu(:, 2));
 
 % Optimization option
-opt = optimset( optimset('lsqnonlin') , 'Algorithm', 'levenberg-marquardt', 'MaxIter', 1000,'Diagnostics','off', 'Display','off');
+opt = optimset( optimset('lsqnonlin') , 'Algorithm', 'levenberg-marquardt', 'MaxIter', 100,'Diagnostics','off', 'Display','off');
 
 global numComp Sigma origPairDist meanColor typeSim weight;
 numComp = thetaOrig.K;
@@ -105,7 +105,7 @@ typeSim = type;
 weight = weightVec;
 % weight = ones(1, thetaOrig.K*(thetaOrig.K-1)/2);
 
-opt = optimset( optimset('lsqnonlin') , 'Algorithm', 'levenberg-marquardt', 'MaxIter', 100,'Diagnostics','off', 'Display','off');
+opt = optimset( optimset('lsqnonlin') , 'Algorithm', 'levenberg-marquardt', 'MaxIter', 500,'Diagnostics','off', 'Display','off');
 
 rot = lsqnonlin(@lsq_func, rotInit, [], [], opt);
 

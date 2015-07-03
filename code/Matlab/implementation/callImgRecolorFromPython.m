@@ -15,13 +15,18 @@ function a = callImgRecolorFromPython(args)
     elseif coldef_type == 't'
         coldef_type = 'Tritanopia';
     end
+    disp('hiersimmer')
     img_in = imread(path);
-    disp(coldef_type)
-    disp(path)
-    disp(exist(path, 'file'))
+    figure;
+    imshow(img_in);
+    %disp(coldef_type)
+    %disp(path)
+    %disp(exist(path, 'file'))
     disp('Starting daltonization.')
     tic;
     [imgRecolorRGB, imgRecolorSimRGB, imgSimRGB] = imgRecolor(im2double(img_in), coldef_type);
+    figure;
+    %imshow(imgRecolorRGB);
     t = toc;
     disp(['Image recoloring done in ', num2str(t), ' seconds']);
     

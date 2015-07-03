@@ -16,7 +16,8 @@ vienot = "vienot"
 vienot_adjusted = "vienot-adjusted"
 kotera = "kotera"
 brettel = "brettel"
-sim2ID = {  'original':            0,
+sim2ID = {  'original':         0,
+            'none':             0,
             'vienot':           1,
             'vienot-adjusted':  2,
             'kotera':           3,
@@ -37,7 +38,7 @@ huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
 dalt2ID = {'original':          0,
-           'anagnostopoulos':   1,
+           'fidaner':   1,
            'kotera':            2,
            'kuhn':              3,
            'huan':              4,
@@ -46,16 +47,16 @@ dalt2ID = {'original':          0,
            'yoshi-simone':      7,
            'yoshi-alsam':       8,
            'dummy':             99}
-id2Dalt = {0:   "original",
-           1:   "anagnostopoulos",
-           2:   "kotera",
-           3:   "kuhn",
-           4:   "huan",
+id2Dalt = {0:   "Original",
+           1:   "Fidaner",
+           2:   "Kotera",
+           3:   "Kuhn",
+           4:   "Huang",
            5:   "yoshi-simone-only",
            6:   "yoshi-alsam-only",
            7:   "yoshi-simone",
            8:   "yoshi-alsam",
-           99:  "dummy"}
+           99:  "Dummy"}
 
 dict_dalt_ids = {'anagnastapoulos'}
 
