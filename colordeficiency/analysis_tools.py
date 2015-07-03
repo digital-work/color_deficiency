@@ -55,6 +55,10 @@ def organizeArray(dataArray,whatArray,howArray=[]):
 
 
 def writePandastoLatex(pandasArr,path,dict={}):
+    
+    tabularx = dict['tabularx'] if dict.has_key('tabularx') else 0
+    header_table = dict['header_table'] if dict.has_key('header_table') else 0
+    
     columns =  pandasArr.columns
     num_columns = numpy.shape(columns)[0]
     range_columns = sorted(range(0,num_columns))
@@ -63,21 +67,38 @@ def writePandastoLatex(pandasArr,path,dict={}):
     num_index = numpy.shape(index)[0]
     range_index = sorted(range(0,num_index))
     
-    order = "| c ||"
-    header = "& "
-    for i in range_columns:
-        order += " c "
-        header += " "+str(columns[i])+" "
-        if i != num_columns-1:
-            order += "|"
-            header += "& "
-    order += "|"
+    if header_table:
+        order = header_table
+        if pandasArr.index.name:
+            header = pandasArr.index.name+" & "
+        else:
+            header = "& "
+        for i in range_columns:
+            header += " "+str(columns[i])+" "
+            if i != num_columns-1:
+                header += "& "
+    else:
+        order = "| c ||"
+        if pandasArr.index.name:
+            header = pandasArr.index.name+" & "
+        else:
+            header = "& "
+        for i in range_columns:
+            order += " c "
+            header += " "+str(columns[i])+" "
+            if i != num_columns-1:
+                order += "|"
+                header += "& "
+        order += "|"
     
     res_str = "\\sisetup{\n"
     res_str += "detect-weight = true,\n"
     res_str += "detect-inline-weight = math\n"
     res_str += "}%\n"
-    res_str += "\\begin{tabular}{"+order+"}\n"
+    if tabularx:
+        res_str += "\\begin{tabularx}{\\textwidth}{"+order+"}\n"
+    else:
+        res_str += "\\begin{tabular}{"+order+"}\n"
     res_str += "\t\\hline\n"
     res_str += "\t"+header+"\\\\ \\hline \\hline\n"
     counter_row = 0
@@ -85,13 +106,14 @@ def writePandastoLatex(pandasArr,path,dict={}):
     # Loop thru rows
     for index, row in  pandasArr.iterrows():
         counter_row +=1
-        res_str += "\t"+index+" & "
+        res_str += "\t"+str(index)+" & "
         
         # Loop thru cells
         for i in range_columns:
             cell = ''
-            
-            if type(row[i]) == str:
+            #print row[i]
+            #print type(row[i]) == unicode
+            if (type(row[i]) == str) or (type(row[i]) == unicode):
                 cell = row[i]
                 
             elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
@@ -143,7 +165,10 @@ def writePandastoLatex(pandasArr,path,dict={}):
             res_str += "\\\\ \n"
             
     res_str += "\t\\hline\n"
-    res_str += "\\end{tabular}\n"
+    if tabularx:
+        res_str += "\\end{tabularx}\n"
+    else:
+        res_str += "\\end{tabular}\n"
     
     text_file = open(path, "w+")
     text_file.write(res_str)
@@ -236,6 +261,8 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
         f.write('... # of sessions: '+str(len(sessions))+' ; '+str(sessions)+'\n')
         sets = sorted(set(experimentData['set_id']))
         f.write('... # of sets: '+str(len(sets))+' ; '+str(sets)+'\n')
+        motives = sorted(set(experimentData['motive_id']))
+        f.write('... # of motives: '+str(len(motives))+' ; '+str(motives)+'\n')
         daltonizations = sorted(set(experimentData['dalt_id']))
         f.write('... # of daltonization ids: '+str(len(daltonizations))+' ; '+str(daltonizations)+'\n')
         observers = sorted(set(experimentData['observer_id']))
@@ -379,8 +406,8 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
     title_default = ''
     if dict.has_key('obs_title'):
-        if not dict['obs_title']:        
-            title = dict['obs_title']+' - Accuracy'
+        if dict['obs_title']:        
+            title = dict['obs_title']
         else:
             title = title_default
     else:
@@ -429,8 +456,11 @@ def preparePandas4Chi2(pandas_dict,order_dict):
 def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res=[] ):
     
     obs_adj = obs_array if not res else obs_array[:,res[0]:res[1]]
-        
-    chi2, p, dof, ex  = stats.chi2_contingency(obs_adj, correction=False, lambda_ = 'pearson') # Compare only simulation methods
+    
+    try: 
+        chi2, p, dof, ex = stats.chi2_contingency(obs_adj, correction=False, lambda_ = 'pearson') # Compare only simulation methods
+    except:
+        chi2, p, dof, ex = float('NaN'), float('NaN'), 0, float('NaN')
     
     res_str = ""
     res_str = res_str + dict['investigated-item'].capitalize()+" and observations:\n" + str(labels)
@@ -438,7 +468,7 @@ def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, re
     if res:
         res_str = res_str + "\n\n"+dict['investigated-item'].capitalize()+" included in test:\n" + str(labels[res[0]:res[1]])
     res_str = res_str + "\n\nChi2: %f, p-value: %E, dof: %i, expect: " % (chi2, p, dof) + "\n"+str(ex)
-    text_file = open(os.path.join(path_res,dict['filename']+"_pearson-chi2-contingency-test_p-value.txt"), "w+")
+    text_file = open(os.path.join(path_res,dict['filename']+"-pearson-chi2.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
     
@@ -459,11 +489,11 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"_pairwise-pearson-chi2-contingency-test-matrix_p-values.csv"
-        filename_tex = dict['filename']+"_pairwise-pearson-chi2-contingency-test-matrix_p-values.tex"
+        filename_csv = dict['filename']+"-pairwise-pearson-chi2.csv"
+        filename_tex = dict['filename']+"-pairwise-pearson-chi2.tex"
     else:
-        filename_csv = "pairwise-pearson-chi2-test_p-values-matrix.csv"
-        filename_tex = "pairwise-pearson-chi2-test_p-values-matrix.tex"
+        filename_csv = "pairwise-pearson-chi2.csv"
+        filename_tex = "pairwise-pearson-chi2.tex"
     
     numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
     textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
@@ -486,7 +516,10 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
             for to_method in method_counter: # Get current to_values
                 to_values = data[:,to_method]
                 curr_distr = numpy.array([values,to_values])
-                chi2, p, dof, ex = stats.chi2_contingency(curr_distr,correction=False,lambda_="pearson") # Compare only two methods
+                try:
+                    chi2, p, dof, ex = stats.chi2_contingency(curr_distr,correction=False,lambda_="pearson") # Compare only two methods
+                except Exception,e:
+                    p = float('NaN')
                 curr_row[methods[to_method]] = p
                 
         matrix = matrix.append(curr_row)
@@ -551,7 +584,7 @@ def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
     plt.close()
 
-def makePairedRTData(data_RT_paired, methods,id_label):
+def makePairedRTDataArray(data_RT_paired, methods,id_label):
     """
     Input: * RT Pandas data frame paired
            * IDs of methods to compare
@@ -560,11 +593,15 @@ def makePairedRTData(data_RT_paired, methods,id_label):
             * Labels for the combinations
     """
     
-    method_counter = copy.copy(methods)
-    
-    comparisons = []; labels = [];
+    RT_paired = []; labels = [];
     
     for method in methods:
+        col_tmp = id_label+"_"+str(method).zfill(2)
+        values_RT_tmp = data_RT_paired[col_tmp].values
+        
+        RT_paired.append(values_RT_tmp)
+        labels.append(method)
+        """
         method_counter.pop(0)
         if method_counter:
             col_tmp = id_label+"_"+str(method).zfill(2)
@@ -579,7 +616,8 @@ def makePairedRTData(data_RT_paired, methods,id_label):
                 difference_paired = values_RT_tmp - to_values_RT_tmp
                 comparisons.append(difference_paired)
                 labels.append(label_tmp)
-    return comparisons, labels
+        """
+    return RT_paired, labels
 
 
 ##########
@@ -700,6 +738,8 @@ def makeMedianTest(data,path,methods,dict):
     Output
     """
     
+    RT_difference = dict['RT_difference'] if dict.has_key('RT_difference') else 0
+    
     num_methods = numpy.shape(methods)[0]
     range_methods = range(num_methods)
     num_columns = numpy.shape(data)[0]
@@ -708,10 +748,10 @@ def makeMedianTest(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"_pairwise-median-test_p-values.csv"
-        filename_latex = dict['filename']+"_pairwise-median-test_p-values.tex"
+        filename_csv = dict['filename']+"-pairwise-median.csv"
+        filename_latex = dict['filename']+"-pairwise-median.tex"
     else:
-        filename_csv = "_pairwise-median-test_p-values.csv"
+        filename_csv = "_pairwise-median.csv"
     
     numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
     textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
@@ -735,18 +775,107 @@ def makeMedianTest(data,path,methods,dict):
             for to_method in method_counter: # Get current to_values
                 to_values = data[to_method]
                 
-                if (len(values) !=0) and (len(to_values) != 0):
-                    stat, p_value, m, table =  stats.median_test(values,to_values,correction=False)
+                if RT_difference:
+                    #print 1
+                    #print values
+                    curr_comp = values-to_values
+                    if len(curr_comp) != 0:
+                        curr_comp_wonan = curr_comp[~numpy.isnan(curr_comp)]
+                        stat, p_value, m, table = stats.median_test(curr_comp_wonan,[.0],correction=False)
+                        stat, p_value = stats.ttest_1samp(curr_comp_wonan,.0)
+                    else:
+                        p_value = "Nix"
+                
                 else:
-                    p_value = "Nix"
+                    if (len(values) !=0) and (len(to_values) != 0):
+                        stat, p_value, m, table =  stats.median_test(values,to_values,correction=False)
+                    else:
+                        p_value = "Nix"
+                        
                 curr_row[methods[to_method]] = p_value
+                
         matrix = matrix.append(curr_row)
+        
+    matrix.index = methods
+    matrix = matrix.drop(matrix.index[[num_methods-1]])
+    matrix = matrix[methods[1:num_methods]]
+    #print matrix
+    matrix.to_csv(os.path.join(path,filename_csv),sep=';')
+
+    writePandastoLatex(matrix,os.path.join(path,filename_latex), {'scientific_notation': True, 'textcolor': textcolor, 'bkgcolor': bkgcolor, 'p_values': True, 'numerals': numerals})
+
+def makePairwiseStudentTTest(data,path,methods,dict):
+    """
+    Input: * data:    Numpy data array with relevant data that should be compared
+           * path:    Path, to which the results should be save to as matrix
+           * labels:  Name of the columns in the pandas data set, which should be analyzed
+    Output
+    """
+    
+    ACC_difference = dict['ACC_difference'] if dict.has_key('ACC_difference') else 0
+    
+    num_methods = numpy.shape(methods)[0]
+    range_methods = range(num_methods)
+    num_columns = numpy.shape(data)[0]
+    if not num_methods == num_columns:
+        print "Error: Number of columns does not match the labels for the student t test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns)
+        return
+    
+    if dict.has_key('filename'):
+        filename_csv = dict['filename']+"-pairwise-student-t.csv"
+        filename_latex = dict['filename']+"-pairwise-student-t.tex"
+    else:
+        filename_csv = "-pairwise-student-t.csv"
+        filename_latex = "-pairwise-student-t.tex"
+    
+    numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
+    textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
+    bkgcolor = dict['bkgcolor'] if dict.has_key('bkgcolor') else 'red'
+
+    method_counter = copy.copy(range_methods)
+    result_array_template = numpy.chararray(num_methods)
+    result_array_template[:] = "x"
+    result_array_template = numpy.array(result_array_template)
+    
+    template = pandas.DataFrame(columns=methods)
+    template.loc[0] = result_array_template
+    matrix = pandas.DataFrame(columns=methods)
+    
+    for method in range_methods:
+        values = data[method]
+        method_counter.pop(0)
+        
+        curr_row = pandas.DataFrame.copy(template)
+        if method_counter:
+            for to_method in method_counter: # Get current to_values
+                to_values = data[to_method]
+                
+                if ACC_difference:
+                    curr_comp = numpy.greater(values,to_values)*(-1.0) + numpy.less(values,to_values)*(1.0)
+                    
+                    if len(curr_comp) != 0:
+                        t, p_value = stats.ttest_1samp(curr_comp,.0)
+                    else:
+                        p_value = "Nix"
+                else:
+                    if (len(values) !=0) and (len(to_values) != 0):
+                        t, p_value = stats.ttest_ind(values,to_values)
+                        
+                    else:
+                        p_value = "Nix"
+                    
+                curr_row[methods[to_method]] = p_value
+                
+        matrix = matrix.append(curr_row)
+        
     matrix.index = methods
     matrix = matrix.drop(matrix.index[[num_methods-1]])
     matrix = matrix[methods[1:num_methods]]
     matrix.to_csv(os.path.join(path,filename_csv),sep=';')
-
+    
+    #print numpy.mean(data,1)
     writePandastoLatex(matrix,os.path.join(path,filename_latex), {'scientific_notation': True, 'textcolor': textcolor, 'bkgcolor': bkgcolor, 'p_values': True, 'numerals': numerals})
+
 
 
 ##########
