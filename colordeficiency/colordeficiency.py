@@ -587,6 +587,9 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
 
 #print module_path"""
 
+import socket
+import time
+
 def daltonization_huan(img_in,options):
     
     print "Caution: Please do not use this function for serious bussiness.\nIt is horrible implementation, mixing up Matlab snippets in the Python code."
@@ -603,27 +606,34 @@ def daltonization_huan(img_in,options):
         dict['coldef_type'] = settings.default['coldef_type']
         
     coldef_type = options['coldef_type']
-    mlab = Matlab(matlab='/Applications/MATLAB_R2013b.app/bin/matlab') # OBS: Make this more accessible
+    mlab = Matlab(matlab='/Applications/MATLAB_R2015a.app/bin/matlab') # OBS: Make this more accessible
     mlab.start()
+    #socket.setdefaulttimeout(50)
+    #mlab.run
     try:
-        print 1
-        file_matlab = os.path.join(path_matlab,'callImgRecolorFromPython.m')
-        path_tmp = os.path.join(module_path,'colordeficiency-images','tmp','matlab_tmp.png')
+        par_dir = os.path.abspath(os.path.join(settings.module_path, os.pardir))
+        file_matlab = os.path.join(par_dir,'code','Matlab','implementation','callImgRecolorFromPython.m')
+        path_tmp = os.path.join(par_dir,'colordeficiency-images','tmp','matlab_tmp.png')
         img_in.save(path_tmp,'png')
         print 2
         dict_matlab = {'path_tmp': path_tmp, 'coldef_type': coldef_type, 'from_python': 1}
-        res = mlab.run_func(file_matlab, dict_matlab)#(file,60)
+        res = mlab.run_func(file_matlab, dict_matlab,60)#(file,60)
         print 3
-        img_out = Image.open(path_tmp)
-        os.remove(path_tmp)
+        #img_out = Image.open(path_tmp)
+        #os.remove(path_tmp)
         #img_out.show()
         #os.remove(path_tmp)
+    except socket.timeout:
+        print "Error: There was a timeout. Waiting."
+        
+        time.sleep(30)
+        print "\t ... and moving on"
+    
+    try:
+        img_out = Image.open(path_tmp)
+        os.remove(path_tmp)
     except Exception,e:
-        print "Warning: Something went wrong. " + str(e)
-        try:
-            img_out = Image.open(path_tmp)
-        except Exception,e:
-            img_out = crossOut(img_in)
+        img_out = crossOut(img_in)
     mlab.stop()
     return img_out
     
@@ -631,7 +641,9 @@ def daltonization_huan(img_in,options):
 #img_out.show()   
         
 def runcvdKuhn2008ExeThread(dict):
-    commando = "wine "+os.path.join(settings.module_path,'c++','cvdKuhn','cvdKuhn2008.exe')+" "+dict['filepath_orig_tmp']+" "+str(coldefType2Int(dict['coldef_type'])-1)+ " "+str(dict['exagerated'])+" "+str(dict['max_num_quant'])
+    
+    par_dir = os.path.abspath(os.path.join(settings.module_path, os.pardir))
+    commando = "wine "+os.path.join(par_dir,'c++','cvdKuhn','cvdKuhn2008.exe')+" "+dict['filepath_orig_tmp']+" "+str(coldefType2Int(dict['coldef_type'])-1)+ " "+str(dict['exagerated'])+" "+str(dict['max_num_quant'])
     # -1 because Kuhn starts to count color deficiency types at 0.
     #print commando
     os.popen(commando)
@@ -792,7 +804,10 @@ def daltonization_kuhn(img_in,options):
         print 'Caution: No attribute chosen for whether the contrast should be exagerated or not. Choosing default value: 0.'
         options['exagerated'] = 0
     
-    path_tmp = os.path.join(settings.module_path,'colordeficiency-images','tmp') # we have to think from the c++ folder
+    par_dir = os.path.abspath(os.path.join(settings.module_path, os.pardir))
+    #print settings.module_path
+    path_tmp = os.path.join(par_dir,'colordeficiency-images','tmp') # we have to think from the c++ folder
+    print path_tmp
     filepath_orig_tmp = os.path.join(path_tmp,"kuhnorig_tmp.bmp")
     options['filepath_orig_tmp'] = filepath_orig_tmp
     img_in.save(filepath_orig_tmp)
@@ -1053,13 +1068,13 @@ def daltonization_kotera(img_in, options):
                            [-.15514, .45684, .03286],
                            [0., 0., .00801]])
     lms2xyz = numpy.linalg.inv(xyz2lms)
-    lmsMatchFuncs = numpy.dot(xyzMatchFuncs,xyz2lms.transpose())
+    lmsMatchFuncs = numpy.dot(xyzMatchFuncs,xyz2lms.transpose()) # obtain the lms matching functions from the xyz matching functions
     
     lms_vector = numpy.dot(xyz_vector,xyz2lms.transpose())
     k,dd =  numpy.shape(lmsMatchFuncs)
     
     a = lmsMatchFuncs    
-    pinv = numpy.dot(a,numpy.linalg.inv(numpy.dot(a.transpose(),a)))
+    pinv = numpy.dot(a,numpy.linalg.inv(numpy.dot(a.transpose(),a))) # pseudo inverse to translate from lms color space into pseudospectral color space
     cStarLMS_vector = numpy.dot(pinv,lms_vector.transpose())
     
     rlms = numpy.dot(a,numpy.dot(numpy.linalg.inv(numpy.dot(a.transpose(),a)),a.transpose()))
@@ -1502,6 +1517,24 @@ def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
 #daltonize_pics(images,options)
 #simulate_pics(images,options)
 
+"""
+size = numpy.array((1000,1000))
+arr = [5,6,7,8,9,10]
+#arr = ['0a','1a','2a','3a']
+
+for i in arr:
+    #print size
+    image = Image.open("../colordeficiency-images/0340000000.png")
+    #image = image.resize((2300,2300))
+    image = image.resize(size)
+    size -= 1
+    #image.show()
+    image_dalt = daltonize(image, {"daltonization_type":"huan", 'coldef_type': "d"})
+    image_dalt.save("/Users/thomas/Desktop/huang-test/test"+str(i)+".png")
+    
+    image_dalt = daltonize(image, {"daltonization_type":"kuhn", 'coldef_type': "d"})
+    image_dalt.save("/Users/thomas/Desktop/kuhn-test/test"+str(i)+".png")
+"""
 
 #images = getAllXXXinPath('images/IMT6131','.png')  
 #images = [os.path.join('images/IMT6131',file) for file in images]
