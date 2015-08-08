@@ -38,7 +38,8 @@ huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
 dalt2ID = {'original':          0,
-           'fidaner':   1,
+           'anagnostopoulos':   1,
+           'fidaner':           1,
            'kotera':            2,
            'kuhn':              3,
            'huan':              4,

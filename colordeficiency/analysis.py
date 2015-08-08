@@ -977,7 +977,7 @@ def vsplots5thru8(visual_search_data,path,dict):
 
 def visdemPlots53thru60(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#53-60: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
+    print "   Starting ViSDEM_RES#53-60 - "+dict['filename']+": Individual methods - ACC plots, ACC Chi2 tests, RT boxplots, RT median test, and Q-Q/Q-Q-log normality check."
     
     path_res = path
     if dict.has_key('subfolder'):
@@ -1025,7 +1025,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
     
     # Make Accuracy plots
     c = 1.96; type = 'wilson-score';
-    accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type,dict)
     plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
     
     # Make median test
@@ -1060,7 +1060,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
 
 def visdemPlots53thru60Paired(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#53-60-paired: Plotting Paired RT data, and computying of Chi2 of ACC and median test of RT for daltonization methods of observer group " + dict['filename']+"."
+    print "   Starting ViSDEM_RES#53-60-paired - "+dict['filename']+": Individual methods - ACC paired student-t test, ACC Chi2 tests, RT paired median test."
     
     compute_paired_data = 1
     filename_orig = dict['filename'] 
@@ -1169,6 +1169,8 @@ def visdemPlots67thru70(visdem_data,path,dict):
     
     print "   Starting ViSDEM_RES#67-70: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for observer group " + dict['filename']+"."
     
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
     path_res = path
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
@@ -1205,13 +1207,13 @@ def visdemPlots67thru70(visdem_data,path,dict):
     order_dict = {0: 'Diff.Col.', 1: 'Conf.Col.', 2: 'SameCol.'}
     
     # 2. Make response time plots
-    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+    boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict,dict)
     plotRTGraphs(boxes, labels, path_res, dict)
     #labels = ['DC', 'CC', 'SC']
     
     # 3. Make Accuracy plots
     c = 1.96; type = 'wilson-score';
-    accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
+    accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type,dict)
     plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
     
     # 4. Make median test 
@@ -1486,7 +1488,7 @@ def visdemPlot76(visual_search_data,path,dict):
 
 def visdemPlots77thru80(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#77-80: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of individual RT of individual motives for  " + dict['filename']+"."
+    print "   Starting ViSDEM_RES#77-80 - "+dict['filename']+": Individual "+dict['investigated-item']+"s - ACC plots and ACC Chi2 tests."
     
     path_res_orig = path
     if dict.has_key('subfolder'):
@@ -1540,13 +1542,13 @@ def visdemPlots77thru80(visdem_data,path,dict):
         
         # Plot response time data as boxplots
         #if telleoevelse: print "Observations RT plots"
-        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
+        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict,dict)
         #plotRTGraphs(boxes,labels,path_res, dict)
         
         # Plot accuracy with confidence intervals
         c = 1.96; type = 'wilson-score'
         #if telleoevelse: print "Observations ACC plots"
-        accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
+        accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type,dict)
         plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
             
         # Make median test as csv file
@@ -1731,7 +1733,7 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     """
     
     #print dict
-    
+    #print visdem_data
     # 1. Restrict data to only one type of observer color deficiency
     coldef_type = dict['coldef_type']
     #print coldef_type

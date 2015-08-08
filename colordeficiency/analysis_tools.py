@@ -303,31 +303,36 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
 ##########
 
 
-def preparePandas4AccuracyPlots(pandas_dict,order_dict,c=1.96,type="normal"):
+def preparePandas4AccuracyPlots(pandas_dict,order_dict,c=1.96,type="normal", dict={}):
     
     #print "Type of computation for confidence intervals: "+ str(type)
     #print "Length of confidence interval c: " + str(c)
+    
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
     accuracies = {}
+    observations = []
     
     for i in range(len(order_dict)):
         key = order_dict[i]
         
-        ACC_tmp = getAccuracy(pandas_dict[key],c,type)
+        ACC_tmp, obs_tmp = getAccuracy(pandas_dict[key],c,type)
         #ACC_tmp.append(key)
         accuracies.update({key: ACC_tmp})
+        observations.append(numpy.array(obs_tmp).astype(int))
+    
+    observations = numpy.transpose(observations)
+    if telleoevelse: print "ACC plots "+dict['filename']+":\n" + str(observations)
         
     return accuracies
 
 
-def getAccuracy(data,c,type, dict={}):
-    
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+def getAccuracy(data,c,type):
     
     num_total =  float(numpy.shape(data.values)[0])
     num_correct = float(numpy.shape(data[data['is_correct']==True].values)[0]) 
     num_incorrect = float(numpy.shape(data[data['is_correct']==False].values)[0])
     
-    if telleoevelse: print int(num_incorrect), int(num_correct)
+    #if telleoevelse: print "ACC plots "+dict['filename']+": incorr "+str(int(num_incorrect))+", corr "+str(int(num_correct))
     
     if data.values.size:
         if type == 'normal':
@@ -352,10 +357,10 @@ def getAccuracy(data,c,type, dict={}):
             lower_bound = float('NaN')
             upper_bound = float('NaN')
             
-        return [acc,lower_bound,upper_bound]
+        return [acc,lower_bound,upper_bound], [num_correct, num_incorrect]
     
     else:
-        return [float('NaN'),float('NaN'),float('NaN')]
+        return [float('NaN'),float('NaN'),float('NaN')], [num_correct, num_incorrect]
     
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
@@ -480,9 +485,12 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     Veit ikkje om detter her stemmer eller gir mening.
     """
     
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
     num_methods = numpy.shape(methods)[0]
     range_methods = range(num_methods)
     num_columns = numpy.shape(data)[1]
+    if telleoevelse: "ACC Chi2 "+dict['filename']+":\n"+str(data)
     
     if not num_methods == num_columns:
         print "Error: Number of columns does not match the labels for Pearson Chi2 test."
@@ -551,7 +559,7 @@ def preparePandas4RTPlots(pandas_dict,order_dict,dict={}):
         labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
         boxes.append(values_tmp)
         
-    if telleoevelse: print [numpy.shape(i) for i in boxes]    
+    if telleoevelse: print "RT boxplots "+dict['filename']+": "+str([numpy.shape(i) for i in boxes])    
     return boxes, labels
 
 
@@ -568,7 +576,7 @@ def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
     counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
     
-    if telleoevelse: print [numpy.shape(i) for i in boxes]
+    if telleoevelse: print "RT boxplots "+dict['filename']+": " + str([numpy.shape(i) for i in boxes])
     
     plt.figure();
     
@@ -739,6 +747,10 @@ def makeMedianTest(data,path,methods,dict):
     """
     
     RT_difference = dict['RT_difference'] if dict.has_key('RT_difference') else 0
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
+    if telleoevelse:
+        print "RT median test "+dict['filename']+": "+str([numpy.size(i) for i in data])  
     
     num_methods = numpy.shape(methods)[0]
     range_methods = range(num_methods)
@@ -813,6 +825,10 @@ def makePairwiseStudentTTest(data,path,methods,dict):
     """
     
     ACC_difference = dict['ACC_difference'] if dict.has_key('ACC_difference') else 0
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
+    if telleoevelse:
+        print "ACC student t "+dict['filename']+": "+str([numpy.size(i) for i in data])  
     
     num_methods = numpy.shape(methods)[0]
     range_methods = range(num_methods)
