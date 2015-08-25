@@ -22,6 +22,7 @@ from pymatbridge import Matlab
 import sys
 #from test_wech import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
 
+from scipy.interpolate import griddata
 
 path_matlab = os.path.join(settings.module_path,'code','Matlab','implementation')
 path_matlab_alsam = os.path.join(settings.module_path,'code','Matlab','alsam')
@@ -405,7 +406,8 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
         print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
         return img_in
     
-    data = numpy.genfromtxt(os.path.join(settings.module_path,'colordeficiency-data','ciexyz31.csv'), delimiter=',')
+    #print settings.data_path
+    data = numpy.genfromtxt(os.path.join(settings.data_path,'ciexyz31.csv'), delimiter=',')
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
@@ -1480,33 +1482,7 @@ def anne():
             img_dalt = daltonize(img,{'daltonization_type': daltonization_type, 'coldef_type': coldef_type})
             img_dalt.show()
             img_dalt.save(os.path.join(img_path, daltonization_type+"-"+coldef_type+"-"+img_name))
-    
 
-#img.show()
-
-def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
-    
-    itv = numpy.linspace(0,255,accuracy)
-    
-    input_tab = []
-    for r in itv:
-        for g in itv:
-            for b in itv:
-                input_tab.append([r,g,b])
-    input_tab = numpy.uint8(numpy.asarray(input_tab))
-    mn,d = numpy.shape(input_tab)
-    
-    input_arr = numpy.uint8(numpy.reshape(input_tab,(mn,1,3)))
-    input_img = Image.fromarray(input_arr)
-    #input_img.show()
-    
-    output_img = simulate(simulation_type, input_img, coldef_type)
-    #output_img.show()
-    output_array = numpy.asarray(output_img)
-    output_tab = numpy.reshape(output_array,(mn,3))    
-    
-                
-    return numpy.array(input_tab), numpy.array(output_tab)
 
 #[input, output] = makeSimulationLookupTable('brettel', 'p')
 #numpy.savetxt('input.txt',input,delimiter=";")
@@ -1539,3 +1515,82 @@ for i in arr:
 #images = getAllXXXinPath('images/IMT6131','.png')  
 #images = [os.path.join('images/IMT6131',file) for file in images]
 #simulate_pics(images,options)
+
+def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
+    
+    itv = numpy.linspace(0,255,accuracy)
+    
+    input_tab = []
+    for r in itv:
+        for g in itv:
+            for b in itv:
+                input_tab.append([r,g,b])
+    input_tab = numpy.uint8(numpy.asarray(input_tab))
+    mn,d = numpy.shape(input_tab)
+    
+    input_arr = numpy.uint8(numpy.reshape(input_tab,(mn,1,3)))
+    input_img = Image.fromarray(input_arr)
+    #input_img.show()
+    
+    output_img = simulate(simulation_type, input_img, coldef_type)
+    #output_img.show()
+    output_array = numpy.asarray(output_img)
+    output_tab = numpy.reshape(output_array,(mn,3))    
+    
+                
+    return input_tab, output_tab
+
+def lookup(img_in, input_tab, output_tab):
+    
+    input_arr = numpy.asarray(img_in)
+    print numpy.shape(input_arr)
+    m,n,d = numpy.shape(img_in)
+    
+    input_vec = numpy.reshape(input_arr,(m*n,d))
+    
+    #im = rand(100,100,3)
+    #inputdata = im.reshape(10000,3)
+    if False:
+        new_r = griddata(input_tab, output_tab[:,0], input_vec, 'linear')#.reshape(m,n)
+        new_g = griddata(input_tab, output_tab[:,1], input_vec, 'linear')#.reshape(m,n)
+        new_b = griddata(input_tab, output_tab[:,2], input_vec, 'linear')#.reshape(m,n)
+    
+        output_vec =numpy.array([new_r, new_g, new_b])
+        print numpy.shape(output_vec)
+        output_arr = numpy.reshape(output_vec.transpose(), (m,n,3))
+    elif False:
+        new_r = griddata(input_tab, output_tab[:,0], input_vec, 'linear').reshape(m,n)
+        new_g = griddata(input_tab, output_tab[:,1], input_vec, 'linear').reshape(m,n)
+        new_b = griddata(input_tab, output_tab[:,2], input_vec, 'linear').reshape(m,n)
+        
+        output_arr = input_arr.copy()
+        output_arr[:,:,0] = new_r
+        output_arr[:,:,1] = new_g
+        output_arr[:,:,2] = new_b
+    else:
+        output_arr = griddata(input_tab, output_tab, input_vec, 'linear').reshape(m,n,d)
+    
+    img_out = Image.fromarray(numpy.uint8(output_arr))
+    
+    return img_out
+
+lut_3D_in, lut_3D_out = makeSimulationLookupTable('brettel','d')
+im = Image.open(os.path.join(settings.image_path, '0010000000.png'))
+#im.show()
+im_sim = lookup(im, lut_3D_in, lut_3D_out)
+#im_sim.show()
+from pylab import *
+ion()
+lut_2D_in, lut_2D_out = [0,25,50,75,100,125,150,175,200,225,255], [80,90,100,110,120,130,140,160,170,180,190]
+
+im_gray = im.convert('L')
+im_gray.show()
+im_sim_gray = lookup(im_gray,lut_2D_in,lut_2D_out)
+data = imshow(im_gray, cm.gray)
+
+draw()
+while True:
+    pass
+
+#im_sim = simulate('brettel', im, 'd')
+#im_sim.show()

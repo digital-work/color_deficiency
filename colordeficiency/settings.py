@@ -95,6 +95,9 @@ default = {'simulation_type': 'brettel',
 #os.path.abspath(os.path.join(yourpath, os.pardir))
 
 module_path =  os.path.abspath(os.path.join(__file__,os.pardir))#(os.path.dirname (os.path.abspath(__file__)),os.pardir)
+data_path = os.path.join(os.path.dirname(module_path),'colordeficiency-data')
+image_path = os.path.join(os.path.dirname(module_path),'colordeficiency-images')
+
 
 pts_default = 10
 its_default = 100
