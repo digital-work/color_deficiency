@@ -1543,36 +1543,169 @@ def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
 def lookup(img_in, input_tab, output_tab):
     
     input_arr = numpy.asarray(img_in)
-    print numpy.shape(input_arr)
-    m,n,d = numpy.shape(img_in)
+    res = numpy.shape(img_in)
     
-    input_vec = numpy.reshape(input_arr,(m*n,d))
-    
-    #im = rand(100,100,3)
-    #inputdata = im.reshape(10000,3)
-    if False:
-        new_r = griddata(input_tab, output_tab[:,0], input_vec, 'linear')#.reshape(m,n)
-        new_g = griddata(input_tab, output_tab[:,1], input_vec, 'linear')#.reshape(m,n)
-        new_b = griddata(input_tab, output_tab[:,2], input_vec, 'linear')#.reshape(m,n)
-    
-        output_vec =numpy.array([new_r, new_g, new_b])
-        print numpy.shape(output_vec)
-        output_arr = numpy.reshape(output_vec.transpose(), (m,n,3))
-    elif False:
-        new_r = griddata(input_tab, output_tab[:,0], input_vec, 'linear').reshape(m,n)
-        new_g = griddata(input_tab, output_tab[:,1], input_vec, 'linear').reshape(m,n)
-        new_b = griddata(input_tab, output_tab[:,2], input_vec, 'linear').reshape(m,n)
+    m = res[0]
+    n = res[1]
+    if numpy.shape(res)[0]<3:
+        d = 1
+        input_vec = numpy.reshape(input_arr,m*m)
         
-        output_arr = input_arr.copy()
-        output_arr[:,:,0] = new_r
-        output_arr[:,:,1] = new_g
-        output_arr[:,:,2] = new_b
     else:
-        output_arr = griddata(input_tab, output_tab, input_vec, 'linear').reshape(m,n,d)
+        d = res[2]
+        input_vec = numpy.reshape(input_arr,(m*n,d))
+    
+    print numpy.shape(input_vec), numpy.shape(input_tab), numpy.shape(output_tab)
+    output_vec = griddata(input_tab, output_tab, input_vec, 'linear')
+    if numpy.shape(res)[0]<3:
+        output_arr = output_vec.reshape(m,n)
+    else:
+        print numpy.shape(output_vec)
+        output_arr = output_vec.reshape(m,n,d)
+    print output_arr
     
     img_out = Image.fromarray(numpy.uint8(output_arr))
     
     return img_out
+
+from pylab import *
+from scipy.interpolate import griddata
+
+def griddata_boundaries(points, values, xi, method='linear', fill_value=nan, rescale=False):
+    
+    xi_copy = xi.copy()
+    
+    index_min = numpy.array(xi<=points[0])
+    if len(index_min):
+        xi_copy[index_min] = points[0]
+    
+    index_max = xi>=points[-1]
+    if len(index_max):
+        xi_copy[index_max] = points[-1]
+    #print xi_copy
+    ip = griddata(points, values, xi_copy, method, fill_value, rescale)
+    
+    return ip
+    
+    
+def total_variation_dalt_1D():
+    
+    ion()
+
+    x = linspace(0, 1)
+    x_2 = linspace(0,1,100)
+    print x
+    print x_2
+    y0 = zeros(shape(x))
+    print y0
+    y0[25:] = 1
+    print y0
+    y0 = y0 + .3 * randn(shape(x)[0])
+    
+    y0 -= numpy.min(y0)
+    y0 = y0/numpy.max(y0)
+    print y0
+    y = y0.copy()
+    y_2 = griddata(x,y0,x_2,'linear')
+    y = y_2.copy()
+    print y_2
+    line, = plot(x_2,y)
+    
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([25,75,80,85,115,120,125,165,170,175,240])
+    
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
+    #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
+    lut_1D_in = lut_1D_in/255. * 1.0
+    #print numpy.max(y0)
+    lut_1D_out = lut_1D_out/255. * 1.0
+    #print lut_1D_in, lut_1D_out
+    
+    y_sim = griddata(lut_1D_in, lut_1D_out, y_2, 'linear')
+    
+    dt = .0001
+    lambd = 1
+    eps = .0001
+    
+    switch = 0
+    
+    # Compute 1st and 2nd derivatives of LUT
+    lut_in_d = lut_1D_in[1:] - lut_1D_in[:-1]
+    
+    lut_1D_d = lut_1D_out[1:] - lut_1D_out[:-1]
+    lut_1deriv = lut_1D_out.copy()
+    lut_1deriv[1:] = lut_1D_d / (lut_in_d+eps)
+    lut_1deriv[0] = lut_1deriv[1]
+    
+    #print lut_in_d, lut_1D_d, lut_1deriv 
+    
+    lut_2deriv_d = lut_1deriv[1:] - lut_1deriv[:-1]
+    lut_2deriv = lut_1D_out.copy()
+    lut_2deriv[1:] = lut_2deriv_d / (lut_in_d+eps)
+    lut_2deriv[0] = lut_2deriv[1]
+    
+    # Compute y0'
+    y0d = y_2[1:]-y_2[:-1]
+    #print numpy.shape(y0d)
+    
+    
+    while True:
+        if switch:
+            setp(line, 'color', 'r')
+            line.set_ydata(y_2)
+            switch = 0
+        else:
+            setp(line, 'color', 'b')
+            line.set_ydata(y_sim)
+            switch = 1
+        draw()
+    
+    while False:
+        dsdu = griddata_boundaries(lut_1D_in, lut_1deriv, y, 'linear')
+        #print numpy.shape(dsdu)
+        #print 'dsdu'
+        #print dsdu
+        ds2du2 = griddata_boundaries(lut_1D_in, lut_2deriv, y, 'linear')
+        #print numpy.shape(ds2du2)
+        
+        #compute A
+        #dsdu = griddata(lut_1D_in, lut_1deriv, y, 'linear')
+        yd = y[1:]-y[:-1]
+        A = (dsdu[1:]*yd - y0d) / abs(dsdu[1:]*yd - y0d+eps)
+        #print numpy.shape(yd)
+        #print numpy.shape(A)
+        
+        
+        # Computation of first term
+        first_term = A * yd * ds2du2[1:]
+        
+        # Computation of second term
+        second_term = A * dsdu[1:]
+        second_term_d = second_term[1:] - second_term[:-1]
+        
+        y[2:] = y[2:]+dt*(first_term[1:]-second_term_d)
+        
+        too_big = y >= 2.5
+        y[too_big] = 2.5
+        
+        too_small = y <= 0.0
+        y[too_small] = 0.0
+        
+        if switch:
+            setp(line, 'color', 'r')
+            line.set_ydata(y_2)
+            switch = 0
+        else:
+            setp(line, 'color', 'b')
+            line.set_ydata(y)
+            switch = 1
+        draw()
+        #print 'y'
+        #print y
+        
+    
+total_variation_dalt_1D()
+
+"""    
 
 lut_3D_in, lut_3D_out = makeSimulationLookupTable('brettel','d')
 im = Image.open(os.path.join(settings.image_path, '0010000000.png'))
@@ -1581,16 +1714,29 @@ im_sim = lookup(im, lut_3D_in, lut_3D_out)
 #im_sim.show()
 from pylab import *
 ion()
-lut_2D_in, lut_2D_out = [0,25,50,75,100,125,150,175,200,225,255], [80,90,100,110,120,130,140,160,170,180,190]
-
+lut_2D_in, lut_2D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([25,75,80,85,115,120,125,165,170,175,240])
+#plot(lut_2D_in, lut_2D_out)
 im_gray = im.convert('L')
-im_gray.show()
-im_sim_gray = lookup(im_gray,lut_2D_in,lut_2D_out)
-data = imshow(im_gray, cm.gray)
+#im_gray.show()
+#im_sim_gray = lookup(im_gray,lut_2D_in,lut_2D_out)
 
+data = imshow(im_gray, cm.gray)
 draw()
+
+im_gray_vec = numpy.reshape(numpy.asarray(im_gray),1000*1000)
+from scipy.interpolate import griddata
+im_gray_sim_vec = griddata(lut_2D_in, lut_2D_out, im_gray_vec, 'linear')
+im_gray_sim = im_gray_sim_vec.reshape(1000,1000)
+c = Image.fromarray(im_gray_sim.astype('uint8'))
+c.show()
+
+b = lookup(im_gray, lut_2D_in, lut_2D_out)
+data.set_array(im_gray_sim)
+draw()
+
 while True:
     pass
 
 #im_sim = simulate('brettel', im, 'd')
 #im_sim.show()
+"""
