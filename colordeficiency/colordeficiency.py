@@ -1594,37 +1594,35 @@ def total_variation_dalt_1D():
 
     x = linspace(0, 1)
     x_2 = linspace(0,1,100)
-    print x
-    print x_2
     y0 = zeros(shape(x))
-    print y0
     y0[25:] = 1
-    print y0
     y0 = y0 + .3 * randn(shape(x)[0])
     
     y0 -= numpy.min(y0)
     y0 = y0/numpy.max(y0)
-    print y0
-    y = y0.copy()
     y_2 = griddata(x,y0,x_2,'linear')
+    x = x_2.copy()
     y = y_2.copy()
-    print y_2
-    line, = plot(x_2,y)
+    #y = y0.copy()
     
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([25,75,80,85,115,120,125,165,170,175,240])
+    line, = plot(x,y)
+    
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,75,80,85,115,120,125,165,170,175,255])
     
     lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
     #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
+    #lut_1D_in, lut_1D_out = numpy.array([0,255]), numpy.array([0,255])
+    
     lut_1D_in = lut_1D_in/255. * 1.0
     #print numpy.max(y0)
     lut_1D_out = lut_1D_out/255. * 1.0
     #print lut_1D_in, lut_1D_out
     
-    y_sim = griddata(lut_1D_in, lut_1D_out, y_2, 'linear')
+    #y_sim = griddata(lut_1D_in, lut_1D_out, y_2, 'linear')
     
-    dt = .0001
+    dt = .01
     lambd = 1
-    eps = .0001
+    eps = .00001
     
     switch = 0
     
@@ -1643,52 +1641,45 @@ def total_variation_dalt_1D():
     lut_2deriv[1:] = lut_2deriv_d / (lut_in_d+eps)
     lut_2deriv[0] = lut_2deriv[1]
     
+    def suf(x): 
+        return 0.5*x**2
+    def dsduf(x):
+        return x
+    
+    #lut_1D_out = suf(lut_1D_in)
+    #lut_1deriv = dsduf(lut_1D_in)
+    
     # Compute y0'
-    y0d = y_2[1:]-y_2[:-1]
+    y0d = y0[1:]-y0[:-1]
+    y0d = y_2[1:] - y_2[:-1]
     #print numpy.shape(y0d)
+    ylim(-1,4) 
     
-    
-    while True:
+    while False:
         if switch:
             setp(line, 'color', 'r')
-            line.set_ydata(y_2)
+            line.set_ydata(y)
             switch = 0
         else:
             setp(line, 'color', 'b')
-            line.set_ydata(y_sim)
+            line.set_ydata(y)
             switch = 1
         draw()
     
-    while False:
+    while True:
         dsdu = griddata_boundaries(lut_1D_in, lut_1deriv, y, 'linear')
-        #print numpy.shape(dsdu)
-        #print 'dsdu'
-        #print dsdu
-        ds2du2 = griddata_boundaries(lut_1D_in, lut_2deriv, y, 'linear')
-        #print numpy.shape(ds2du2)
-        
-        #compute A
-        #dsdu = griddata(lut_1D_in, lut_1deriv, y, 'linear')
         yd = y[1:]-y[:-1]
-        A = (dsdu[1:]*yd - y0d) / abs(dsdu[1:]*yd - y0d+eps)
-        #print numpy.shape(yd)
-        #print numpy.shape(A)
         
+        v = numpy.sign(yd*dsdu[1:]-y0d)
+        vd = v[:-1] - v[1:]
         
-        # Computation of first term
-        first_term = A * yd * ds2du2[1:]
+        y[1:-1] = y[1:-1]+dt*(-dsdu[1:-1]*vd)
         
-        # Computation of second term
-        second_term = A * dsdu[1:]
-        second_term_d = second_term[1:] - second_term[:-1]
-        
-        y[2:] = y[2:]+dt*(first_term[1:]-second_term_d)
-        
-        too_big = y >= 2.5
-        y[too_big] = 2.5
+        too_big = y >= 1.0
+        #y[too_big] = 1.0
         
         too_small = y <= 0.0
-        y[too_small] = 0.0
+        #y[too_small] = 0.0
         
         if switch:
             setp(line, 'color', 'r')
@@ -1699,11 +1690,118 @@ def total_variation_dalt_1D():
             line.set_ydata(y)
             switch = 1
         draw()
-        #print 'y'
-        #print y
+
+def total_variation_dalt_2D():
+    
+    ion()
+
+    im = imread(os.path.join(settings.image_path, '0010000000.png'))
+    im = sum(im, 2) / 3.
+    im0 = im.copy()
+    
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,75,80,85,115,120,125,165,170,175,255])
+    #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
+    #lut_1D_in, lut_1D_out = numpy.array([0,255]), numpy.array([0,255])
+    
+    lut_1D_in = lut_1D_in/255. * 1.0
+    lut_1D_out = lut_1D_out/255. * 1.0
+    m,n = numpy.shape(im)
+    im_sim = griddata_boundaries(lut_1D_in, lut_1D_out, im0, 'linear')
+    data = imshow(im, cm.gray)
+    switch = 1
+    while False:
+        if switch:
+            data = imshow(im[r_[arange(1, m), m - 1], :], cm.gray)
+            switch = 0
+        else:
+            data = imshow(im, cm.gray)
+            switch = 1
+        draw()
         
     
-total_variation_dalt_1D()
+    
+    dt = .01
+    lambd = 1
+    eps = .01
+    
+    switch = 0
+    
+    # Compute 1st and 2nd derivatives of LUT
+    lut_in_d = lut_1D_in[1:] - lut_1D_in[:-1]
+    
+    lut_1D_d = lut_1D_out[1:] - lut_1D_out[:-1]
+    lut_1deriv = lut_1D_out.copy()
+    lut_1deriv[1:] = lut_1D_d / (lut_in_d+eps)
+    lut_1deriv[0] = lut_1deriv[1]
+    
+    #print lut_in_d, lut_1D_d, lut_1deriv 
+    
+    lut_2deriv_d = lut_1deriv[1:] - lut_1deriv[:-1]
+    lut_2deriv = lut_1D_out.copy()
+    lut_2deriv[1:] = lut_2deriv_d / (lut_in_d+eps)
+    lut_2deriv[0] = lut_2deriv[1]
+    
+    def vector_dir(xvec,yvec):
+        #print numpy.shape(xvec), numpy.shape(yvec)
+        length = numpy.sqrt(xvec**2+yvec**2)+eps
+        return xvec/length, yvec/length
+    
+    m,n =numpy.shape(im)
+    im_zero = numpy.zeros((m,n))
+    
+    # Compute y0'
+    im0dx = im_zero.copy(); im0dx[:,1:] = im0[:,1:]-im0[:,:-1]
+    im0dy = im_zero.copy(); im0dy[1:,:] = im0[1:,:]-im0[:-1,:]
+    
+    def s(im):
+        #return griddata_boundaries(lut_1D_in, lut_1D_out, im, 'linear')
+        return im/3. + .6
+    
+    def sprime(im):
+        im_prime = im.copy()
+        im_prime[:,:] = 1/3.
+        return im_prime
+        #return griddata(lut_1D_in, lut_1deriv, im, 'linear')
+        
+    while True:
+        gradx = im_zero.copy(); gradx[:,1:] = im[:,1:] - im[:,:-1]
+        grady = im_zero.copy(); grady[1:,:] = im[1:,:] - im[:-1,:]
+        
+        dsdu = sprime(im)
+        
+        #yd = y[1:]-y[:-1]
+        #print numpy.shape(gradx), numpy.shape(dsdu[1:,1:]), numpy.shape(im0dx)
+        #print numpy.shape(grady), numpy.shape(dsdu[1:,1:]), numpy.shape(im0dy)
+        vx, vy = vector_dir(gradx*dsdu-im0dx, grady*dsdu-im0dy)
+        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,:-1]-vx[:,1:]#vx[1:,:-1]-vx[1:,1:]+vy[:-1,1:]-vy[1:,1:]
+        vdy = im_zero.copy(); vdy[:-1,:] = vy[:-1,:]-vy[1:,:]
+        vd = vdx+vdy
+        
+        im[1:-1,1:-1] = im[1:-1,1:-1] + dt * (-dsdu[1:-1,1:-1]*vd[1:-1,1:-1])  
+        
+        #y[1:-1] = y[1:-1]+dt*(-dsdu[1:-1]*vd)
+        
+        too_big = im >= 1.0
+        im[too_big] = 1.0
+        
+        too_small = im <= 0.0
+        im[too_small] = 0.0
+        #print im
+        
+        data.set_array(im)
+        
+        
+        draw()        
+    
+total_variation_dalt_2D()
+
+
+
+a = numpy.array([[2,3,4],[2,3.4]])
+b = numpy.array([[1,3,4],[1,3,4]])
+
+#print dir(a,b)
 
 """    
 
