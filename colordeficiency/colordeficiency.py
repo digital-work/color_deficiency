@@ -1691,6 +1691,40 @@ def total_variation_dalt_1D():
             switch = 1
         draw()
 
+def gradientd(im,dir,type="forward"):
+    
+    dir = dir
+    if not dir in['x','y']:
+        print "You either have to choose the x or y axis."
+        return
+    
+    type = type
+    #print type
+    if not type in ['forward','backward']:
+        print "You either have to choose forward or backward."
+        return
+    
+    m,n = numpy.shape(im)
+    im_zero = numpy.zeros((m,n))
+    
+    imd = im_zero.copy()
+    if dir == "x":
+        imd1 = im[:,1:]
+        imd2 = im[:,:-1]  
+        if type == "forward":
+            imd[:,1:] = imd1-imd2
+        else:
+            imd[:,:-1] = imd2-imd1
+    else:
+        imd1 = im[1:,:]
+        imd2 = im[:-1,:]  
+        if type == "forward":
+            imd[1:,:] = imd1-imd2
+        else:
+            imd[:-1,:] = imd2-imd1
+    
+    return imd
+
 def total_variation_dalt_2D():
     
     ion()
@@ -1718,8 +1752,6 @@ def total_variation_dalt_2D():
             data = imshow(im, cm.gray)
             switch = 1
         draw()
-        
-    
     
     dt = .01
     lambd = 1
@@ -1735,15 +1767,12 @@ def total_variation_dalt_2D():
     lut_1deriv[1:] = lut_1D_d / (lut_in_d+eps)
     lut_1deriv[0] = lut_1deriv[1]
     
-    #print lut_in_d, lut_1D_d, lut_1deriv 
-    
     lut_2deriv_d = lut_1deriv[1:] - lut_1deriv[:-1]
     lut_2deriv = lut_1D_out.copy()
     lut_2deriv[1:] = lut_2deriv_d / (lut_in_d+eps)
     lut_2deriv[0] = lut_2deriv[1]
     
     def vector_dir(xvec,yvec):
-        #print numpy.shape(xvec), numpy.shape(yvec)
         length = numpy.sqrt(xvec**2+yvec**2)+eps
         return xvec/length, yvec/length
     
@@ -1751,8 +1780,8 @@ def total_variation_dalt_2D():
     im_zero = numpy.zeros((m,n))
     
     # Compute y0'
-    im0dx = im_zero.copy(); im0dx[:,1:] = im0[:,1:]-im0[:,:-1]
-    im0dy = im_zero.copy(); im0dy[1:,:] = im0[1:,:]-im0[:-1,:]
+    im0dx = gradientd(im0,'x','forward')#im_zero.copy(); im0dx[:,1:] = im0[:,1:]-im0[:,:-1]
+    im0dy = gradientd(im0,'y','forward')#im_zero.copy(); im0dy[1:,:] = im0[1:,:]-im0[:-1,:]
     
     def s(im):
         #return griddata_boundaries(lut_1D_in, lut_1D_out, im, 'linear')
@@ -1765,33 +1794,25 @@ def total_variation_dalt_2D():
         #return griddata(lut_1D_in, lut_1deriv, im, 'linear')
         
     while True:
-        gradx = im_zero.copy(); gradx[:,1:] = im[:,1:] - im[:,:-1]
-        grady = im_zero.copy(); grady[1:,:] = im[1:,:] - im[:-1,:]
-        
+        #gradientd(im,"x","pupsi")
+        gradx = gradientd(im,'x','forward')#im_zero.copy(); gradx[:,1:] = im[:,1:] - im[:,:-1]
+        grady = gradientd(im,'y','forward')#im_zero.copy(); grady[1:,:] = im[1:,:] - im[:-1,:]
         dsdu = sprime(im)
         
-        #yd = y[1:]-y[:-1]
-        #print numpy.shape(gradx), numpy.shape(dsdu[1:,1:]), numpy.shape(im0dx)
-        #print numpy.shape(grady), numpy.shape(dsdu[1:,1:]), numpy.shape(im0dy)
         vx, vy = vector_dir(gradx*dsdu-im0dx, grady*dsdu-im0dy)
-        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,:-1]-vx[:,1:]#vx[1:,:-1]-vx[1:,1:]+vy[:-1,1:]-vy[1:,1:]
-        vdy = im_zero.copy(); vdy[:-1,:] = vy[:-1,:]-vy[1:,:]
+        vdx = gradientd(vx,'x','backward')#im_zero.copy(); vdx[:,:-1] = vx[:,:-1]-vx[:,1:]
+        vdy = gradientd(vy,'y','backward')#im_zero.copy(); vdy[:-1,:] = vy[:-1,:]-vy[1:,:]
         vd = vdx+vdy
         
         im[1:-1,1:-1] = im[1:-1,1:-1] + dt * (-dsdu[1:-1,1:-1]*vd[1:-1,1:-1])  
-        
-        #y[1:-1] = y[1:-1]+dt*(-dsdu[1:-1]*vd)
         
         too_big = im >= 1.0
         im[too_big] = 1.0
         
         too_small = im <= 0.0
         im[too_small] = 0.0
-        #print im
-        
-        data.set_array(im)
-        
-        
+
+        data.set_array(im)        
         draw()        
     
 total_variation_dalt_2D()
