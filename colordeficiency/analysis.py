@@ -979,6 +979,8 @@ def visdemPlots53thru60(visdem_data,path,dict):
     
     print "   Starting ViSDEM_RES#53-60 - "+dict['filename']+": Individual methods - ACC plots, ACC Chi2 tests, RT boxplots, RT median test, and Q-Q/Q-Q-log normality check."
     
+    dict.update({'RT_difference':0})
+    
     path_res = path
     if dict.has_key('subfolder'):
         subfolder = dict['subfolder']
@@ -1646,6 +1648,101 @@ def visdemPlots77thru80(visdem_data,path,dict):
         merger.append(PdfFileReader(filename, "rb"))
     merger.write(os.path.join(path_res_orig, item+"s-"+settings.id2ColDefShort[dict['obs_operator'][2]]+"-after_"+item+"_id.pdf"))
     merger.close()
+
+def visdemPlots81thru82(visdem_data,path,dict):
+    
+    print "   Starting ViSDEM_RES#81-82 - "+dict['filename']+": Natural vs. Ishihara sets - ACC plots and ACC Chi2 tests."
+    
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+    if not os.path.exists(path_res): os.makedirs(path_res)
+    filename_orig = dict['filename']
+    #item = dict['investigated-item']
+    
+    coldef_type = dict['coldef_type']
+    
+    #item_ids = dict[item] if dict.has_key(item) else sorted(set(visdem_data[item+'_id'].values.astype(int)))
+    dalt_ids = dict['dalt_ids'] if dict.has_key('dalt_ids') else sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    
+    natural_sets = [1,2,3,4,5,6,7,8,9,10]
+    natural_visdem_data = pandas.DataFrame()
+    for set_id in natural_sets:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        natural_visdem_data = pandas.concat([rel_data_tmp, natural_visdem_data])
+    
+    ishihara_sets = [11,12,13]
+    ishihara_visdem_data = pandas.DataFrame() 
+    for set_id in ishihara_sets:
+        # Getting data from all variants for all normal sighted observers
+        whatArr_tmp = [['set_id',operator.eq,set_id]]
+        rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
+        ishihara_visdem_data = pandas.concat([rel_data_tmp, ishihara_visdem_data])
+    ishihara_visdem_data.reset_index()
+    
+    # 1. Retrieving data from the image variants
+    #pdf_file_names = []
+    for dalt_id in dalt_ids:
+        dalt_name = settings.id2Dalt[dalt_id]
+        filename_tmp = filename_orig+'-'+dalt_name
+        #pdf_file_names.append(os.path.join(path_res,filename_tmp+'-ACC.pdf'))
+        title = ""#settings.id2ColDefShort[dict['obs_operator'][2]] + " "+ dalt_name
+        dict.update({'filename':filename_tmp, 'obs_title': title})        
+
+        # Retrieving data for each of the observation groups
+        i = 0; pandas_dict = {}; order_dict = {}
+        
+        whatArr_tmp = [dict['obs_operator'],['variant_id',operator.eq,1],['dalt_id',operator.eq,dalt_id]]
+        if (dalt_id != 0)  and (dalt_id != 99):
+            whatArr_tmp.append(['coldef_type',operator.eq,coldef_type])
+        natural_data_tmp = organizeArray(natural_visdem_data,whatArr_tmp)
+        ishihara_data_tmp = organizeArray(ishihara_visdem_data,whatArr_tmp)
+            
+                       
+        pandas_dict.update({'Natural':natural_data_tmp})
+        order_dict.update({0:'Natural'})
+        pandas_dict.update({'Ishihara':ishihara_data_tmp})
+        order_dict.update({1:'Ishihara'})
+        
+        # Plot response time data as boxplots
+        #if telleoevelse: print "Observations RT plots"
+        boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict,dict)
+        #plotRTGraphs(boxes,labels,path_res, dict)
+        
+        # Plot accuracy with confidence intervals
+        c = 1.96; type = 'wilson-score'
+        #if telleoevelse: print "Observations ACC plots"
+        accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type,dict)
+        plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
+            
+        # Make median test as csv file
+        dict.update({'filename': filename_tmp+"-RT"})
+        #makeMedianTest(boxes, path_res, labels, dict)
+        
+        # Make Chi2 contingency test as txt file
+        obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
+        dict.update({'filename': filename_tmp+'-ACC'})
+        makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict)
+        
+        # Make Chi2 contingency test matrix as csv file
+        makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
+        
+        # Make normality plots as Q-Q and log-Q-Q plots
+        for i in range(numpy.shape(boxes)[0]):
+            distribution_tmp = boxes[i]
+            label_tmp = labels[i]
+            dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+            #plotQQPlot(distribution_tmp, path_res, dict)
+            
+            distribution_log_tmp = numpy.log(distribution_tmp)
+            distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+            dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+            #plotQQPlot(distribution_log_tmp, path_res, dict)
+
+    
 
 def makePairedDataForSaMSEM(samsem_data,path,dict):
     """
