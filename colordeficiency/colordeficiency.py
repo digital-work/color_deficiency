@@ -365,7 +365,7 @@ def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
 
 #simulate(img_in,"d","videnot").show()
 
-def simulation_kotera(img_in, coldef_type, coldef_strength=1.0):
+def simulation_kotera(img_in, coldef_type, coldef_strength=1.):
     """
     Function to simulate color deficiency for vienot, vienot adjusted.
     Input:  simulation_type - Type of simulation as defined in simulation_types
@@ -1516,7 +1516,7 @@ for i in arr:
 #images = [os.path.join('images/IMT6131',file) for file in images]
 #simulate_pics(images,options)
 
-def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
+def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5,colorspace="sRGB"):
     
     itv = numpy.linspace(0,255,accuracy)
     
@@ -1531,12 +1531,17 @@ def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5):
     input_arr = numpy.uint8(numpy.reshape(input_tab,(mn,1,3)))
     input_img = Image.fromarray(input_arr)
     #input_img.show()
-    
     output_img = simulate(simulation_type, input_img, coldef_type)
+         
     #output_img.show()
     output_array = numpy.asarray(output_img)
     output_tab = numpy.reshape(output_array,(mn,3))    
     
+    if colorspace == "IPT":
+        input_tab_srgb = colour.data.Data(colour.space.srgb,input_tab)
+        input_tab = input_tab_srgb.get(colour.space.ipt)
+        output_tab_srgb = colour.data.Data(colour.space.srgb,output_tab)
+        output_tab = output_tab_srgb.get(colour.space.ipt)
                 
     return input_tab, output_tab
 
@@ -1555,18 +1560,19 @@ def lookup(img_in, input_tab, output_tab):
         d = res[2]
         input_vec = numpy.reshape(input_arr,(m*n,d))
     
-    print numpy.shape(input_vec), numpy.shape(input_tab), numpy.shape(output_tab)
+    #print numpy.shape(input_vec), numpy.shape(input_tab), numpy.shape(output_tab)
     output_vec = griddata(input_tab, output_tab, input_vec, 'linear')
     if numpy.shape(res)[0]<3:
         output_arr = output_vec.reshape(m,n)
     else:
-        print numpy.shape(output_vec)
+        #print numpy.shape(output_vec)
         output_arr = output_vec.reshape(m,n,d)
-    print output_arr
+    #print output_arr
     
-    img_out = Image.fromarray(numpy.uint8(output_arr))
-    
-    return img_out
+    #img_out = Image.fromarray(numpy.uint8(output_arr))
+    #return img_out
+
+    return output_arr
 
 from pylab import *
 from scipy.interpolate import griddata
@@ -1742,7 +1748,7 @@ def total_variation_dalt_2D():
     
     data = imshow(im, cm.gray)
     
-    dt = .1
+    dt = .01
     eps = .01
     
     m,n =numpy.shape(im)
@@ -1753,15 +1759,15 @@ def total_variation_dalt_2D():
         #return im/3. + .6
         
     while True:
-        start =  im0-s(im)
+        start = s(im)-im0
         gradx = im_zero.copy(); gradx[:,1:] = start[:,1:] - start[:,:-1]
         grady = im_zero.copy(); grady[1:,:] = start[1:,:] - start[:-1,:]
         
         length = numpy.sqrt(gradx**2+grady**2) + eps
         vx = gradx/length
         vy = grady/length
-        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,:-1]-vx[:,1:]
-        vdy = im_zero.copy(); vdy[:-1,:] = vy[:-1,:]-vy[1:,:]
+        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,1:]-vx[:,:-1]
+        vdy = im_zero.copy(); vdy[:-1,:] = vy[1:,:]-vy[:-1,:]
         tv = vdx+vdy
         
         im[1:-1,1:-1] = im[1:-1,1:-1] + dt * tv[1:-1,1:-1]
@@ -1774,8 +1780,85 @@ def total_variation_dalt_2D():
 
         data.set_array(im)        
         draw()        
+
+def total_variation_dalt_3D():
     
-total_variation_dalt_2D()
+    ion()
+
+    im = imread(os.path.join(settings.image_path, '0430000000.png'))
+    #im = sum(im, 2) / 3.
+    im0 = im.copy()
+    
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,75,80,85,115,120,125,165,170,175,255])
+    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
+    #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
+    #lut_1D_in, lut_1D_out = numpy.array([0,255]), numpy.array([0,255])
+    lut_1D_in, lut_1D_out = makeSimulationLookupTable('brettel', 'd',5)
+    lut_1D_in = lut_1D_in/255. * 1.0
+    lut_1D_out = lut_1D_out/255. * 1.0
+    
+    #im0_srgb = colour.data.Data(colour.space.srgb,im0)
+    #im0 = im0_srgb.get(colour.space.ipt)
+    
+    #print numpy.shape(lut_1D_in)    
+    data = imshow(im)
+    
+    dt = .01
+    eps = .01
+    
+    m,n,d =numpy.shape(im)
+    im_zero = numpy.zeros((m,n,d))
+    print numpy.shape(im)
+    def s(im):
+        #return griddata_boundaries(lut_1D_in, lut_1D_out, im, 'linear')
+        #return im/3. + .6
+        return lookup(im, lut_1D_in, lut_1D_out)
+        #retim = im.copy()
+        #retim[..., 0] = .5 * (retim[..., 0] + retim[..., 1])
+        #retim[..., 1] = .5 * (retim[..., 0] + retim[..., 1])
+        #return retim
+        
+    while True:
+        #print 'poo'
+        #im_srgb = colour.data.Data(colour.space.srgb,im)
+        #im_ipt = im_srgb.get(colour.space.ipt)
+        
+        start =  s(im)-im0
+        
+        #a = im_zero[1:,:-1]
+        #print numpy.shape(a)
+        gradx = im_zero.copy(); gradx[:,1:] = start[:,1:] - start[:,:-1]
+        grady = im_zero.copy(); grady[1:,:] = start[1:,:] - start[:-1,:]
+        
+        length = numpy.sqrt(gradx**2+grady**2) + eps
+        vx = gradx/length
+        vy = grady/length
+        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,1:]-vx[:,:-1]
+        vdy = im_zero.copy(); vdy[:-1,:] = vy[1:,:]-vy[:-1,:]
+        tv = vdx+vdy
+        
+        #total = numpy.sum(numpy.sqrt(tv[:,:,0]**2+tv[:,:,1]**2+tv[:,:,2]**2))#+eps
+        #print total
+        #print numpy.sum(numpy.sqrt(im[:,:,0]**2)) / total+numpy.sum(numpy.sqrt(im[:,:,1]**2)) / total+numpy.sum(numpy.sqrt(im[:,:,2]**2)) / total
+        #tv[:,:,0] = tv[:,:,0] * numpy.sum(numpy.sqrt(tv[:,:,0]**2)) / total
+        #tv[:,:,1] = tv[:,:,1] * numpy.sum(numpy.sqrt(tv[:,:,1]**2)) / total
+        #tv[:,:,2] = tv[:,:,2] * numpy.sum(numpy.sqrt(tv[:,:,2]**2)) / total
+        
+        im[1:-1,1:-1] = im[1:-1,1:-1] + dt *  tv[1:-1,1:-1]
+        
+        #im_ipt = colour.data.Data(colour.space.ipt,im_ipt)
+        #im = im_ipt.get(colour.space.srgb)
+        
+        too_big = im >= 1.0
+        im[too_big] = 1.0
+        
+        too_small = im <= 0.0
+        im[too_small] = 0.0
+
+        data.set_array((im))        
+        draw()  
+    
+#total_variation_dalt_3D()
 
 
 
