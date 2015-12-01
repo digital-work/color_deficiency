@@ -793,7 +793,9 @@ def makeMedianTest(data,path,methods,dict):
                     curr_comp = values-to_values
                     if len(curr_comp) != 0:
                         curr_comp_wonan = curr_comp[~numpy.isnan(curr_comp)]
-                        stat, p_value, m, table = stats.median_test(curr_comp_wonan,[.0],correction=False)
+                        #print curr_comp_wonan
+                        if len(curr_comp_wonan):
+                            stat, p_value, m, table = stats.median_test(curr_comp_wonan,[.0],correction=False)
                         stat, p_value = stats.ttest_1samp(curr_comp_wonan,.0)
                     else:
                         p_value = "Nix"
