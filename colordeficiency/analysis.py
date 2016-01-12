@@ -331,7 +331,78 @@ def samsemPlots1thru4(samsem_data,path,dict):
         distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
         dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
         plotQQPlot(distribution_log_tmp, path_res, dict)
+
+def samsemPlots1thru4Paired(samsem_data,path,dict):
     
+    compute_paired_data = 1
+    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    
+    # Defining the subfolder for the results
+    path_res = path
+    if dict.has_key('subfolder'):
+        subfolder = dict['subfolder']
+        path_res = os.path.join(path,subfolder)
+        if not os.path.exists(path_res): os.makedirs(path_res)
+    
+    # Retrieving data from data set
+    coldef_type = dict['coldef_type'] # Color deficiency type of the simulation method
+    dict.update({'investigated-item': 'simulation method'})
+    filename_orig = dict['filename']
+    
+    if dict.has_key('method_ids'):
+        method_ids = dict['method_ids']
+    else:
+        method_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
+    method_ids = sorted(method_ids) # IDs of the methods that need to be plotted
+    
+    print "Starting SAMSEM_RES#01+04-paired: "+filename_orig+": Individual methods - ACC paired student-t test, RT paired median test."
+    
+    if compute_paired_data:
+        makePairedDataForSaMSEM(samsem_data, dict['path_data'], dict)
+    
+    samsem_data_RT_paired_path = os.path.join(dict['path_data'],filename_orig+'_samsem-data-RT-paired.csv')
+    samsem_data_RT_paired = pandas.read_csv(samsem_data_RT_paired_path,index_col=False,sep=';')  
+    
+    f = open(os.path.join(dict['path_data'],filename_orig+'_samsem-data-paired_meta-data.txt'), 'r')
+    b = json.load(f)
+    f.close()
+    
+    samsem_data_RT_paired_array, labels = makePairedRTDataArray(samsem_data_RT_paired, b, 'sim_id')
+    labels =  keys2values(labels, settings.id2Sim)
+    
+    # Make median test
+    dict.update({'filename': filename_orig+'-RT', 'RT_difference':1})
+    makeMedianTest(samsem_data_RT_paired_array, path_res, labels, dict)
+    
+    samsem_data_ACC_paired_path = os.path.join(dict['path_data'],filename_orig+'_samsem-data-ACC-paired.csv')
+    samsem_data_ACC_paired = pandas.read_csv(samsem_data_ACC_paired_path,index_col=False,sep=';')  
+    
+    f = open(os.path.join(dict['path_data'],filename_orig+'_samsem-data-paired_meta-data.txt'), 'r')
+    b = json.load(f)
+    f.close()
+    
+    boxes = []
+    labels = []
+    #import math
+    for i in b:
+        #res_str = "orig-to-"+settings.id2Dalt[i]
+        curr_col_name = "sim_id_"+str(i).zfill(2)
+        curr_dalt_name = settings.id2Sim[i]
+        curr_col = samsem_data_ACC_paired[curr_col_name].values
+        #curr_comp = numpy.greater(orig_col,curr_col)*(-1.0) + numpy.less(orig_col,curr_col)*(1.0)
+            
+        boxes.append(curr_col)
+        labels.append(curr_dalt_name)
+    
+    dict.update({'filename': filename_orig+"-ACC", 'ACC_difference': 1})
+    makePairwiseStudentTTest(boxes, path_res, labels, dict)
+    
+    res_str = str(labels)+"\n"
+    res_str += str(numpy.mean(boxes,axis=1))
+    text_file_path = os.path.join(path_res,filename_orig+"-ACC-means.txt")
+    text_file = open(text_file_path, "w+")
+    text_file.write(res_str)
+    text_file.close()  
     
 def samsemPlots9thru12(samsem_data,path,dict):
     """
@@ -1065,7 +1136,6 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     print "   Starting ViSDEM_RES#53-60-paired - "+dict['filename']+": Individual methods - ACC paired student-t test, ACC Chi2 tests, RT paired median test."
     
     compute_paired_data = 1
-    filename_orig = dict['filename'] 
     
     path_res = path
     if dict.has_key('subfolder'):
@@ -1101,37 +1171,10 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     
     visdem_data_RT_paired_array, labels = makePairedRTDataArray(visdem_data_RT_paired, b, 'dalt_id')
     labels =  keys2values(labels, settings.id2Dalt)
-    #print labels
-    #print visdem_data_paired_array
-    
-    # Remove NaN values from array
-    #visdem_data_RT_paired_wonan_array = []
-    #for a in visdem_data_RT_paired_array:
-    #    visdem_data_RT_paired_wonan_array.append(a[~numpy.isnan(a)])
-    #    #distribution[~numpy.isnan(distribution)]
-    
-    # Plot response times
-    #start = 0; end = 5
-    #dict.update({'filename': filename_orig+'-paired'})
-    #plotRTGraphs(visdem_data_RT_paired_wonan_array[start:end], labels[start:end], path_res, dict)
     
     # Make median test
     dict.update({'filename': filename_orig+'-RT', 'RT_difference':1})
     makeMedianTest(visdem_data_RT_paired_array, path_res, labels, dict)
-    
-    """
-    # 7. Make normality plots
-    for i in range(numpy.shape(visdem_data_RT_paired_wonan_array[start:end])[0]-1):
-        distribution_tmp = visdem_data_RT_paired_wonan_array[i]
-        label_tmp = labels[i]
-        dict.update({'filename': filename_orig+'-RT-'+label_tmp})
-        plotQQPlot(distribution_tmp, path_res, dict)
-        
-        distribution_log_tmp = numpy.log(distribution_tmp)
-        distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
-        dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
-        plotQQPlot(distribution_log_tmp, path_res, dict)
-    """
     
     visdem_data_ACC_paired_path = os.path.join(dict['path_data'],filename_orig+'_visdem-data-ACC-paired.csv')
     visdem_data_ACC_paired = pandas.read_csv(visdem_data_ACC_paired_path,index_col=False,sep=';')  
@@ -1164,7 +1207,6 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     text_file = open(text_file_path, "w+")
     text_file.write(res_str)
     text_file.close()
-    #print numpy.mean(boxes,axis=1)
      
     
 def visdemPlots67thru70(visdem_data,path,dict):
@@ -1807,16 +1849,16 @@ def makePairedDataForSaMSEM(samsem_data,path,dict):
     samsem_data_RT_paired.observer_coldef_type = samsem_data_RT_paired.observer_coldef_type.astype(int)
     samsem_data_RT_paired.image_id = samsem_data_RT_paired.image_id.astype(int)
     samsem_data_RT_paired.coldef_type = samsem_data_RT_paired.coldef_type.astype(int)
-    samsem_data_RT_paired.to_csv(os.path.join(path,'samsem-data-RT-paired.csv'),sep=";")
+    samsem_data_RT_paired.to_csv(os.path.join(path,dict['filename']+'_samsem-data-RT-paired.csv'),sep=";")
     
     samsem_data_ACC_paired =  samsem_data_ACC_paired[columns]
     samsem_data_ACC_paired.observer_id = samsem_data_ACC_paired.observer_id.astype(int)
     samsem_data_ACC_paired.observer_coldef_type = samsem_data_ACC_paired.observer_coldef_type.astype(int)
     samsem_data_ACC_paired.image_id = samsem_data_ACC_paired.image_id.astype(int)
     samsem_data_ACC_paired.coldef_type = samsem_data_ACC_paired.coldef_type.astype(int)
-    samsem_data_ACC_paired.to_csv(os.path.join(path,'samsem-data-ACC-paired.csv'),sep=";")
+    samsem_data_ACC_paired.to_csv(os.path.join(path,dict['filename']+'_samsem-data-ACC-paired.csv'),sep=";")
     
-    f = open(os.path.join(path,'meta-data.txt'), 'w')
+    f = open(os.path.join(path,dict['filename']+'_samsem-data-paired_meta-data.txt'), 'w')
     json.dump(sim_ids, f)
     f.close()
 
