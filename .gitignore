@@ -61,3 +61,6 @@ code/Matlab/implementation/*
 !colordeficiency-images/0010000000.png
 colordeficiency-images/tmp/*
 !colordeficiency-images/tmp/README
+
+total_variation/*
+colordeficiency/total_variation.py
