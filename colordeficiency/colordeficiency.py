@@ -1574,6 +1574,11 @@ def lookup(img_in, input_tab, output_tab):
 
     return output_arr
 
+###
+# Total variation Daltonization starts here
+###
+
+
 from pylab import *
 from scipy.interpolate import griddata
 
@@ -1785,7 +1790,7 @@ def total_variation_dalt_3D():
     
     ion()
 
-    im = imread(os.path.join(settings.image_path, '0430000000.png'))
+    im = imread(os.path.join(settings.image_path, '0340000000-small.png'))
     #im = sum(im, 2) / 3.
     im0 = im.copy()
     
@@ -1804,7 +1809,7 @@ def total_variation_dalt_3D():
     data = imshow(im)
     
     dt = .01
-    eps = .01
+    eps = .0001
     
     m,n,d =numpy.shape(im)
     im_zero = numpy.zeros((m,n,d))
@@ -1862,8 +1867,8 @@ def total_variation_dalt_3D():
 
 
 
-a = numpy.array([[2,3,4],[2,3.4]])
-b = numpy.array([[1,3,4],[1,3,4]])
+#a = numpy.array([[2,3,4],[2,3.4]])
+#b = numpy.array([[1,3,4],[1,3,4]])
 
 #print dir(a,b)
 
@@ -1902,3 +1907,259 @@ while True:
 #im_sim = simulate('brettel', im, 'd')
 #im_sim.show()
 """
+
+
+def s(im):
+    """
+    Compression function (could be lut)
+    """
+    retim = im.copy()
+    retim[..., 0] = .5 * (im[..., 0] + im[..., 1])
+    retim[..., 1] = .5 * (im[..., 0] + im[..., 1])
+    return retim
+
+
+def dxp1(im):
+    """
+    Finite difference positive x
+    """
+    sh = shape(im)
+    m = sh[0]
+    n = sh[1]
+    return im[r_[arange(1, m), m - 1], ...] - im
+
+
+def dxm1(im):
+    """
+    Finite difference negative x
+    """
+    sh = shape(im)
+    m = sh[0]
+    n = sh[1]
+    return im - im[r_[0, arange(0, m-1)], ...]
+
+
+def dyp1(im):
+    """
+    Finite difference positive y
+    """
+    sh = shape(im)
+    m = sh[0]
+    n = sh[1]
+    return im[:, r_[arange(1, n), n - 1], ...] - im
+
+
+def dym1(im):
+    """
+    Finite difference negative y
+    """
+    sh = shape(im)
+    m = sh[0]
+    n = sh[1]
+    return im - im[:, r_[0, arange(0, n - 1)], ...]
+
+def tvdalt_colortv():
+    # Same as pupsi2
+    
+    im = imread('../colordeficiency-images/0010000000.png')
+    im0 = im.copy()
+    figure(0)
+    #imshow(im0, vmin=0, vmax=1)
+    title('Original')
+    
+    #figure(1)
+    #imshow(s(im0), vmin=0, vmax=1)
+    title('Simulated')
+    #show()
+    
+    #figure(2)
+    ion()
+    data = imshow(s(im), vmin=0, vmax=1)
+    #title('Daltonised, simulated')
+    show()
+    draw()
+    
+    sim = s(im)
+    dt = .1
+    eps = .01
+    while True:
+        # Color TV
+        
+        #sim = s(sim)
+        gradx = dxp1(sim - im0)
+        grady = dyp1(sim - im0)
+        normgrad = sqrt(gradx**2 + grady**2) + eps
+        tv_layer1 = numpy.sum(numpy.sqrt(gradx[:,:,0]**2)+numpy.sqrt(grady[:,:,0]**2))
+        tv_layer2 = numpy.sum(numpy.sqrt(gradx[:,:,1]**2)+numpy.sqrt(grady[:,:,1]**2))
+        tv_layer3 = numpy.sum(numpy.sqrt(gradx[:,:,2]**2)+numpy.sqrt(grady[:,:,2]**2))
+        tv_all = numpy.sqrt(tv_layer1**2+tv_layer2**2+tv_layer3**2)
+        #print layer1
+        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
+        tv[:,:,0] = tv_layer1/tv_all*tv[:,:,0]
+        tv[:,:,1] = tv_layer2/tv_all*tv[:,:,1]
+        tv[:,:,2] = tv_layer3/tv_all*tv[:,:,2]
+        # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
+        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
+        sim[sim < 0] = 0
+        sim[sim > 1] = 1
+        
+        #sim = s(sim)
+        data.set_array(sim)
+        draw()
+        
+def tvdalt_channelbychannel():
+    # Same as pupsi2b
+    
+    im = imread('../colordeficiency-images/berries2.png')
+    im0 = im.copy()
+    figure(0)
+    #imshow(im0, vmin=0, vmax=1)
+    title('Original')
+    
+    #figure(1)
+    #imshow(s(im0), vmin=0, vmax=1)
+    title('Simulated')
+    #show()
+    
+    #figure(2)
+    ion()
+    data = imshow(s(im), vmin=0, vmax=1)
+    #title('Daltonised, simulated')
+    show()
+    draw()
+    
+    sim = s(im0)
+    dt = .01
+    eps = .0001
+    while True:
+        #sim = s(sim)
+        
+        #sim = s(sim)
+        # Channel-by-channel
+        gradx = dxp1(sim - im0)
+        grady = dyp1(sim - im0)
+        
+        normgrad = sqrt(gradx**2 + grady**2) + eps
+        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
+        # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
+        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
+        sim[sim < 0] = 0
+        sim[sim > 1] = 1
+        data.set_array(sim)
+        draw()
+        
+        
+def tvdalt_completenormbtwgradient():
+    
+    # Same as pupsi3
+
+    im = imread('../colordeficiency-images/berries2.png')
+    im0 = im.copy()
+    figure(0)
+    #imshow(im0, vmin=0, vmax=1)
+    title('Original')
+    
+    #figure(1)
+    #imshow(s(im0), vmin=0, vmax=1)
+    title('Simulated')
+    #show()
+    
+    #figure(2)
+    ion()
+    data = imshow(s(im), vmin=0, vmax=1)
+    #title('Daltonised, simulated')
+    show()
+    draw()
+    
+    sim = s(im)
+    dt = .1
+    eps = .01
+    while True:
+        gradx = dxp1(sim - im0)
+        grady = dyp1(sim - im0)
+        normgrad_onelayer = sqrt(gradx[:,:,0]**2 + grady[:,:,0]**2+gradx[:,:,1]**2 + grady[:,:,1]**2+gradx[:,:,2]**2 + grady[:,:,2]**2) + eps
+        m,n = numpy.shape(normgrad_onelayer)
+        normgrad = numpy.zeros((m,n,3))
+        normgrad[:,:,0] = normgrad_onelayer
+        normgrad[:,:,1] = normgrad_onelayer
+        normgrad[:,:,2] = normgrad_onelayer
+        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
+        # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
+        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
+        sim[sim < 0] = 0
+        sim[sim > 1] = 1
+        #sim = s(sim)
+        data.set_array(sim)
+        draw()
+        
+def tvdalt_completenormbtwabsoutegradient():
+    # Same as pupsi4
+    
+    im = im = imread('../colordeficiency-images/berries2.png')
+    im0 = im.copy()
+    figure(0)
+    #imshow(im0, vmin=0, vmax=1)
+    title('Original')
+    
+    #figure(1)
+    #imshow(s(im0), vmin=0, vmax=1)
+    title('Simulated')
+    #show()
+    
+    #figure(2)
+    ion()
+    data = imshow(s(im), vmin=0, vmax=1)
+    #title('Daltonised, simulated')
+    show()
+    draw()
+    
+    
+    gradx0 = dxp1(im0)
+    grady0 = dyp1(im0)
+    norm_im0 = sqrt(gradx0[:,:,0]**2+grady0[:,:,0]**2+gradx0[:,:,1]**2+grady0[:,:,1]**2+gradx0[:,:,2]**2+grady0[:,:,2]**2)
+    
+    err = im0 - s(im0)
+    sim = s(im)
+    dt = .1
+    eps = .001
+    lambd = 0.05
+    while True:
+        
+        
+        gradx = dxp1(sim)
+        grady = dyp1(sim)
+        norm_sim = numpy.sqrt(gradx[:,:,0]**2 + grady[:,:,0]**2+gradx[:,:,1]**2 + grady[:,:,1]**2+gradx[:,:,2]**2 + grady[:,:,2]**2) + eps
+        
+        func = norm_sim - norm_im0
+        #func = 1/2*func**2
+        #m,n = numpy.shape(func)
+        #func_3 = numpy.zeros((m,n,3))
+        #func_3[:,:,0] = func
+        #func_3[:,:,1] = func
+        #func_3[:,:,2] = func
+        sign = numpy.sign(func)#func/numpy.abs(func)
+        m,n = numpy.shape(sign)
+        sign_3 = numpy.zeros((m,n,3))
+        sign_3[:,:,0] = sign
+        sign_3[:,:,1] = sign
+        sign_3[:,:,2] = sign
+        #data.set_array(func_3)
+        #print numpy.shape(sign)
+        
+        m,n = numpy.shape(norm_sim)
+        norm_sim_3 = numpy.zeros((m,n,3))
+        norm_sim_3[:,:,0] = norm_sim
+        norm_sim_3[:,:,1] = norm_sim
+        norm_sim_3[:,:,2] = norm_sim
+        tv = dxm1(sign_3 * gradx / norm_sim_3) + dym1(sign_3 * grady / norm_sim_3)#+lamb*
+        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt*tv[1:-1, 1:-1]
+        #tv = dxm1(gradx / norm_sim_3) + dym1(grady / norm_sim_3)
+        #sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt*tv[1:-1, 1:-1] *  sign_3[1:-1,1:-1]
+        
+        sim[sim < 0] = 0
+        sim[sim > 1] = 1
+        im = sim+err
+        data.set_array(im)
+        draw()
+    
+tvdalt_completenormbtwabsoutegradient()
