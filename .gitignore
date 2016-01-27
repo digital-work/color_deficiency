@@ -58,9 +58,9 @@ code/Matlab/implementation/*
 !code/Matlab/implementation/simColorBindImg.m
 !code/Matlab/implementation/imgRecolor.m
 
-!colordeficiency-images/0010000000.png
 colordeficiency-images/tmp/*
 !colordeficiency-images/tmp/README
+!colordeficiency-images/berries2.png
 
 total_variation/*
 colordeficiency/total_variation.py
