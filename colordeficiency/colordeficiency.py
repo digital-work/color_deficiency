@@ -18,7 +18,11 @@ import time
 #import subprocess
 #import sys
 #import cv2
-from pymatbridge import Matlab
+try:
+    from pymatbridge import Matlab
+except ImportError:
+    print 'Daltonization method ??? cannot be used.'
+    #raise ImportError('Daltonization method: ??? cannot be used')
 import sys
 #from test_wech import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
 
