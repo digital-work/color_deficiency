@@ -2161,5 +2161,7 @@ def tvdalt_completenormbtwabsoutegradient():
         im = sim+err
         data.set_array(im)
         draw()
-    
+
+print "Hello World"
+
 tvdalt_completenormbtwabsoutegradient()
