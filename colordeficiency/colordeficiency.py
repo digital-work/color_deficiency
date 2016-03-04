@@ -2307,5 +2307,138 @@ def tvdalt_completenormbtwabsoutegradient_onoriginal():
         im[im > 1] = 1
         data.set_array(im)
         draw()
+    
+from matplotlib.mlab import PCA
+import scipy
 
-tvdalt_completenormbtwabsoutegradient_onoriginal()
+def tvdalt_engineeredgradient():
+    
+    im = imread('../colordeficiency-images/0430000000.png')
+    #print numpy.max(im)
+    m,n,d = numpy.shape(im)
+    print m,n,d
+    lamb = .0
+    
+    scale = 6
+    #im = scipy.misc.imresize(im,(m/2**scale,n/2**scale,3)).copy()
+    m,n,d = numpy.shape(im)
+    im_arr = im.reshape((m*n,3))
+    print m,n,d
+    
+    im0 = im.copy()
+    
+    figure(0); ion()
+    data = imshow(im, vmin=0, vmax=1)
+    title('Daltonised, simulated'); show(); draw() 
+        
+    # Design the improved gradient
+    # Gradient of original image
+    gradx0 = dxp1(im0); gradx0_arr = gradx0.reshape((m*n,3))
+    grady0 = dyp1(im0); grady0_arr = grady0.reshape((m*n,3))
+    
+    # Gradient of simulated image
+    gradxs = dxp1(s(im0))
+    gradys = dyp1(s(im0))
+    
+    # Error gradient
+    dx0 = gradx0-gradxs; dx0_arr = dx0.reshape((m*n,3))    
+    dy0 = grady0-gradys; dy0_arr = dy0.reshape((m*n,3))
+    
+    # Compute vectors in principal directions
+    ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
+    ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
+    el_PCA = PCA(im_arr, standardize=False)
+    print el_PCA.Wt
+    el = numpy.array((1,1,1)); el = el / numpy.linalg.norm(el)
+    ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
+        
+    dx0dot_arr = numpy.zeros((m*n,3))
+    dy0dot_arr = numpy.zeros((m*n,3))
+    for i in range(0,d):
+        dx0dot_arr[:,i] = numpy.dot(dx0_arr,ed)
+        dy0dot_arr[:,i] = numpy.dot(dy0_arr,ed)
+        
+    # Multi scaling reimaging
+    while False:
+        print "Hiersimmer"
+        im_resize = scipy.misc.imresize(im,(m/2,n/2,3),interp='bicubic')
+        data.set_array(im_resize)
+        draw()
+    
+    # Improved gradient
+    # Find best lambda
+    cost = numpy.inf
+    for i in numpy.arange(.0,1.1,.1):
+        i = 1-i
+        gradxdalt_diff = gradx0_arr + (dx0dot_arr * (i*el+(1-i)*ec))
+        gradydalt_diff = grady0_arr +  (dy0dot_arr * (i*el+(1-i)*ec))
+
+        cost_temp = numpy.sum(numpy.abs(gradxdalt_diff)) + numpy.sum(numpy.abs(gradydalt_diff))
+        #print cost_temp, i
+        if cost_temp < cost:
+            cost = cost_temp
+            lamb = i
+    print "Final cost and lambda"
+    print cost, lamb
+    
+    lamb = .0
+    #chi = .0
+    
+    gradxdalt_arr = gradx0_arr +  (dx0dot_arr * (lamb*el+(1-lamb)*ec)); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+    gradydalt_arr = grady0_arr +  (dy0dot_arr * (lamb*el+(1-lamb)*ec)); gradydalt = gradydalt_arr.reshape((m,n,3))  
+
+    # Use total variation to compute the updated image from the gradient
+    poissonthingy(im,gradxdalt,gradydalt,data)
+    
+    while True:
+        pass
+    
+
+def poissonthingy(im,gradxdalt,gradydalt,data):
+    
+    dt = .25
+    cted = True
+    cut_off = 10
+    while cted:
+        
+        im_old = im.copy()
+        
+        a=time.time()
+        gradx = dxp1(im)
+        grady = dyp1(im)
+        
+        pois = dxm1(gradx) + dym1(grady) - dxm1(gradxdalt) - dym1(gradydalt)  
+        im[1:-1, 1:-1] = im[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
+        im[im < 0] = 0
+        im[im > 1] = 1
+        #print time.time()-a
+        
+        #a = time.time()
+        print RMSE(im_old,im)
+        if RMSE(im_old,im) < cut_off:
+            cted = False
+            #print RMSE(im_old,im)
+        #print time.time()-a
+        data.set_array(s(im))
+        draw()
+    return im
+    
+
+def RMSE(u_old,u_new):
+    
+    if numpy.shape(u_old) != numpy.shape(u_new):
+        print "Error: Both images have to be the same size"
+        
+    m,n,d = numpy.shape(u_old)
+    
+    u_diff = (u_new-u_old)**2
+    u_se = numpy.zeros((m,n))
+    for i in range(0,d):
+        u_se += u_diff[:,:,i]
+    u_rse = numpy.sqrt(u_se)
+    rmse = numpy.sum(u_rse)
+    
+    return rmse
+    
+
+tvdalt_engineeredgradient()
