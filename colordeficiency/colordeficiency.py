@@ -2366,20 +2366,6 @@ def tvdalt_engineeredgradient():
         draw()
     
     # Improved gradient
-    # Find best lambda
-    cost = numpy.inf
-    for i in numpy.arange(.0,1.1,.1):
-        i = 1-i
-        gradxdalt_diff = gradx0_arr + (dx0dot_arr * (i*el+(1-i)*ec))
-        gradydalt_diff = grady0_arr +  (dy0dot_arr * (i*el+(1-i)*ec))
-
-        cost_temp = numpy.sum(numpy.abs(gradxdalt_diff)) + numpy.sum(numpy.abs(gradydalt_diff))
-        #print cost_temp, i
-        if cost_temp < cost:
-            cost = cost_temp
-            lamb = i
-    print "Final cost and lambda"
-    print cost, lamb
     
     lamb = .0
     #chi = .0
