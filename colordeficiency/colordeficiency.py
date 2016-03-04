@@ -2312,84 +2312,112 @@ from matplotlib.mlab import PCA
 import scipy
 
 def tvdalt_engineeredgradient():
-    
-    im = imread('../colordeficiency-images/0430000000.png')
-    #print numpy.max(im)
-    m,n,d = numpy.shape(im)
-    print m,n,d
-    lamb = .0
-    
-    scale = 6
-    #im = scipy.misc.imresize(im,(m/2**scale,n/2**scale,3)).copy()
-    m,n,d = numpy.shape(im)
-    im_arr = im.reshape((m*n,3))
-    print m,n,d
-    
+     
+    im = imread('../colordeficiency-images/0340000000.png')
     im0 = im.copy()
+    m,n,d = numpy.shape(im)
+    sim = s
+
+    scale = 6
+    size = (int(m/2.**scale), int(n/2.**scale))
+    if size[0] < 10 or size[1] < 10:
+        print "Error: The resized image is to small"
+        return
+    im = scipy.misc.imresize(im,size,interp="nearest",mode="RGB")/255.
     
     figure(0); ion()
     data = imshow(im, vmin=0, vmax=1)
     title('Daltonised, simulated'); show(); draw() 
-        
-    # Design the improved gradient
-    # Gradient of original image
+    
+    im_dalt = daltonization_poisson(im,sim,data,simed=False)
+    
+    im_dalt = scipy.misc.imresize(im_dalt,(m,n),interp="nearest",mode="RGB")/255.
+    #im_dalt = (im0+im_dalt)/2.
+    data.set_array((im_dalt)); draw()
+    
+      
+    while True:
+        pass
+
+def daltonization_poisson(im,sim,data=None,simed=True):
+    
+    m,n,d = numpy.shape(im)
+    
+    #######
+    ## Design the improved gradient
+    #######
+    # Gradients of original image and simulated image
+    
+    im0 = im.copy()
     gradx0 = dxp1(im0); gradx0_arr = gradx0.reshape((m*n,3))
     grady0 = dyp1(im0); grady0_arr = grady0.reshape((m*n,3))
     
-    # Gradient of simulated image
-    gradxs = dxp1(s(im0))
-    gradys = dyp1(s(im0))
+    gradxs = dxp1(sim(im0)); gradxs_arr = gradxs.reshape((m*n,3))
+    gradys = dyp1(sim(im0)); gradys_arr = gradys.reshape((m*n,3))
     
-    # Error gradient
+    # Error between the two gradients
     dx0 = gradx0-gradxs; dx0_arr = dx0.reshape((m*n,3))    
     dy0 = grady0-gradys; dy0_arr = dy0.reshape((m*n,3))
     
-    # Compute vectors in principal directions
+    # Compute vectors in principal projection directions
     ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
     ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
-    el_PCA = PCA(im_arr, standardize=False)
-    print el_PCA.Wt
+    # el_PCA = PCA(im_arr, standardize=False)
+    # print el_PCA.Wt
     el = numpy.array((1,1,1)); el = el / numpy.linalg.norm(el)
     ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
-        
+    
+    # Construct Improved gradient    
     dx0dot_arr = numpy.zeros((m*n,3))
     dy0dot_arr = numpy.zeros((m*n,3))
     for i in range(0,d):
         dx0dot_arr[:,i] = numpy.dot(dx0_arr,ed)
         dy0dot_arr[:,i] = numpy.dot(dy0_arr,ed)
+    
+    gradx0dot_arr = numpy.zeros((m*n,3))
+    grady0dot_arr = numpy.zeros((m*n,3))
+    for i in range(0,d):
+        gradx0dot_arr[:,i] = numpy.dot(gradx0_arr,ed)
+        grady0dot_arr[:,i] = numpy.dot(grady0_arr,ed)
         
-    # Multi scaling reimaging
-    while False:
-        print "Hiersimmer"
-        im_resize = scipy.misc.imresize(im,(m/2,n/2,3),interp='bicubic')
-        data.set_array(im_resize)
-        draw()
+    # Compute Chi for each pixel
+    a = numpy.sqrt(numpy.sum((gradx0dot_arr*ec)**2,axis=1)+numpy.sum((grady0dot_arr*ec)**2,axis=1))
+    b = 2*(numpy.sum(gradx0dot_arr*ec*gradxs_arr,axis=1)+numpy.sum(grady0dot_arr*ec*gradys_arr,axis=1))
+    c = numpy.sqrt(numpy.sum(gradxs_arr**2,axis=1)+numpy.sum(gradys_arr**2,axis=1))-numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1))
     
-    # Improved gradient
+    #cutoff = .51
+    chi_pos = (-b+numpy.sqrt(b**2-4*a*c))/(2*a)
+    chi_pos[numpy.isnan(chi_pos)] = 0
+    #chipos[chipos<=cutoff] = 0
+    chipos_arr = numpy.zeros((m*n,3))
+    for i in range(0,d):
+        chipos_arr[:,i] = chi_pos
     
-    lamb = .0
-    #chi = .0
+    if False:
+        chipos_img = chi_pos.reshape((m,n))/numpy.max(chipos_arr)
+        figure(1); 
+        data2 = imshow(chipos_img,vmin=0,vmax=1,cmap = cm.Greys_r)
+        title('Chi values map'); show(); draw()
     
-    gradxdalt_arr = gradx0_arr +  (dx0dot_arr * (lamb*el+(1-lamb)*ec)); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-    gradydalt_arr = grady0_arr +  (dy0dot_arr * (lamb*el+(1-lamb)*ec)); gradydalt = gradydalt_arr.reshape((m,n,3))  
+    gradxdalt_arr = gradx0_arr+(dx0dot_arr*2*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+    gradydalt_arr = grady0_arr+(dy0dot_arr*2*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
 
-    # Use total variation to compute the updated image from the gradient
-    poissonthingy(im,gradxdalt,gradydalt,data)
+    #######
+    ## Compute the daltonized image
+    #######
+    # Use the poisson equation
     
-    while True:
-        pass
-    
+    return poissonthingy(im,gradxdalt,gradydalt,sim,data,simed) 
 
-def poissonthingy(im,gradxdalt,gradydalt,data):
+def poissonthingy(im,gradxdalt,gradydalt,sim,data=None,simed=True):
     
     dt = .25
+    cut_off = 1
     cted = True
-    cut_off = 10
     while cted:
         
         im_old = im.copy()
         
-        a=time.time()
         gradx = dxp1(im)
         grady = dyp1(im)
         
@@ -2397,16 +2425,16 @@ def poissonthingy(im,gradxdalt,gradydalt,data):
         im[1:-1, 1:-1] = im[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
         im[im < 0] = 0
         im[im > 1] = 1
-        #print time.time()-a
         
-        #a = time.time()
         print RMSE(im_old,im)
         if RMSE(im_old,im) < cut_off:
             cted = False
-            #print RMSE(im_old,im)
-        #print time.time()-a
-        data.set_array(s(im))
-        draw()
+        if data:
+            if simed:
+                data.set_array(sim(im))
+            else:
+                data.set_array(im)
+            draw()
     return im
     
 
