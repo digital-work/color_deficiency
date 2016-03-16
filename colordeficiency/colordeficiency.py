@@ -2310,50 +2310,122 @@ def tvdalt_completenormbtwabsoutegradient_onoriginal():
     
 from matplotlib.mlab import PCA
 import scipy
+from scipy.misc import imresize
 
 def tvdalt_engineeredgradient():
+    
      
-    im = imread('../colordeficiency-images/0340000000.png')
+    im = imread('../colordeficiency-images/berries2.png')
     im0 = im.copy()
     m,n,d = numpy.shape(im)
-    sim = s
-
-    scale = 6
-    size = (int(m/2.**scale), int(n/2.**scale))
-    if size[0] < 10 or size[1] < 10:
-        print "Error: The resized image is to small"
-        return
-    im = scipy.misc.imresize(im,size,interp="nearest",mode="RGB")/255.
     
     figure(0); ion()
-    data = imshow(im, vmin=0, vmax=1)
-    title('Daltonised, simulated'); show(); draw() 
+    data = imshow(im0, vmin=0, vmax=1)
+    title("Daltonised"); show(); draw()
     
-    im_dalt = daltonization_poisson(im,sim,data,simed=False)
     
-    im_dalt = scipy.misc.imresize(im_dalt,(m,n),interp="nearest",mode="RGB")/255.
-    #im_dalt = (im0+im_dalt)/2.
-    data.set_array((im_dalt)); draw()
+    dict = {    'sim': s,
+                'interp': "cubic",
+                'im0': im0,
+                'data': data,
+                #'data2': data2,
+                'is_simulated': True}
     
-      
+    im_dalt = multiscaling(im,daltonization_poisson,dict)
+    #im_dalt = daltonization_poisson(im,dict)
+    print "Ferdig"  
     while True:
         pass
+    
 
-def daltonization_poisson(im,sim,data=None,simed=True):
+def multiscaling(im,func,dict={}):
+    
+    min_size = 20
+    #print dict
+    interp = 'bilinear'
+    if dict.has_key('interp'):
+        interp = dict['interp']
+        
+    mode = 'RGB'
+    if dict.has_key('mode'):
+        mode = dict['mode']
     
     m,n,d = numpy.shape(im)
+    size = numpy.array((m,n))
+    if m <= min_size or n <= min_size:
+        #print 'hiersimmer2'
+        im_small = imresize(im,(0.5*size).astype(int),interp=interp,mode=mode)/255.
+        #err = im - imresize(im_small,size,interp=interp,mode=mode) 
+        im_small_new = func(im,dict)
+        return im_small_new
+    else:
+        #print 'hiersimmer'
+        im_small = imresize(im,(0.5*size).astype(int),interp=interp,mode=mode)/255.
+        err = im - imresize(im_small,size,interp=interp,mode=mode)/255.
+        im_small_updated = multiscaling(im_small,func,dict)
+        #print numpy.shape(err), numpy.shape( imresize(im_small_updated,size,interp=interp,mode=mode)/255.)
+        im_updated = err + imresize(im_small_updated,size,interp=interp,mode=mode)/255.
+        im_new = func(im_updated,dict)
+        
+        return im_new
+
+def daltonization_poisson(im,dict):
+    
+    print 'hiersimmer3'
+    name = "daltonization_poisson"
+    #print dict
+    # Necessary variables
+    if not dict.has_key('im0'):
+        print "Error: The original image has to be defined in the dictionary. ["+name+"]"
+        return
+    else:
+        im0 = dict['im0']
+    
+    if not dict.has_key('sim'):
+        print "Error: The simulation function has to be defined in the dictionary. ["+name+"]"
+        return
+    else:
+        sim = dict['sim']
+    
+    # Optional variables for imresize
+    interp = 'bilinear'
+    if dict.has_key('interp'):
+        interp = dict['interp']
+        
+    mode = 'RGB'
+    if dict.has_key('mode'):
+        mode = dict['mode']
+    
+    # Optional variables for visualization  
+    data = None
+    if dict.has_key('data'):
+        data = dict['data']
+        
+    is_simulated = False
+    if dict.has_key('is_simulated'):
+        is_simulated = dict['is_simulated']
+    
+    m,n,d = numpy.shape(im)
+    dim_max = numpy.max((m,n))
+    
+    
+    cutoff = int(100* 0.5**(9-log(dim_max)/log(2)))+1
+    #cutoff = 1
+    if dict.has_key('cutoff'):
+        cutoff = dict['cutoff']
+    #print cutoff
     
     #######
     ## Design the improved gradient
     #######
     # Gradients of original image and simulated image
+    im0_small = imresize(im0,(m,n),interp,mode=mode)/255.
+    #im0 = im.copy()
+    gradx0 = dxp1(im0_small); gradx0_arr = gradx0.reshape((m*n,3))
+    grady0 = dyp1(im0_small); grady0_arr = grady0.reshape((m*n,3))
     
-    im0 = im.copy()
-    gradx0 = dxp1(im0); gradx0_arr = gradx0.reshape((m*n,3))
-    grady0 = dyp1(im0); grady0_arr = grady0.reshape((m*n,3))
-    
-    gradxs = dxp1(sim(im0)); gradxs_arr = gradxs.reshape((m*n,3))
-    gradys = dyp1(sim(im0)); gradys_arr = gradys.reshape((m*n,3))
+    gradxs = dxp1(sim(im0_small)); gradxs_arr = gradxs.reshape((m*n,3))
+    gradys = dyp1(sim(im0_small)); gradys_arr = gradys.reshape((m*n,3))
     
     # Error between the two gradients
     dx0 = gradx0-gradxs; dx0_arr = dx0.reshape((m*n,3))    
@@ -2387,55 +2459,76 @@ def daltonization_poisson(im,sim,data=None,simed=True):
     
     #cutoff = .51
     chi_pos = (-b+numpy.sqrt(b**2-4*a*c))/(2*a)
+    c = b**2-4*a*c
+    #print numpy.min(c)
     chi_pos[numpy.isnan(chi_pos)] = 0
     #chipos[chipos<=cutoff] = 0
     chipos_arr = numpy.zeros((m*n,3))
     for i in range(0,d):
         chipos_arr[:,i] = chi_pos
+        
+    #print numpy.mean(chi_pos)
+    #print numpy.max(chi_pos)
     
     if False:
         chipos_img = chi_pos.reshape((m,n))/numpy.max(chipos_arr)
         figure(1); 
         data2 = imshow(chipos_img,vmin=0,vmax=1,cmap = cm.Greys_r)
         title('Chi values map'); show(); draw()
-    
-    gradxdalt_arr = gradx0_arr+(dx0dot_arr*2*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-    gradydalt_arr = grady0_arr+(dy0dot_arr*2*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
+    boost = 1.0
+    gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+    gradydalt_arr = grady0_arr+(dy0dot_arr*boost*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
 
     #######
     ## Compute the daltonized image
     #######
     # Use the poisson equation
     
-    return poissonthingy(im,gradxdalt,gradydalt,sim,data,simed) 
+    return poissonthingy(im,gradxdalt,gradydalt,sim,cutoff,data=data,is_simulated=is_simulated) 
 
-def poissonthingy(im,gradxdalt,gradydalt,sim,data=None,simed=True):
+def poissonthingy(im,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=True):
     
+    m,n,d = numpy.shape(im)
+    im_new = im.copy()
     dt = .25
-    cut_off = 1
+    #cut_off = 10
     cted = True
+    first_RMSE = True
+    arr = []
     while cted:
+    
+        im = im_new.copy()
         
-        im_old = im.copy()
-        
-        gradx = dxp1(im)
-        grady = dyp1(im)
+        gradx = dxp1(im_new)
+        grady = dyp1(im_new)
         
         pois = dxm1(gradx) + dym1(grady) - dxm1(gradxdalt) - dym1(gradydalt)  
-        im[1:-1, 1:-1] = im[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
-        im[im < 0] = 0
-        im[im > 1] = 1
+        im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
+        im_new[im_new < 0] = 0
+        im_new[im_new > 1] = 1
         
-        print RMSE(im_old,im)
-        if RMSE(im_old,im) < cut_off:
+        tmp = RMSE(im,im_new)
+        arr.append(tmp)
+        if first_RMSE:
+            first_RMSE = False
+            cutoff = int(0.1*tmp+1)
+        if temp < cutoff:
             cted = False
         if data:
-            if simed:
-                data.set_array(sim(im))
+            if is_simulated:
+                data.set_array(sim(im_new))
             else:
-                data.set_array(im)
+                data.set_array(im_new)
             draw()
-    return im
+    
+    arr = numpy.array(arr)
+    #figure(2);
+    #plot(arr)
+    #title("RMSE"); show(); draw()
+    #print arr[0]
+    #data2 = dict['data2']
+    
+    return im_new
     
 
 def RMSE(u_old,u_new):
