@@ -47,6 +47,7 @@ dalt2ID = {'original':          0,
            'yoshi-alsam-only':  6,
            'yoshi-simone':      7,
            'yoshi-alsam':       8,
+           'yoshi-gradient':    9,
            'dummy':             99}
 id2Dalt = {0:   "Original",
            1:   "Fidaner",
@@ -57,6 +58,7 @@ id2Dalt = {0:   "Original",
            6:   "yoshi-alsam-only",
            7:   "yoshi-simone",
            8:   "yoshi-alsam",
+           9:   "yoshi-gradient",
            99:  "Dummy"}
 
 dict_dalt_ids = {'anagnastapoulos'}

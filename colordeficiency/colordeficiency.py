@@ -403,13 +403,30 @@ def simulation_kotera(img_in, coldef_type, coldef_strength=1.):
     
     return img_out
 
+def simulation_brettel_dic(img_in, dict):
+    
+    if dict.has_key('coldef_type'):
+        coldef_type = dict['coldef_type']
+    else:
+        print "Error: You have to choose a color deficiency type."
+        return img_in
+    
+    coldef_strength = 1.
+    if dict.has_key('coldef_strength'):
+        coldef_strength = dict['coldef_strength']
+    
+    return simulation_brettel(img_in, coldef_type, coldef_strength)
+    
+
 def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     
     
     # Check if correct color deficiency has been chosen
     if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print "Error: Unknown color deficiency type chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
         return img_in
+    
+    is_numpy_array = type(img_in)==numpy.ndarray
     
     #print settings.data_path
     data = numpy.genfromtxt(os.path.join(settings.data_path,'ciexyz31.csv'), delimiter=',')
@@ -439,8 +456,9 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     c485_XYZ =  data[data[:,0]==485.][0,1:4]
     c485_LMS = numpy.dot(xyz2lms,c485_XYZ)
     
-    img_in = img_in.convert('RGB')
-    img_array = numpy.asarray(img_in, dtype=float)/255.
+    if not is_numpy_array:
+        img_in = img_in.convert('RGB')
+        img_array = numpy.asarray(img_in, dtype=float)/255.
     m,n,dim = numpy.shape(img_array)
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
@@ -559,8 +577,10 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     
     # We propose this gamut clipping instead for the one proposed by vienot
     sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)*255.
-    img_array = numpy.uint8(sRGBSimulated_arr)
-    img_out = Image.fromarray(img_array)
+    
+    if not is_numpy_array:
+        img_array = numpy.uint8(sRGBSimulated_arr)
+        img_out = Image.fromarray(img_array)
     
     #showLMSSpace()
     
@@ -1306,7 +1326,9 @@ def daltonization_yoshi_c2g(img_in,options):
     img_out = Image.fromarray(img_array)
  
     return img_out
-    
+
+def daltonization_yoshi_gradient(img_in, options):
+    pass   
 
 def daltonize(img_in,options):
     """
@@ -1345,6 +1367,8 @@ def daltonize(img_in,options):
         img_out = daltonization_yoshi_c2g(img_in,options)
     elif daltonization_type == "yoshi-alsam":
         img_out = daltonization_yoshi_alsam_extra(img_in,options)
+    elif daltonization_type == "":
+        img_out = daltonization_yoshi_gradient(img_in, options)
     elif daltonization_type == "dummy":
         img_out = convertToLuminanceImage(img_in,options)
         #elif daltonization_type == "yoshi_c2g":
@@ -2313,11 +2337,10 @@ import scipy
 from scipy.misc import imresize
 
 def tvdalt_engineeredgradient():
-    
-     
-    im = imread('../colordeficiency-images/berries2.png')
-    im0 = im.copy()
-    m,n,d = numpy.shape(im)
+    """
+    im1 = imread('../colordeficiency-images/berries2.png')
+    im0 = im1.copy()
+    #m,n,d = numpy.shape(im)
     
     figure(0); ion()
     data = imshow(im0, vmin=0, vmax=1)
@@ -2329,10 +2352,52 @@ def tvdalt_engineeredgradient():
                 'im0': im0,
                 'data': data,
                 #'data2': data2,
+                'cutoff': 0.01,
                 'is_simulated': True}
     
-    im_dalt = multiscaling(im,daltonization_poisson,dict)
-    #im_dalt = daltonization_poisson(im,dict)
+    im1_dalt = daltonization_poisson(im1,dict)
+    dict.update({'cutoff': 0.1})
+    im1_dalt_multi = multiscaling(im1,daltonization_poisson,dict)
+    
+    print "Saving image: "
+    imsave('/Users/thomas/Desktop/berries2.png', im1)
+    imsave('/Users/thomas/Desktop/berries2_sim.png', s(im1))
+    imsave('/Users/thomas/Desktop/berries2_dalt.png', im1_dalt)
+    imsave('/Users/thomas/Desktop/berries2_dalt_sim.png', s(im1_dalt))
+    imsave('/Users/thomas/Desktop/berries2_dalt_multi.png', im1_dalt_multi)
+    imsave('/Users/thomas/Desktop/berries2_dalt_multi_sim.png', s(im1_dalt_multi))
+    """
+    
+    im2 = imread('../colordeficiency-images/berries2.png')
+    im0 = im2.copy()
+    #m,n,d = numpy.shape(im)
+    
+    figure(0); ion()
+    data = imshow(im0, vmin=0, vmax=1)
+    title("Daltonised"); show(); draw()
+    
+    
+    dict = {    'sim': s,
+                'interp': "cubic",
+                'im0': im0,
+                'data': data,
+                #'data2': data2,
+                'cutoff': 0.01,
+                'is_simulated': 1}
+    
+    im2_dalt = daltonization_yoshi_gradient_2(im2,dict)
+    dict.update({'cutoff': 0.1})
+    #im2_dalt_multi = multiscaling(im2,daltonization_poisson,dict)
+    
+    print "Saving image: "
+    imsave('/Users/thomas/Desktop/0340000000.png', im2)
+    imsave('/Users/thomas/Desktop/0340000000_sim.png', s(im2))
+    imsave('/Users/thomas/Desktop/0340000000_dalt.png', im2_dalt)
+    imsave('/Users/thomas/Desktop/0340000000_dalt_sim.png', s(im2_dalt))
+    #imsave('/Users/thomas/Desktop/0340000000_dalt_multi.png', im2_dalt_multi)
+    #imsave('/Users/thomas/Desktop/0340000000_dalt_multi_sim.png', s(im2_dalt_multi))
+    
+    
     print "Ferdig"  
     while True:
         pass
@@ -2369,7 +2434,7 @@ def multiscaling(im,func,dict={}):
         
         return im_new
 
-def daltonization_poisson(im,dict):
+def daltonization_yoshi_gradient_2(im,dict):
     
     print 'hiersimmer3'
     name = "daltonization_poisson"
@@ -2409,8 +2474,8 @@ def daltonization_poisson(im,dict):
     dim_max = numpy.max((m,n))
     
     
-    cutoff = int(100* 0.5**(9-log(dim_max)/log(2)))+1
-    #cutoff = 1
+    #cutoff = int(100* 0.5**(9-log(dim_max)/log(2)))+1
+    cutoff = 0.1
     if dict.has_key('cutoff'):
         cutoff = dict['cutoff']
     #print cutoff
@@ -2455,13 +2520,15 @@ def daltonization_poisson(im,dict):
     # Compute Chi for each pixel
     a = numpy.sqrt(numpy.sum((gradx0dot_arr*ec)**2,axis=1)+numpy.sum((grady0dot_arr*ec)**2,axis=1))
     b = 2*(numpy.sum(gradx0dot_arr*ec*gradxs_arr,axis=1)+numpy.sum(grady0dot_arr*ec*gradys_arr,axis=1))
-    c = numpy.sqrt(numpy.sum(gradxs_arr**2,axis=1)+numpy.sum(gradys_arr**2,axis=1))-numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1))
+    c = numpy.sqrt(numpy.sum(gradxs_arr**2,axis=1)+numpy.sum(gradys_arr**2,axis=1))-(numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1)))
     
     #cutoff = .51
-    chi_pos = (-b+numpy.sqrt(b**2-4*a*c))/(2*a)
-    c = b**2-4*a*c
+    under_sqrt = b**2-4*a*c
+    under_sqrt[under_sqrt<0] = 0.
+    chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a)
+    #under_sqrt = b**2-4*a*c
     #print numpy.min(c)
-    chi_pos[numpy.isnan(chi_pos)] = 0
+    chi_pos[numpy.isnan(chi_pos)] = 0.
     #chipos[chipos<=cutoff] = 0
     chipos_arr = numpy.zeros((m*n,3))
     for i in range(0,d):
@@ -2484,9 +2551,9 @@ def daltonization_poisson(im,dict):
     #######
     # Use the poisson equation
     
-    return poissonthingy(im,gradxdalt,gradydalt,sim,cutoff,data=data,is_simulated=is_simulated) 
+    return poissonthingy(im,im0_small,gradxdalt,gradydalt,sim,cutoff,data=data,is_simulated=is_simulated) 
 
-def poissonthingy(im,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=True):
+def poissonthingy(im,im0,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=True):
     
     m,n,d = numpy.shape(im)
     im_new = im.copy()
@@ -2504,15 +2571,24 @@ def poissonthingy(im,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=True)
         
         pois = dxm1(gradx) + dym1(grady) - dxm1(gradxdalt) - dym1(gradydalt)  
         im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
+        
+        # Boundary definitions
+        im_new[0,:-1,:] = im_new[1,:-1,:] - im0[1,:-1,:] + im0[0,:-1,:] # Green / top
+        im_new[:-1,-1,:] = im_new[:-1,-2,:] - im0[:-1,-2,:] + im0[:-1,-1,:] # Blue / right
+        im_new[-1,1:,:] = im_new[-2,1:,:] - im0[-2,1:,:] + im0[-1,1:,:] # Pink / bottom
+        im_new[1:,0,:] = im_new[1:,1,:] - im0[1:,1,:] + im0[1:,0,:] # Yellow / left
+        
         im_new[im_new < 0] = 0
         im_new[im_new > 1] = 1
+        
+        
         
         tmp = RMSE(im,im_new)
         arr.append(tmp)
         if first_RMSE:
             first_RMSE = False
-            cutoff = int(0.1*tmp+1)
-        if temp < cutoff:
+            cutoff = int(cutoff*tmp+1)
+        if tmp < cutoff:
             cted = False
         if data:
             if is_simulated:
