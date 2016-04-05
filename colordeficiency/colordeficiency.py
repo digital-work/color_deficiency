@@ -253,6 +253,12 @@ def makeLMSDeficientMatrix_brettel(constantHues_LMS, whitepoint_LMS, coldef_type
 
 def crossOut(img_in):
     
+    is_numpy_array = type(img_in)==numpy.ndarray
+    
+    if is_numpy_array:
+        img_in = numpy.uint8(img_in*256)
+        img_in = Image.fromarray(img_in)
+    
     im = img_in.copy()
     converter = ImageEnhance.Color(im)
     im = converter.enhance(0.33)
@@ -263,6 +269,10 @@ def crossOut(img_in):
     draw.line((0, 0) + im.size, fill=128, width=10)
     draw.line((0, im.size[1], im.size[0], 0), fill=128, width=10)
     del draw
+    
+    if is_numpy_array:
+        im = im.convert('RGB')
+        im = numpy.asarray(im, dtype=float)/255.
     
     return im
 
@@ -427,6 +437,11 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
         return img_in
     
     is_numpy_array = type(img_in)==numpy.ndarray
+    if is_numpy_array:
+        print "Note: This is a numpy array."
+    else:
+        print "Note: This is a PIL Image."
+        
     
     #print settings.data_path
     data = numpy.genfromtxt(os.path.join(settings.data_path,'ciexyz31.csv'), delimiter=',')
@@ -456,7 +471,9 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     c485_XYZ =  data[data[:,0]==485.][0,1:4]
     c485_LMS = numpy.dot(xyz2lms,c485_XYZ)
     
-    if not is_numpy_array:
+    if is_numpy_array:
+        img_array = img_in
+    else:
         img_in = img_in.convert('RGB')
         img_array = numpy.asarray(img_in, dtype=float)/255.
     m,n,dim = numpy.shape(img_array)
@@ -576,10 +593,12 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     lmsSimulated_arr = colour.data.Data(lmsSpace, numpy.reshape(lmsSimulated_vector, (m,n,3)))
     
     # We propose this gamut clipping instead for the one proposed by vienot
-    sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)*255.
+    sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)
     
-    if not is_numpy_array:
-        img_array = numpy.uint8(sRGBSimulated_arr)
+    if is_numpy_array:
+        img_out = sRGBSimulated_arr
+    else:
+        img_array = numpy.uint8(sRGBSimulated_arr*255.)
         img_out = Image.fromarray(img_array)
     
     #showLMSSpace()
@@ -2369,6 +2388,7 @@ def tvdalt_engineeredgradient():
     """
     
     im2 = imread('../colordeficiency-images/berries2.png')
+    #im2 = imread('../colordeficiency-images/berries2.png')
     im0 = im2.copy()
     #m,n,d = numpy.shape(im)
     
@@ -2376,24 +2396,30 @@ def tvdalt_engineeredgradient():
     data = imshow(im0, vmin=0, vmax=1)
     title("Daltonised"); show(); draw()
     
-    
+    simulation_type = 'brettel'
+    coldef_type = 'd'
     dict = {    'sim': s,
                 'interp': "cubic",
                 'im0': im0,
                 'data': data,
                 #'data2': data2,
                 'cutoff': 0.01,
-                'is_simulated': 1}
+                'is_simulated': 0,
+                'simulation_type': simulation_type,
+                'coldef_type': coldef_type}
     
     im2_dalt = daltonization_yoshi_gradient_2(im2,dict)
-    dict.update({'cutoff': 0.1})
+    #im2_dalt = multiscaling(im2,daltonization_yoshi_gradient_2,dict)
+    #print numpy.shape(im2_dalt)
+    #imshow(im2_dalt)
+    #dict.update({'cutoff': 0.1})
     #im2_dalt_multi = multiscaling(im2,daltonization_poisson,dict)
     
     print "Saving image: "
-    imsave('/Users/thomas/Desktop/0340000000.png', im2)
-    imsave('/Users/thomas/Desktop/0340000000_sim.png', s(im2))
-    imsave('/Users/thomas/Desktop/0340000000_dalt.png', im2_dalt)
-    imsave('/Users/thomas/Desktop/0340000000_dalt_sim.png', s(im2_dalt))
+    imsave('/Users/thomas/Desktop/test.png', im2)
+    imsave('/Users/thomas/Desktop/test_sim.png', simulate(simulation_type,im2,coldef_type))
+    imsave('/Users/thomas/Desktop/test_dalt.png', im2_dalt)
+    imsave('/Users/thomas/Desktop/test_dalt_sim.png', simulate(simulation_type,im2_dalt,coldef_type))
     #imsave('/Users/thomas/Desktop/0340000000_dalt_multi.png', im2_dalt_multi)
     #imsave('/Users/thomas/Desktop/0340000000_dalt_multi_sim.png', s(im2_dalt_multi))
     
@@ -2446,11 +2472,22 @@ def daltonization_yoshi_gradient_2(im,dict):
     else:
         im0 = dict['im0']
     
-    if not dict.has_key('sim'):
-        print "Error: The simulation function has to be defined in the dictionary. ["+name+"]"
-        return
+    if not dict.has_key('simulation_type'):
+        print "Error: The simulation type has to be defined in the dictionary. ["+name+"]"
+        return crossOut(im)
     else:
-        sim = dict['sim']
+        simulation_type = dict['simulation_type']
+        
+    if not dict.has_key('coldef_type'):
+        print "Error: The color deficiency type has to be defined in the dictionary. ["+name+"]"
+        return crossOut(im)
+    else:
+        coldef_type = dict['coldef_type']
+
+    # Optional variables for simulate
+    coldef_strength = 1.0
+    if dict.has_key('coldef_strength'):
+        coldef_strength = dict['coldef_strength']
     
     # Optional variables for imresize
     interp = 'bilinear'
@@ -2473,7 +2510,6 @@ def daltonization_yoshi_gradient_2(im,dict):
     m,n,d = numpy.shape(im)
     dim_max = numpy.max((m,n))
     
-    
     #cutoff = int(100* 0.5**(9-log(dim_max)/log(2)))+1
     cutoff = 0.1
     if dict.has_key('cutoff'):
@@ -2485,24 +2521,36 @@ def daltonization_yoshi_gradient_2(im,dict):
     #######
     # Gradients of original image and simulated image
     im0_small = imresize(im0,(m,n),interp,mode=mode)/255.
+    #print type(im0_small)==numpy.ndarray
     #im0 = im.copy()
     gradx0 = dxp1(im0_small); gradx0_arr = gradx0.reshape((m*n,3))
     grady0 = dyp1(im0_small); grady0_arr = grady0.reshape((m*n,3))
     
-    gradxs = dxp1(sim(im0_small)); gradxs_arr = gradxs.reshape((m*n,3))
-    gradys = dyp1(sim(im0_small)); gradys_arr = gradys.reshape((m*n,3))
+    im0_small_sim = simulate(simulation_type,im0_small,'p',coldef_strength)
+    #im0sim_arr = numpy.reshape((m*n,3))
+    gradx0s = dxp1(im0_small_sim); gradx0s_arr = gradx0s.reshape((m*n,3))
+    grady0s = dyp1(im0_small_sim); grady0s_arr = grady0s.reshape((m*n,3))
     
     # Error between the two gradients
-    dx0 = gradx0-gradxs; dx0_arr = dx0.reshape((m*n,3))    
-    dy0 = grady0-gradys; dy0_arr = dy0.reshape((m*n,3))
+    dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
+    dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
+    
     
     # Compute vectors in principal projection directions
     ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
     ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
+    print ed_PCA.Wt
     # el_PCA = PCA(im_arr, standardize=False)
     # print el_PCA.Wt
     el = numpy.array((1,1,1)); el = el / numpy.linalg.norm(el)
     ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
+    unitvectors = numpy.array([ed,el,ec])
+    
+    # Error between the two images
+    d0 = im0_small - im0_small_sim; d0_arr = d0.reshape((m*n,3))
+    test_PCA = PCA(d0_arr)
+    print test_PCA.Wt
+    
     
     # Construct Improved gradient    
     dx0dot_arr = numpy.zeros((m*n,3))
@@ -2510,50 +2558,153 @@ def daltonization_yoshi_gradient_2(im,dict):
     for i in range(0,d):
         dx0dot_arr[:,i] = numpy.dot(dx0_arr,ed)
         dy0dot_arr[:,i] = numpy.dot(dy0_arr,ed)
-    
+        
     gradx0dot_arr = numpy.zeros((m*n,3))
     grady0dot_arr = numpy.zeros((m*n,3))
+    for i in range(0,d):
+        gradx0dot_arr[:,i] = numpy.dot(gradx0_arr,ed)
+        grady0dot_arr[:,i] = numpy.dot(grady0_arr,ed)
+    
+    if 0:
+        figure(2);
+        print numpy.shape(dx0dot_arr), m, n
+        chipos = dx0dot_arr.reshape((m,n,3))
+        print numpy.shape(chipos)
+        data2 = imshow(chipos, vmin=numpy.min(dx0dot_arr), vmax=numpy.max(dx0dot_arr))
+        title("Daltonised"); show(); draw()
+    
+    #lambdneg_arr, chipos_arr = computeChiAndLambda1(gradx0_arr,grady0_arr,unitvectors)
+    lambdneg_arr, chipos_arr = computeChiAndLambda2(dx0dot_arr,dy0dot_arr,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,unitvectors)
+    
+    if 0:
+        figure(2);
+        print numpy.shape(chipos_arr), m, n
+        chipos = chipos_arr.reshape((m,n,3))[:,:,0]
+        print numpy.shape(chipos)
+        data2 = imshow(chipos, vmin=numpy.min(chipos_arr), vmax=numpy.max(chipos_arr))
+        title("Daltonised"); show(); draw()
+     
+    boost_ec = 1.
+    boost_el = 1.
+    combination = 1
+    if combination==1:
+        print "Chroma only."
+        gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+        gradydalt_arr = grady0_arr+(dy0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
+    elif combination==2:
+        print "Lightness only."
+        gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost_el*lambdneg_arr*el); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+        gradydalt_arr = grady0_arr+(dy0dot_arr*boost_el*lambdneg_arr*el); gradydalt = gradydalt_arr.reshape((m,n,3))  
+    elif combination==3:
+        print "Lightness and chroma combined."
+        gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost_el*lambdneg_arr*el)+(dx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+        gradydalt_arr = grady0_arr+(dy0dot_arr*boost_el*lambdneg_arr*el)+(dy0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
+    
+        
+    #######
+    ## Compute the daltonized image
+    #######
+    # Use the poisson equation
+    
+    return poissonthingy(im,im0_small,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,cutoff,data=data,is_simulated=is_simulated) 
+
+def computeChiAndLambda1(gradx0_arr,grady0_arr,unitvectors):
+    """
+    Does this make sense even?
+    """
+    
+    
+    ed = unitvectors[0]
+    el = unitvectors[1]
+    ec = unitvectors[2]
+    
+    mn,d =  numpy.shape(gradx0_arr)
+    
+    gradx0dot_arr = numpy.zeros((mn,d))
+    grady0dot_arr = numpy.zeros((mn,d))
     for i in range(0,d):
         gradx0dot_arr[:,i] = numpy.dot(gradx0_arr,ed)
         grady0dot_arr[:,i] = numpy.dot(grady0_arr,ed)
         
     # Compute Chi for each pixel
     a = numpy.sqrt(numpy.sum((gradx0dot_arr*ec)**2,axis=1)+numpy.sum((grady0dot_arr*ec)**2,axis=1))
-    b = 2*(numpy.sum(gradx0dot_arr*ec*gradxs_arr,axis=1)+numpy.sum(grady0dot_arr*ec*gradys_arr,axis=1))
-    c = numpy.sqrt(numpy.sum(gradxs_arr**2,axis=1)+numpy.sum(gradys_arr**2,axis=1))-(numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1)))
-    
-    #cutoff = .51
+    b = 2*(numpy.sum(gradx0_arr*gradx0dot_arr*ec-gradx0dot_arr*ed*gradx0dot_arr*ec,axis=1)+numpy.sum(grady0_arr*grady0dot_arr*ec-grady0dot_arr*ed*grady0dot_arr*ec,axis=1))
+    c = numpy.sqrt(numpy.sum(gradx0dot_arr*ed**2,axis=1))-numpy.sum(2*gradx0_arr*gradx0dot_arr*ed,axis=1)+numpy.sqrt(numpy.sum(grady0dot_arr*ed**2,axis=1))-numpy.sum(2*grady0_arr*grady0dot_arr*ed,axis=1)
+
     under_sqrt = b**2-4*a*c
     under_sqrt[under_sqrt<0] = 0.
     chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a)
-    #under_sqrt = b**2-4*a*c
-    #print numpy.min(c)
     chi_pos[numpy.isnan(chi_pos)] = 0.
-    #chipos[chipos<=cutoff] = 0
-    chipos_arr = numpy.zeros((m*n,3))
+    chipos_arr = numpy.zeros((mn,d))
     for i in range(0,d):
         chipos_arr[:,i] = chi_pos
+    
+    # Compute Lambd for each pixel
+    a = numpy.sqrt(numpy.sum((gradx0dot_arr*el)**2,axis=1)+numpy.sum((grady0dot_arr*el)**2,axis=1))
+    b = 2*(numpy.sum(gradx0_arr*gradx0dot_arr*el-gradx0dot_arr*ed*gradx0dot_arr*el,axis=1)+ \
+           numpy.sum(grady0_arr*grady0dot_arr*el-grady0dot_arr*ed*grady0dot_arr*el,axis=1))
+    c = numpy.sqrt(numpy.sum(gradx0dot_arr*ed**2,axis=1))-numpy.sum(2*gradx0_arr*gradx0dot_arr*ed,axis=1)+ \
+                   numpy.sqrt(numpy.sum(grady0dot_arr*ed**2,axis=1))-numpy.sum(2*grady0_arr*grady0dot_arr*ed,axis=1)
+    
+    under_sqrt = b**2-4*a*c
+    under_sqrt[under_sqrt<0] = 0.
+    lambd_neg = (-b-numpy.sqrt(under_sqrt))/(2*a)
+    lambd_neg[numpy.isnan(lambd_neg)] = 0.
+    lambdneg_arr = numpy.zeros((mn,d))
+    for i in range(0,d):
+        lambdneg_arr[:,i] = lambd_neg
         
-    #print numpy.mean(chi_pos)
-    #print numpy.max(chi_pos)
+    print numpy.max(lambdneg_arr), numpy.min(lambdneg_arr) 
+    print numpy.max(chipos_arr), numpy.min(chipos_arr)
+    return lambdneg_arr, chipos_arr
     
-    if False:
-        chipos_img = chi_pos.reshape((m,n))/numpy.max(chipos_arr)
-        figure(1); 
-        data2 = imshow(chipos_img,vmin=0,vmax=1,cmap = cm.Greys_r)
-        title('Chi values map'); show(); draw()
-    boost = 1.0
-    gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-    gradydalt_arr = grady0_arr+(dy0dot_arr*boost*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
-
-    #######
-    ## Compute the daltonized image
-    #######
-    # Use the poisson equation
     
-    return poissonthingy(im,im0_small,gradxdalt,gradydalt,sim,cutoff,data=data,is_simulated=is_simulated) 
 
-def poissonthingy(im,im0,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=True):
+def computeChiAndLambda2(dx0dot_arr,dy0dot_arr,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,unitvectors):
+    
+    ed = unitvectors[0]
+    el = unitvectors[1]
+    ec = unitvectors[2]
+    
+    mn,d =  numpy.shape(gradx0_arr)
+    
+    #gradx0dot_arr = numpy.zeros((mn,d))
+    #grady0dot_arr = numpy.zeros((mn,d))
+    #for i in range(0,d):
+    #    gradx0dot_arr[:,i] = numpy.dot(gradx0_arr,ed)
+    #    grady0dot_arr[:,i] = numpy.dot(grady0_arr,ed)
+    
+    # Compute Chi for each pixel
+    a = numpy.sqrt(numpy.sum((dx0dot_arr*ec)**2,axis=1)+numpy.sum((dy0dot_arr*ec)**2,axis=1))
+    b = 2*(numpy.sum(dx0dot_arr*ec*gradx0s_arr,axis=1)+numpy.sum(dy0dot_arr*ec*grady0s_arr,axis=1))
+    c = numpy.sqrt(numpy.sum(gradx0s_arr**2,axis=1)+numpy.sum(grady0s_arr**2,axis=1))-(numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1)))
+    
+    under_sqrt = b**2-4*a*c
+    under_sqrt[under_sqrt<0] = 0.
+    chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a)
+    chi_pos[numpy.isnan(chi_pos)] = 0.
+    chipos_arr = numpy.zeros((mn,d))
+    for i in range(0,d):
+        chipos_arr[:,i] = chi_pos
+    
+        
+    # Compute Lambd for each pixel
+    a = numpy.sqrt(numpy.sum((dx0dot_arr*el)**2,axis=1)+numpy.sum((dy0dot_arr*el)**2,axis=1))
+    b = 2*(numpy.sum(dx0dot_arr*el*gradx0s_arr,axis=1)+numpy.sum(dy0dot_arr*el*grady0s_arr,axis=1))
+    c = numpy.sqrt(numpy.sum(gradx0s_arr**2,axis=1)+numpy.sum(grady0s_arr**2,axis=1))-(numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1)))
+    
+    under_sqrt = b**2-4*a*c
+    under_sqrt[under_sqrt<0] = 0.
+    lambd_neg = (-b-numpy.sqrt(under_sqrt))/(2*a)
+    lambd_neg[numpy.isnan(lambd_neg)] = 0.
+    lambdneg_arr = numpy.zeros((mn,d))
+    for i in range(0,d):
+        lambdneg_arr[:,i] = lambd_neg
+    print numpy.max(lambdneg_arr), numpy.min(lambdneg_arr) 
+    print numpy.max(chipos_arr), numpy.min(chipos_arr)
+    return lambdneg_arr, chipos_arr
+
+def poissonthingy(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,cutoff,data=None,is_simulated=True):
     
     m,n,d = numpy.shape(im)
     im_new = im.copy()
@@ -2561,9 +2712,15 @@ def poissonthingy(im,im0,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=T
     #cut_off = 10
     cted = True
     first_RMSE = True
+    its = 0
     arr = []
     while cted:
-    
+        its += 1
+        if (its // 100. == its / 100.):
+            print its
+        if its >= 1000:
+            print "Caution: Too many iterations. Breaking off."
+            cted = False
         im = im_new.copy()
         
         gradx = dxp1(im_new)
@@ -2572,11 +2729,13 @@ def poissonthingy(im,im0,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=T
         pois = dxm1(gradx) + dym1(grady) - dxm1(gradxdalt) - dym1(gradydalt)  
         im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
         
+        boundary = 1
         # Boundary definitions
-        im_new[0,:-1,:] = im_new[1,:-1,:] - im0[1,:-1,:] + im0[0,:-1,:] # Green / top
-        im_new[:-1,-1,:] = im_new[:-1,-2,:] - im0[:-1,-2,:] + im0[:-1,-1,:] # Blue / right
-        im_new[-1,1:,:] = im_new[-2,1:,:] - im0[-2,1:,:] + im0[-1,1:,:] # Pink / bottom
-        im_new[1:,0,:] = im_new[1:,1,:] - im0[1:,1,:] + im0[1:,0,:] # Yellow / left
+        if boundary==1:
+            im_new[0,:-1,:] = im_new[1,:-1,:] - im0[1,:-1,:] + im0[0,:-1,:] # Green / top
+            im_new[:-1,-1,:] = im_new[:-1,-2,:] - im0[:-1,-2,:] + im0[:-1,-1,:] # Blue / right
+            im_new[-1,1:,:] = im_new[-2,1:,:] - im0[-2,1:,:] + im0[-1,1:,:] # Pink / bottom
+            im_new[1:,0,:] = im_new[1:,1,:] - im0[1:,1,:] + im0[1:,0,:] # Yellow / left
         
         im_new[im_new < 0] = 0
         im_new[im_new > 1] = 1
@@ -2592,7 +2751,8 @@ def poissonthingy(im,im0,gradxdalt,gradydalt,sim,cutoff,data=None,is_simulated=T
             cted = False
         if data:
             if is_simulated:
-                data.set_array(sim(im_new))
+                im_new_sim = simulate(simulation_type,im_new,coldef_type,coldef_strength)
+                data.set_array(im_new_sim)
             else:
                 data.set_array(im_new)
             draw()
