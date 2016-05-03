@@ -1627,333 +1627,6 @@ def lookup(img_in, input_tab, output_tab):
 from pylab import *
 from scipy.interpolate import griddata
 
-def griddata_boundaries(points, values, xi, method='linear', fill_value=nan, rescale=False):
-    
-    xi_copy = xi.copy()
-    
-    index_min = numpy.array(xi<=points[0])
-    if len(index_min):
-        xi_copy[index_min] = points[0]
-    
-    index_max = xi>=points[-1]
-    if len(index_max):
-        xi_copy[index_max] = points[-1]
-    #print xi_copy
-    ip = griddata(points, values, xi_copy, method, fill_value, rescale)
-    
-    return ip
-    
-    
-def total_variation_dalt_1D():
-    
-    ion()
-
-    x = linspace(0, 1)
-    x_2 = linspace(0,1,100)
-    y0 = zeros(shape(x))
-    y0[25:] = 1
-    y0 = y0 + .3 * randn(shape(x)[0])
-    
-    y0 -= numpy.min(y0)
-    y0 = y0/numpy.max(y0)
-    y_2 = griddata(x,y0,x_2,'linear')
-    x = x_2.copy()
-    y = y_2.copy()
-    #y = y0.copy()
-    
-    line, = plot(x,y)
-    
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,75,80,85,115,120,125,165,170,175,255])
-    
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
-    #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
-    #lut_1D_in, lut_1D_out = numpy.array([0,255]), numpy.array([0,255])
-    
-    lut_1D_in = lut_1D_in/255. * 1.0
-    #print numpy.max(y0)
-    lut_1D_out = lut_1D_out/255. * 1.0
-    #print lut_1D_in, lut_1D_out
-    
-    #y_sim = griddata(lut_1D_in, lut_1D_out, y_2, 'linear')
-    
-    dt = .01
-    lambd = 1
-    eps = .00001
-    
-    switch = 0
-    
-    # Compute 1st and 2nd derivatives of LUT
-    lut_in_d = lut_1D_in[1:] - lut_1D_in[:-1]
-    
-    lut_1D_d = lut_1D_out[1:] - lut_1D_out[:-1]
-    lut_1deriv = lut_1D_out.copy()
-    lut_1deriv[1:] = lut_1D_d / (lut_in_d+eps)
-    lut_1deriv[0] = lut_1deriv[1]
-    
-    #print lut_in_d, lut_1D_d, lut_1deriv 
-    
-    lut_2deriv_d = lut_1deriv[1:] - lut_1deriv[:-1]
-    lut_2deriv = lut_1D_out.copy()
-    lut_2deriv[1:] = lut_2deriv_d / (lut_in_d+eps)
-    lut_2deriv[0] = lut_2deriv[1]
-    
-    def suf(x): 
-        return 0.5*x**2
-    def dsduf(x):
-        return x
-    
-    #lut_1D_out = suf(lut_1D_in)
-    #lut_1deriv = dsduf(lut_1D_in)
-    
-    # Compute y0'
-    y0d = y0[1:]-y0[:-1]
-    y0d = y_2[1:] - y_2[:-1]
-    #print numpy.shape(y0d)
-    ylim(-1,4) 
-    
-    while False:
-        if switch:
-            setp(line, 'color', 'r')
-            line.set_ydata(y)
-            switch = 0
-        else:
-            setp(line, 'color', 'b')
-            line.set_ydata(y)
-            switch = 1
-        draw()
-    
-    while True:
-        dsdu = griddata_boundaries(lut_1D_in, lut_1deriv, y, 'linear')
-        yd = y[1:]-y[:-1]
-        
-        v = numpy.sign(yd*dsdu[1:]-y0d)
-        vd = v[:-1] - v[1:]
-        
-        y[1:-1] = y[1:-1]+dt*(-dsdu[1:-1]*vd)
-        
-        too_big = y >= 1.0
-        #y[too_big] = 1.0
-        
-        too_small = y <= 0.0
-        #y[too_small] = 0.0
-        
-        if switch:
-            setp(line, 'color', 'r')
-            line.set_ydata(y_2)
-            switch = 0
-        else:
-            setp(line, 'color', 'b')
-            line.set_ydata(y)
-            switch = 1
-        draw()
-
-def gradientd(im,dir,type="forward"):
-    
-    dir = dir
-    if not dir in['x','y']:
-        print "You either have to choose the x or y axis."
-        return
-    
-    type = type
-    #print type
-    if not type in ['forward','backward']:
-        print "You either have to choose forward or backward."
-        return
-    
-    m,n = numpy.shape(im)
-    im_zero = numpy.zeros((m,n))
-    
-    imd = im_zero.copy()
-    if dir == "x":
-        imd1 = im[:,1:]
-        imd2 = im[:,:-1]  
-        if type == "forward":
-            imd[:,1:] = imd1-imd2
-        else:
-            imd[:,:-1] = imd2-imd1
-    else:
-        imd1 = im[1:,:]
-        imd2 = im[:-1,:]  
-        if type == "forward":
-            imd[1:,:] = imd1-imd2
-        else:
-            imd[:-1,:] = imd2-imd1
-    
-    return imd
-
-def total_variation_dalt_2D():
-    
-    ion()
-
-    im = imread(os.path.join(settings.image_path, '0010000000.png'))
-    im = sum(im, 2) / 3.
-    im0 = im.copy()
-    
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,75,80,85,115,120,125,165,170,175,255])
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
-    #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
-    #lut_1D_in, lut_1D_out = numpy.array([0,255]), numpy.array([0,255])
-    lut_1D_in = lut_1D_in/255. * 1.0
-    lut_1D_out = lut_1D_out/255. * 1.0
-    
-    data = imshow(im, cm.gray)
-    
-    dt = .01
-    eps = .01
-    
-    m,n =numpy.shape(im)
-    im_zero = numpy.zeros((m,n))
-    
-    def s(im):
-        return griddata_boundaries(lut_1D_in, lut_1D_out, im, 'linear')
-        #return im/3. + .6
-        
-    while True:
-        start = s(im)-im0
-        gradx = im_zero.copy(); gradx[:,1:] = start[:,1:] - start[:,:-1]
-        grady = im_zero.copy(); grady[1:,:] = start[1:,:] - start[:-1,:]
-        
-        length = numpy.sqrt(gradx**2+grady**2) + eps
-        vx = gradx/length
-        vy = grady/length
-        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,1:]-vx[:,:-1]
-        vdy = im_zero.copy(); vdy[:-1,:] = vy[1:,:]-vy[:-1,:]
-        tv = vdx+vdy
-        
-        im[1:-1,1:-1] = im[1:-1,1:-1] + dt * tv[1:-1,1:-1]
-        
-        too_big = im >= 1.0
-        im[too_big] = 1.0
-        
-        too_small = im <= 0.0
-        im[too_small] = 0.0
-
-        data.set_array(im)        
-        draw()        
-
-def total_variation_dalt_3D():
-    
-    ion()
-
-    im = imread(os.path.join(settings.image_path, '0340000000-small.png'))
-    #im = sum(im, 2) / 3.
-    im0 = im.copy()
-    
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,75,80,85,115,120,125,165,170,175,255])
-    lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,250]), numpy.array([25,30,35,40,55,50,55,60,65,70,75])
-    #lut_1D_in, lut_1D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([0,25,50,75,100,125,150,175,200,225,255])
-    #lut_1D_in, lut_1D_out = numpy.array([0,255]), numpy.array([0,255])
-    lut_1D_in, lut_1D_out = makeSimulationLookupTable('brettel', 'd',5)
-    lut_1D_in = lut_1D_in/255. * 1.0
-    lut_1D_out = lut_1D_out/255. * 1.0
-    
-    #im0_srgb = colour.data.Data(colour.space.srgb,im0)
-    #im0 = im0_srgb.get(colour.space.ipt)
-    
-    #print numpy.shape(lut_1D_in)    
-    data = imshow(im)
-    
-    dt = .01
-    eps = .0001
-    
-    m,n,d =numpy.shape(im)
-    im_zero = numpy.zeros((m,n,d))
-    print numpy.shape(im)
-    def s(im):
-        #return griddata_boundaries(lut_1D_in, lut_1D_out, im, 'linear')
-        #return im/3. + .6
-        return lookup(im, lut_1D_in, lut_1D_out)
-        #retim = im.copy()
-        #retim[..., 0] = .5 * (retim[..., 0] + retim[..., 1])
-        #retim[..., 1] = .5 * (retim[..., 0] + retim[..., 1])
-        #return retim
-        
-    while True:
-        #print 'poo'
-        #im_srgb = colour.data.Data(colour.space.srgb,im)
-        #im_ipt = im_srgb.get(colour.space.ipt)
-        
-        start =  s(im)-im0
-        
-        #a = im_zero[1:,:-1]
-        #print numpy.shape(a)
-        gradx = im_zero.copy(); gradx[:,1:] = start[:,1:] - start[:,:-1]
-        grady = im_zero.copy(); grady[1:,:] = start[1:,:] - start[:-1,:]
-        
-        length = numpy.sqrt(gradx**2+grady**2) + eps
-        vx = gradx/length
-        vy = grady/length
-        vdx = im_zero.copy(); vdx[:,:-1] = vx[:,1:]-vx[:,:-1]
-        vdy = im_zero.copy(); vdy[:-1,:] = vy[1:,:]-vy[:-1,:]
-        tv = vdx+vdy
-        
-        #total = numpy.sum(numpy.sqrt(tv[:,:,0]**2+tv[:,:,1]**2+tv[:,:,2]**2))#+eps
-        #print total
-        #print numpy.sum(numpy.sqrt(im[:,:,0]**2)) / total+numpy.sum(numpy.sqrt(im[:,:,1]**2)) / total+numpy.sum(numpy.sqrt(im[:,:,2]**2)) / total
-        #tv[:,:,0] = tv[:,:,0] * numpy.sum(numpy.sqrt(tv[:,:,0]**2)) / total
-        #tv[:,:,1] = tv[:,:,1] * numpy.sum(numpy.sqrt(tv[:,:,1]**2)) / total
-        #tv[:,:,2] = tv[:,:,2] * numpy.sum(numpy.sqrt(tv[:,:,2]**2)) / total
-        
-        im[1:-1,1:-1] = im[1:-1,1:-1] + dt *  tv[1:-1,1:-1]
-        
-        #im_ipt = colour.data.Data(colour.space.ipt,im_ipt)
-        #im = im_ipt.get(colour.space.srgb)
-        
-        too_big = im >= 1.0
-        im[too_big] = 1.0
-        
-        too_small = im <= 0.0
-        im[too_small] = 0.0
-
-        data.set_array((im))        
-        draw()  
-    
-#total_variation_dalt_3D()
-
-
-
-#a = numpy.array([[2,3,4],[2,3.4]])
-#b = numpy.array([[1,3,4],[1,3,4]])
-
-#print dir(a,b)
-
-"""    
-
-lut_3D_in, lut_3D_out = makeSimulationLookupTable('brettel','d')
-im = Image.open(os.path.join(settings.image_path, '0010000000.png'))
-#im.show()
-im_sim = lookup(im, lut_3D_in, lut_3D_out)
-#im_sim.show()
-from pylab import *
-ion()
-lut_2D_in, lut_2D_out = numpy.array([0,25,50,75,100,125,150,175,200,225,255]), numpy.array([25,75,80,85,115,120,125,165,170,175,240])
-#plot(lut_2D_in, lut_2D_out)
-im_gray = im.convert('L')
-#im_gray.show()
-#im_sim_gray = lookup(im_gray,lut_2D_in,lut_2D_out)
-
-data = imshow(im_gray, cm.gray)
-draw()
-
-im_gray_vec = numpy.reshape(numpy.asarray(im_gray),1000*1000)
-from scipy.interpolate import griddata
-im_gray_sim_vec = griddata(lut_2D_in, lut_2D_out, im_gray_vec, 'linear')
-im_gray_sim = im_gray_sim_vec.reshape(1000,1000)
-c = Image.fromarray(im_gray_sim.astype('uint8'))
-c.show()
-
-b = lookup(im_gray, lut_2D_in, lut_2D_out)
-data.set_array(im_gray_sim)
-draw()
-
-while True:
-    pass
-
-#im_sim = simulate('brettel', im, 'd')
-#im_sim.show()
-"""
-
-
 def s(im):
     """
     Compression function (could be lut)
@@ -1964,419 +1637,72 @@ def s(im):
     return retim
 
 
-def dxp1(im,dict):
+def dxp1(im,dict={}):
     """
     Finite difference positive x
     """
+    sh = shape(im); m = sh[0]; n = sh[1]
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    
-    sh = shape(im)
-    m = sh[0]
-    n = sh[1]
-    if boundary == 0: 
-        gradx = im[r_[arange(1, m), m - 2], ...] - im # only a test
-    else:
-        gradx = im[r_[arange(1, m), m - 1], ...] - im # rischdisch
+    if boundary==3: 
+        gradx = im[r_[arange(1, m), m - 2], ...] - im
+        #gradx[-1,...] = -gradx[-1,...]
+    elif boundary==4: 
+        gradx = im[r_[arange(1, m), m - 1], ...] - im
+        gradx = gradx[r_[arange(0,m-1),m-2], ...]
+    else: gradx = im[r_[arange(1, m), m - 1], ...] - im
     return gradx
 
 
-def dxm1(im,dict):
+def dxm1(im,dict={}):
     """
     Finite difference negative x
     """
+    sh = shape(im); m = sh[0]; n = sh[1]
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    
-    sh = shape(im)
-    m = sh[0]
-    n = sh[1]
-    if boundary==0:
-        gradx = im - im[r_[1, arange(0, m-1)], ...] # only a test
-    else:
-        gradx = im - im[r_[0, arange(0, m-1)], ...] # rischdisch
+    if boundary==3: 
+        gradx = im - im[r_[1, arange(0, m-1)], ...]
+        #gradx[0,...] = -gradx[0,...]
+    elif boundary==4:
+        gradx = im - im[r_[0, arange(0, m-1)], ...]
+        gradx = gradx[r_[1,arange(1,m)], ...]
+    else: gradx = im - im[r_[0, arange(0, m-1)], ...]
     return gradx
 
 
-def dyp1(im,dict):
+def dyp1(im,dict={}):
     """
     Finite difference positive y
     """
+    sh = shape(im); m = sh[0]; n = sh[1]
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    
-    sh = shape(im)
-    m = sh[0]
-    n = sh[1]
-    if boundary == 0:
-        grady = im[:, r_[arange(1, n), n - 2], ...] - im # only a test
-    else:
-        grady = im[:, r_[arange(1, n), n - 1], ...] - im # rischdisch
+    if boundary==3: 
+        grady = im[:, r_[arange(1, n), n - 2], ...] - im
+        #grady[:,-1,...] = -grady[:,-1,...]
+    elif boundary==4:
+        grady = im[:, r_[arange(1, n), n - 1], ...] - im
+        grady = grady[:,r_[arange(0,n-1),n-2], ...]
+    else: grady = im[:, r_[arange(1, n), n - 1], ...] - im
     return grady
 
 
-def dym1(im,dict):
+def dym1(im,dict={}):
     """
     Finite difference negative y
     """
+    sh = shape(im); m = sh[0]; n = sh[1]
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    
-    sh = shape(im)
-    m = sh[0]
-    n = sh[1]
-    if boundary == 0:
-        grady = im - im[:, r_[1, arange(0, n - 1)], ...] # soll wech
-    else:
-        grady = im - im[:, r_[0, arange(0, n - 1)], ...] # rischdisch
+    if boundary==3: 
+        grady = im - im[:, r_[1, arange(0, n - 1)], ...]
+        #grady[:,0,...] = -grady[:,0,...]
+    elif boundary==4:
+        grady = im - im[:, r_[0, arange(0, n - 1)], ...]
+        grady = grady[:, r_[1,arange(1,n)], ...]
+    else: grady = im - im[:, r_[0, arange(0, n - 1)], ...]
     return grady 
-
-def tvdalt_colortv():
-    # Same as pupsi2
-    
-    im = imread('../colordeficiency-images/0010000000.png')
-    im0 = im.copy()
-    figure(0)
-    #imshow(im0, vmin=0, vmax=1)
-    title('Original')
-    
-    #figure(1)
-    #imshow(s(im0), vmin=0, vmax=1)
-    title('Simulated')
-    #show()
-    
-    #figure(2)
-    ion()
-    data = imshow(s(im), vmin=0, vmax=1)
-    #title('Daltonised, simulated')
-    show()
-    draw()
-    
-    sim = s(im)
-    dt = .1
-    eps = .01
-    while True:
-        # Color TV
-        
-        #sim = s(sim)
-        gradx = dxp1(sim - im0)
-        grady = dyp1(sim - im0)
-        normgrad = sqrt(gradx**2 + grady**2) + eps
-        tv_layer1 = numpy.sum(numpy.sqrt(gradx[:,:,0]**2)+numpy.sqrt(grady[:,:,0]**2))
-        tv_layer2 = numpy.sum(numpy.sqrt(gradx[:,:,1]**2)+numpy.sqrt(grady[:,:,1]**2))
-        tv_layer3 = numpy.sum(numpy.sqrt(gradx[:,:,2]**2)+numpy.sqrt(grady[:,:,2]**2))
-        tv_all = numpy.sqrt(tv_layer1**2+tv_layer2**2+tv_layer3**2)
-        #print layer1
-        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
-        tv[:,:,0] = tv_layer1/tv_all*tv[:,:,0]
-        tv[:,:,1] = tv_layer2/tv_all*tv[:,:,1]
-        tv[:,:,2] = tv_layer3/tv_all*tv[:,:,2]
-        # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
-        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
-        sim[sim < 0] = 0
-        sim[sim > 1] = 1
-        
-        #sim = s(sim)
-        data.set_array(sim)
-        draw()
-        
-def tvdalt_channelbychannel():
-    # Same as pupsi2b
-    
-    im = imread('../colordeficiency-images/berries2.png')
-    im0 = im.copy()
-    figure(0)
-    #imshow(im0, vmin=0, vmax=1)
-    title('Original')
-    
-    #figure(1)
-    #imshow(s(im0), vmin=0, vmax=1)
-    title('Simulated')
-    #show()
-    
-    #figure(2)
-    ion()
-    data = imshow(s(im), vmin=0, vmax=1)
-    #title('Daltonised, simulated')
-    show()
-    draw()
-    
-    sim = s(im0)
-    dt = .01
-    eps = .0001
-    while True:
-        #sim = s(sim)
-        
-        #sim = s(sim)
-        # Channel-by-channel
-        gradx = dxp1(sim - im0)
-        grady = dyp1(sim - im0)
-        
-        normgrad = sqrt(gradx**2 + grady**2) + eps
-        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
-        # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
-        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
-        sim[sim < 0] = 0
-        sim[sim > 1] = 1
-        data.set_array(sim)
-        draw()
-        
-        
-def tvdalt_completenormbtwgradient():
-    
-    
-    tvdalt_completenormbtwgradient_onoriginal
-    # Same as pupsi3
-
-    im = imread('../colordeficiency-images/berries2.png')
-    im0 = im.copy()
-    figure(0)
-    #imshow(im0, vmin=0, vmax=1)
-    title('Original')
-    
-    #figure(1)
-    #imshow(s(im0), vmin=0, vmax=1)
-    title('Simulated')
-    #show()
-    
-    #figure(2)
-    ion()
-    data = imshow(s(im), vmin=0, vmax=1)
-    #title('Daltonised, simulated')
-    show()
-    draw()
-    
-    sim = s(im)
-    dt = .1
-    eps = .01
-    while True:
-        gradx = dxp1(sim - im0)
-        grady = dyp1(sim - im0)
-        normgrad_onelayer = sqrt(gradx[:,:,0]**2 + grady[:,:,0]**2+ \
-                                 gradx[:,:,1]**2 + grady[:,:,1]**2+ \
-                                 gradx[:,:,2]**2 + grady[:,:,2]**2) + eps
-        m,n = numpy.shape(normgrad_onelayer)
-        normgrad = numpy.zeros((m,n,3))
-        normgrad[:,:,0] = normgrad_onelayer
-        normgrad[:,:,1] = normgrad_onelayer
-        normgrad[:,:,2] = normgrad_onelayer
-        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
-        # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
-        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
-        sim[sim < 0] = 0
-        sim[sim > 1] = 1
-        #sim = s(sim)
-        data.set_array(sim)
-        draw()
-        
-def tvdalt_completenormbtwabsoutegradient():
-    # Same as pupsi4
-    
-    im = im = imread('../colordeficiency-images/berries2.png')
-    im0 = im.copy()
-    figure(0)
-    #imshow(im0, vmin=0, vmax=1)
-    title('Original')
-    
-    #figure(1)
-    #imshow(s(im0), vmin=0, vmax=1)
-    title('Simulated')
-    #show()
-    
-    #figure(2)
-    ion()
-    data = imshow(s(im), vmin=0, vmax=1)
-    #title('Daltonised, simulated')
-    show()
-    draw()
-    
-    gradx0 = dxp1(im0)
-    grady0 = dyp1(im0)
-    norm_im0 = sqrt(gradx0[:,:,0]**2+grady0[:,:,0]**2+gradx0[:,:,1]**2+grady0[:,:,1]**2+gradx0[:,:,2]**2+grady0[:,:,2]**2)
-    
-    #err = im0 - s(im0)
-    dt = .1
-    eps = .01
-    #lambd = 0.05
-    m,n,d = numpy.shape(im)
-    
-    sim = s(im)
-    while True:
-        
-        gradx = dxp1(sim)
-        grady = dyp1(sim)
-        norm_sim = numpy.sqrt(gradx[:,:,0]**2 + grady[:,:,0]**2+gradx[:,:,1]**2 + grady[:,:,1]**2+gradx[:,:,2]**2 + grady[:,:,2]**2) + eps
-        
-        func = norm_sim - norm_im0
-        sign = numpy.sign(func)
-        sign_3 = numpy.zeros((m,n,3))
-        norm_sim_3 = numpy.zeros((m,n,3))
-        for i in range(0,d):
-            sign_3[:,:,i] = sign
-            norm_sim_3[:,:,i] = norm_sim
-        
-        tv = dxm1(sign_3 * gradx / norm_sim_3) + dym1(sign_3 * grady / norm_sim_3)
-        sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt*tv[1:-1, 1:-1]
-        
-        sim[sim < 0] = 0
-        sim[sim > 1] = 1
-        data.set_array(sim)
-        draw()
-
-def computeGradientperChannel(im,s_func,delta_u):
-    
-    sim = s_func(im)
-    m,n,d = numpy.shape(im)
-    
-    im_gradient = []
-    
-    for i in range(0,d):
-        im_i_temp = im.copy()
-        im_i_temp[:,:,i] = im[:,:,i]+delta_u
-        im_i_temp[im_i_temp > 1] = 1
-        
-        sim_istar = s_func(im_i_temp) 
-        im_gradient_ui = (sim_istar - sim) / delta_u
-        im_gradient.append(im_gradient_ui)
-    im_gradient = numpy.array(im_gradient)
-    
-    return im_gradient
-
-def tvdalt_completenormbtwgradient_onoriginal():
-    
-    # See page 5 of total variation formulas
-
-    im = imread('../colordeficiency-images/berries2a.png')
-    im0 = im.copy()
-    figure(0)
-    #imshow(im0, vmin=0, vmax=1)
-    title('Original')
-    
-    #figure(1)
-    #imshow(s(im0), vmin=0, vmax=1)
-    title('Simulated')
-    #show()
-    
-    #figure(2)
-    ion()
-    data = imshow(im, vmin=0, vmax=1)
-    #title('Daltonised, simulated')
-    show()
-    draw()
-    
-    #sim = s(im)
-    dt = .1
-    eps = .01
-    m,n,d = numpy.shape(im)
-    delta_u = 0.1
-    while True:
-        
-        print "Next round"
-        
-        gradx = dxp1(s(im) - im0)
-        grady = dyp1(s(im) - im0)
-        normgrad_onelayer = sqrt(gradx[:,:,0]**2 + grady[:,:,0]**2+gradx[:,:,1]**2 + grady[:,:,1]**2+gradx[:,:,2]**2 + grady[:,:,2]**2) + eps
-        #m,n = numpy.shape(normgrad_onelayer)
-        normgrad = numpy.zeros((m,n,3))
-        for i in range(0,d):
-            normgrad[:,:,i] = normgrad_onelayer
-        
-        ###
-        gradgradx = dxm1(gradx / normgrad)
-        gradgradx_arr = gradgradx.reshape((m*n,d))
-        gradgrady = dym1(grady / normgrad)
-        gradgrady_arr = gradgrady.reshape((m*n,d))
-        im_gradient = computeGradientperChannel(im,s,delta_u)
-        
-        tv = numpy.zeros((m,n,d))
-        for i in range(0,d):
-            gradient_i = im_gradient[i]
-            gradient_i_arr = gradient_i.reshape((m*n,d))
-            
-            x_component_i_arr = numpy.sum(gradient_i_arr * gradgradx_arr,axis=1)
-            x_component_i = x_component_i_arr.reshape((m,n))
-            y_component_i_arr = numpy.sum(gradient_i_arr * gradgrady_arr,axis=1)
-            y_component_i = y_component_i_arr.reshape((m,n))
-            tv[:,:,i] = x_component_i + y_component_i
-        ###
-
-        im[1:-1, 1:-1] = im[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
-        im[im < 0] = 0
-        im[im > 1] = 1
-        #sim = s(sim)
-        data.set_array(im)
-        draw()
-
-def tvdalt_completenormbtwabsoutegradient_onoriginal():
-    # Same as pupsi4
-    
-    im = im = imread('../colordeficiency-images/berries2.png')
-    im0 = im.copy()
-    figure(0)
-    #imshow(im0, vmin=0, vmax=1)
-    title('Original')
-    
-    #figure(1)
-    #imshow(s(im0), vmin=0, vmax=1)
-    title('Simulated')
-    #show()
-    
-    #figure(2)
-    ion()
-    data = imshow(s(im), vmin=0, vmax=1)
-    #title('Daltonised, simulated')
-    show()
-    draw()
-    
-    
-    gradx0 = dxp1(im0)
-    grady0 = dyp1(im0)
-    norm_im0 = sqrt(gradx0[:,:,0]**2+grady0[:,:,0]**2+gradx0[:,:,1]**2+grady0[:,:,1]**2+gradx0[:,:,2]**2+grady0[:,:,2]**2)
-
-    dt = .1
-    eps = .001
-    delta_u = 0.1
-    m,n,d = numpy.shape(im)
-    while True:
-        
-        print "Next round"
-        
-        gradx = dxp1(s(im))
-        grady = dyp1(s(im))
-        normgrad_onelayer = numpy.sqrt(gradx[:,:,0]**2 + grady[:,:,0]**2+gradx[:,:,1]**2 + grady[:,:,1]**2+gradx[:,:,2]**2 + grady[:,:,2]**2) + eps
-        
-        func = normgrad_onelayer - norm_im0
-        sign = numpy.sign(func)
-        sign_3 = numpy.zeros((m,n,3))
-        normgrad = numpy.zeros((m,n,3))
-        for i in range(0,d):
-            sign_3[:,:,i] = sign
-            normgrad[:,:,i] = normgrad_onelayer
-        
-        #tv = dxm1(sign_3 * gradx / normgrad) + dym1(sign_3 * grady / normgrad)
-        ###
-        gradgradx = dxm1(sign_3*gradx / normgrad); gradgradx_arr = gradgradx.reshape((m*n,d))
-        gradgrady = dym1(sign_3*grady / normgrad); gradgrady_arr = gradgrady.reshape((m*n,d))
-        im_gradient = computeGradientperChannel(im,s,delta_u)
-        
-        tv = numpy.zeros((m,n,d))
-        for i in range(0,d):
-            gradient_i = im_gradient[i]
-            gradient_i_arr = gradient_i.reshape((m*n,d))
-            
-            x_component_i_arr = numpy.sum(gradient_i_arr * gradgradx_arr,axis=1)
-            x_component_i = x_component_i_arr.reshape((m,n))
-            y_component_i_arr = numpy.sum(gradient_i_arr * gradgrady_arr,axis=1)
-            y_component_i = y_component_i_arr.reshape((m,n))
-            tv[:,:,i] = x_component_i + y_component_i
-        
-        ###
-        im[1:-1, 1:-1] = im[1:-1, 1:-1] + dt*tv[1:-1, 1:-1]
-        
-        im[im < 0] = 0
-        im[im > 1] = 1
-        data.set_array(im)
-        draw()
     
 from matplotlib.mlab import PCA
 import scipy
@@ -2384,10 +1710,10 @@ from scipy.misc import imresize
     
 def daltonization_yoshi_042016(im,dict):
 
-    multi_scaling = 0
-    if dict.has_key('multi_scaling'):
-        multi_scaling = dict['multi_scaling']
-        
+    multi_scaling = dict['multi_scaling'] if dict.has_key('multi_scaling') else 0
+    dict.update({'ms_first': 1})
+    dict.update({'im0': im.copy()})
+
     if multi_scaling:
         im_dalt = multiscaling(im,daltonization_yoshi_gradient,dict)
     else:
@@ -2423,6 +1749,7 @@ def daltonization_yoshi_gradient(im,dict):
     # Optional variables for imresize
     interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
         
     m,n,d = numpy.shape(im)
         
@@ -2476,7 +1803,7 @@ def daltonization_yoshi_gradient(im,dict):
     boost_el = dict['boost_el'] if dict.has_key('boost_el') else 1.
     combination = dict['combination'] if dict.has_key('combination') else 1
     if combination==1:
-        print "Chroma only."
+        if ms_first: sys.stdout.write("Chroma only.\n")
         is_gradx0dot = 1
         if dict.has_key('is_gradx0dot'):
             is_gradx0dot = dict['is_gradx0dot']
@@ -2507,25 +1834,38 @@ def daltonization_yoshi_gradient(im,dict):
         optimization = dict['optimization']
     if optimization==1:
         # Use Poisson optimization
-        return optimization_poisson(im,im0_small,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict)
+        im_dalt =  optimization_poisson(im,im0_small,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict)
     elif optimization==2:
         # Use total variation optimization
-        return optimization_total_variation(im,im0_small,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict) 
-
+        im_dalt = optimization_total_variation(im,im0_small,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict) 
+    elif optimization==3:
+        # Use anisotropic optimization
+        im_dalt = optimization_anisotropic(im,im0_small,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict) 
+    
+    
+    if ms_first: dict['ms_first'] = 0 # Only for first iteration 
+    if numpy.shape(im) == numpy.shape(im0): # Only for last iteration
+        too_many = dict['too_many'] if dict.has_key('too_many') else 0
+        if too_many: sys.stdout.write("\nX: Too many iterations. Breaking off.")
+        sys.stdout.write('\n')
+    
+    return im_dalt
+    
 def prepareOptimizedGradient(im,dict):
     pass
 
 def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     m,n,d = numpy.shape(im)
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
     
     ### Direction of lightness
     constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
     if constant_lightness:
-        print "Constant lightness vector used."
+        if ms_first: sys.stdout.write("El: Constant lightness. ")
         el = numpy.array([0.2126,0.7152,0.0722]) 
     else: 
-        print "Neutral gray lightness vector used."
+        if ms_first: sys.stdout.write("El: Neutral gray lightness. ")
         el = numpy.array([1.,1.,1.])
     el = el / numpy.linalg.norm(el)
     
@@ -2534,13 +1874,13 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     # Kann wech. Benutz immer image PCA
     if img_PCA:
         # Use difference in image domaine
-        print "Image PCA used."
+        if ms_first: sys.stdout.write("Ed: Image PCA, ")
         d0 = im - im_sim; d0_arr = d0.reshape((m*n,3))
         ed_PCA = PCA(d0_arr, standardize=False)
     else:
         # Kann wech
         # Use difference in gradient domaine
-        print "Gradient PCA used."
+        if ms_first: sys.stdout.write("Ed: Gradient PCA, ")
         # Get gradients of original and its simulation
         gradx0 = dxp1(im); grady0 = dyp1(im); 
         gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim); 
@@ -2563,11 +1903,11 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     ed_orthogonalization = dict['ed_orthogonalization'] if dict.has_key('ed_orthogonalization') else 0
     if ed_orthogonalization:
-        print "Orthogonalize ed."
+        if ms_first: sys.stdout.write("orthogonalized. ")
         ed = ed - numpy.dot(ed,el)/numpy.dot(el,el)*el # Gram-Schmidt orthogonalization
         ed = ed / numpy.linalg.norm(ed)
     else:
-        print "Don't orthogonalize ed."
+        if ms_first: sys.stdout.write("not orthogonalized. ")
     #el_tmp = numpy.array([el,]*(m*n))  
     
     ### Direction of optimal daltonization
@@ -2580,11 +1920,15 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     #    ec_tmp_norm_arr[:,i] = ec_tmp_norm
     #ec_tmp = ec_tmp / ec_tmp_norm_arr
     
+    if ms_first: sys.stdout.write('\n')
+    
     return ed,el,ec    
 
 def computeChiAndLambda1(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict={}):
     
-    print "ChiLambd1"
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Chi computations 1. ")
+    eps = .000001
         
     mn,d =  numpy.shape(gradx0_arr)
     
@@ -2604,11 +1948,11 @@ def computeChiAndLambda1(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,
     chi_red = -1.0
     if dict.has_key('chi_red'):
         chi_red = 1.0 if dict['chi_red'] == 1 else -1.0
-        print chi_red
+        #print chi_red
     
     under_sqrt = b**2-4*a*c
     under_sqrt[under_sqrt<0] = 0.
-    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a)
+    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_pos[numpy.isnan(chi_pos)] = 0.
     chipos_arr = numpy.array([chi_pos,]*d).transpose()
     
@@ -2646,7 +1990,9 @@ def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
     """
     Does this make sense even?
     """
-    print "ChiLambd2"
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Chi computations 2. ")
+    eps = .000001
     
     common_dot_product = 1
     mn,d =  numpy.shape(gradx0_arr)
@@ -2683,7 +2029,7 @@ def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
     
     under_sqrt = b**2-4*a*c
     under_sqrt[under_sqrt<0] = 0.
-    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a)
+    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_pos[numpy.isnan(chi_pos)] = 0.
     chipos_arr = numpy.array([chi_pos,]*d).transpose()
     
@@ -2722,7 +2068,8 @@ def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
 
 def optimization_poisson(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict):
     
-    print "Poisson optimization."
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Poisson optimization: ")
     
     m,n,d = numpy.shape(im)
     
@@ -2732,30 +2079,26 @@ def optimization_poisson(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
     dt = dict['dt']if dict.has_key('dt') else .25
     
-    
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; arr = []
-    print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
+    sys.stdout.write('|')
     while cted:
         its += 1
-        if (its // 100. == its / 100.):
-            print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new) 
-            sys.stdout.write('.')
+        if (its // 100. == its / 100.): sys.stdout.write('.')
         if its >= max_its:
             cted = False
-            sys.stdout.write('\n')
-            print "Caution: Too many iterations. Breaking off."
+            sys.stdout.write('X')
+            dict['too_many']=1
         im = im_new.copy()
         
-        boundary = int(dict['boundary']) if dict.has_key('boundary') else 0 
-        
         gradx = dxp1(im,dict); grady = dyp1(im,dict)
-        pois = dxm1(gradx,dict) + dym1(grady,dict) - dxm1(gradxdalt,dict) - dym1(gradydalt,dict)  
+        pois =  dxm1(gradx,dict) + dym1(grady,dict) - \
+                dxm1(gradxdalt,dict) - dym1(gradydalt,dict)
         
-        if (boundary!=0): im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * pois[1:-1, 1:-1] # rischdisch
-        
+        boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
+        if (boundary<=2): im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
         if boundary == 0: 
-            # Mirroring boundary values
-            im_new = im_new + dt * pois # only a test
+            # Keep boundary values constant           
+            pass
         elif boundary == 1:
             im_new[0,:-1,:] = im_new[1,:-1,:] - im0[1,:-1,:] + im0[0,:-1,:] # Green / top
             im_new[:-1,-1,:] = im_new[:-1,-2,:] - im0[:-1,-2,:] + im0[:-1,-1,:] # Blue / right
@@ -2766,11 +2109,11 @@ def optimization_poisson(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,
             im_new[:-1,-1,:] = im_new[:-1,-2,:] # Blue / right
             im_new[-1,1:,:] = im_new[-2,1:,:] # Pink / bottom
             im_new[1:,0,:] = im_new[1:,1,:] # Yellow / left
-        elif boundary == 3:
-            # Keep boundary values constant
-            pass
+        elif boundary >= 3:
+            # 3: Mirroring boundary values
+            # 4: Mirrowring boundary values in gradient space
+            im_new = im_new + dt*pois
             
-        
         # Gamut clipping
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1.
         
@@ -2788,17 +2131,16 @@ def optimization_poisson(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,
                 data.set_array(im_new)
             draw()
     
-    sys.stdout.write('\n')
+    #sys.stdout.write('\n')
     #arr = numpy.array(arr)
     
     return im_new
 
 
 def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict):
-
-    print "Total variation optimization."
     
-    #print numpy.shape(im), numpy.shape(im0)
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Total variation optimization: ")
     
     m,n,d = numpy.shape(im)
     
@@ -2806,29 +2148,39 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
     max_its = dict['max_its'] if dict.has_key('max_its') else 1000
     data = dict['data'] if dict.has_key('data') else None
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
-    dt = dict['dt']if dict.has_key('dt') else .01#.25
-    eps = .001
-    
+    dt = dict['dt']if dict.has_key('dt') else .1
+    eps = 0.99#.000000000000000001#.00000000000000001
     
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; arr = []
-    print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
+    #print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
+    sys.stdout.write('|')
     while cted:
         its += 1
-        if (its // 100. == its / 100.): 
+        """
+        if its <=20:
             print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
+        """    
+        if (its // 100. == its / 100.): 
+            #print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
             sys.stdout.write('.')
         if its >= max_its:
             cted = False
-            sys.stdout.write('\n')
-            print "Caution: Too many iterations. Breaking off."
+            sys.stdout.write('X')
+            dict['too_many']=1
         im = im_new.copy()
          
         #gradx = dxp1(im_new,dict); grady = dyp1(im_new,dict)
         #print numpy.max(dxp1(im_new,dict)), numpy.max(gradxdalt)
-        gradx = dxp1(im,dict) - gradxdalt; grady = dyp1(im,dict) - gradydalt
+        gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
+        #print "Gradient nans (x and y): ", numpy.isnan(gradx).any(), numpy.isnan(grady).any()
         #grad_norm = numpy.sqrt(numpy.sum(gradx**2+grady**2,axis=1))
-        grad_norm = numpy.sqrt(gradx**2+grady**2) + eps
-        #print numpy.mean(grad_norm)
+        grad_norm = numpy.sqrt(gradx**2+grady**2)+eps
+        #print "Norm 0: ", numpy.sum(grad_norm == 0)
+        #grad_norm_inv = 1./grad_norm
+        #print "Norm nan: ", numpy.isnan(grad_norm_inv).any()
+        #grad_norm_inv[grad_norm==0]=.0
+        #grad_norm_inv[numpy.isnan(grad_norm)]=.0
+        #print numpy.isnan(grad_norm_inv).any()
         """
         grad_norm = numpy.zeros((m,n,d))
         for i in range(0,d):
@@ -2851,19 +2203,22 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
                                           
         """
         #print numpy.shape(grad_norm)
-        gradgradx = dxm1(gradx/grad_norm, dict); gradgrady = dym1(grady/grad_norm, dict)
+        #g = gradx*grad_norm; h = grady*grad_norm_inv
+        #print "sign func nan (x and y): ", numpy.isnan(g).any(), numpy.isnan(h).any()
+        gradgradx = dxm1(gradx/grad_norm, dict); gradgrady = dym1(grady*grad_norm, dict)
                                                                                                
         #grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
         tv = (gradgradx + gradgrady)#/grad_norm
         #pois = dxm1(gradx,dict) + dym1(grady,dict) - dxm1(gradxdalt,dict) - dym1(gradydalt,dict)  
-
-        boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
-        if (boundary!=0): 
-            #print "hiersimmer1"
-            im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * tv[1:-1, 1:-1] # rischdisch
+        
+        #print "Tv nan: ", numpy.isnan(tv).any()
+        #im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
+        
+        boundary = int(dict['boundary']) if dict.has_key('boundary') else 0 
+        if (boundary!=3): im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
         if boundary == 0: 
-            # Mirroring boundary values
-            im_new = im_new + dt * tv # only a test
+            # Keep boundary values constant           
+            pass
         elif boundary == 1:
             im_new[0,:-1,:] = im_new[1,:-1,:] - im0[1,:-1,:] + im0[0,:-1,:] # Green / top
             im_new[:-1,-1,:] = im_new[:-1,-2,:] - im0[:-1,-2,:] + im0[:-1,-1,:] # Blue / right
@@ -2875,19 +2230,22 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
             im_new[-1,1:,:] = im_new[-2,1:,:] # Pink / bottom
             im_new[1:,0,:] = im_new[1:,1,:] # Yellow / left
         elif boundary == 3:
-            # Keep boundary values constant
-            #print "hiersimmer2"
-            pass
-
+            # Mirroring boundary values
+            im_new = im_new + dt * tv
+        
         # Gamut clipping
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1.        
         
+        #print numpy.isnan(im_new).any()
         tmp = RMSE(im,im_new); arr.append(tmp)
+        #print tmp
         if first_RMSE:
             # Compute cutoff threshold
             first_RMSE = False
             threshold = int(cutoff*tmp+1)
-        if tmp < threshold: cted = False
+        if tmp < threshold: 
+            cted = False
+            #if not ms_first: sys.stdout.write('\n')
         if data:
             if is_simulated:
                 im_new_sim = simulate(simulation_type,im_new,coldef_type,coldef_strength)
@@ -2896,7 +2254,100 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
                 data.set_array(im_new)
             draw()
     
-    sys.stdout.write('\n')
+    
+    #sys.stdout.write('\n')
+    #arr = numpy.array(arr)
+    
+    return im_new
+
+def optimization_anisotropic(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,coldef_strength,dict):
+    
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Anisotropic optimization: ")
+    
+    m,n,d = numpy.shape(im)
+    
+    cutoff = dict['cutoff'] if dict.has_key('cutoff') else .1
+    max_its = dict['max_its'] if dict.has_key('max_its') else 1000
+    data = dict['data'] if dict.has_key('data') else None
+    is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
+    dt = dict['dt']if dict.has_key('dt') else .1
+    anisotropic = dict['anisotropic'] if dict.has_key('anisotropic') else 0
+    eps = 0.99#.000000000000000001#.00000000000000001
+    
+    gradx0 = dxp1(im0); grady0 = dyp1(im0)
+    g_xx = gradx0*gradx0; g_xy = gradx0*grady0; g_yy = grady0*grady0#; g_yx = grady0*gradx0
+    eig_pos = (g_xy+g_yy+numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.; eig_neg = (g_xy+g_yy-numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.
+    
+    if anisotropic/3 < 3: f = numpy.sqrt(eig_pos-eig_neg)
+    elif anisotropic/3 >= 3: f = numpy.sqrt(eig_pos)
+        
+    if anisotropic%3 == 0: g = f
+    elif anisotropic%3 == 1: g = 1/(1+f)
+    elif anisotropic%3 == 2: g = numpy.exp(-f)
+    
+    im_new = im.copy(); cted = True; first_RMSE = True; its = 0; arr = []
+    sys.stdout.write('|')
+    while cted:
+        its += 1
+          
+        if (its // 100. == its / 100.): 
+            #print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
+            sys.stdout.write('.')
+        if its >= max_its:
+            cted = False
+            sys.stdout.write('X')
+            dict['too_many']=1
+        im = im_new.copy()
+        
+        gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
+        grad_norm = numpy.sqrt(gradx**2+grady**2)+eps
+        gradgradx = dxm1(g*gradx, dict); gradgrady = dym1(g*grady, dict)  
+        #gradgradx = dxm1(g*gradx/grad_norm, dict); gradgrady = dym1(g*grady*grad_norm, dict)                                                                         
+        tv = (gradgradx + gradgrady)#/grad_norm
+               
+        boundary = int(dict['boundary']) if dict.has_key('boundary') else 0 
+        if (boundary!=3): im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
+        if boundary == 0: 
+            # Keep boundary values constant           
+            pass
+        elif boundary == 1:
+            im_new[0,:-1,:] = im_new[1,:-1,:] - im0[1,:-1,:] + im0[0,:-1,:] # Green / top
+            im_new[:-1,-1,:] = im_new[:-1,-2,:] - im0[:-1,-2,:] + im0[:-1,-1,:] # Blue / right
+            im_new[-1,1:,:] = im_new[-2,1:,:] - im0[-2,1:,:] + im0[-1,1:,:] # Pink / bottom
+            im_new[1:,0,:] = im_new[1:,1,:] - im0[1:,1,:] + im0[1:,0,:] # Yellow / left
+        elif boundary == 2:
+            im_new[0,:-1,:] = im_new[1,:-1,:] # Green / top
+            im_new[:-1,-1,:] = im_new[:-1,-2,:] # Blue / right
+            im_new[-1,1:,:] = im_new[-2,1:,:] # Pink / bottom
+            im_new[1:,0,:] = im_new[1:,1,:] # Yellow / left
+        elif boundary == 3:
+            # Mirroring boundary values
+            im_new = im_new + dt * tv
+        
+        # Gamut clipping
+        im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1.        
+        
+        #print numpy.isnan(im_new).any()
+        tmp = RMSE(im,im_new); arr.append(tmp)
+        #print tmp
+        if first_RMSE:
+            # Compute cutoff threshold
+            first_RMSE = False
+            threshold = int(cutoff*tmp+1)
+        if tmp < threshold: 
+            cted = False
+            #if not ms_first: sys.stdout.write('\n')
+        if data:
+            if is_simulated:
+                im_new_sim = simulate(simulation_type,im_new,coldef_type,coldef_strength)
+                data.set_array(im_new_sim)
+            else:
+                data.set_array(im_new)
+            draw()
+    
+    
+    #sys.stdout.write('\n')
     #arr = numpy.array(arr)
     
     return im_new
@@ -2909,13 +2360,27 @@ def RMSE(u_old,u_new):
     m,n,d = numpy.shape(u_old)
     
     u_diff = (u_new-u_old)**2
-    u_se = numpy.zeros((m,n))
-    for i in range(0,d):
-        u_se += u_diff[:,:,i]
-    u_rse = numpy.sqrt(u_se)
+    #a = numpy.sqrt(numpy.sum(u_diff,axis=2))
+    #u_se = numpy.zeros((m,n))
+    #for i in range(0,d):
+    #    u_se += u_diff[:,:,i]
+    #u_rse = numpy.sqrt(u_se)
+    u_rse = numpy.sqrt(numpy.sum(u_diff,axis=2))
+    #print numpy.mean(u_rse-a)
     rmse = numpy.sum(u_rse)
     
     return rmse
+
+def GRMSE(dict_uold,dict_unew):
+    """
+    RMSE of two gradient images
+    """
+    eps = .00001
+    dict_uold = dict['gradx']; dict_unew = dict['gradx']
+    dict_uold = dict['grady']; dict_unew = dict['grady'] 
+    
+    
+    
 
 def multiscaling(im,func,dict={}):
     
