@@ -1750,6 +1750,7 @@ def daltonization_yoshi_gradient(im,dict):
     interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
         
     m,n,d = numpy.shape(im)
         
@@ -1757,16 +1758,24 @@ def daltonization_yoshi_gradient(im,dict):
     ## Design the improved gradient
     #######
     
-    # Gradients of original image and simulated image
     im0_small = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
-    #print numpy.shape(im0_small)
-    gradx0 = dxp1(im0_small,dict); gradx0_arr = gradx0.reshape((m*n,3))
-    grady0 = dyp1(im0_small,dict); grady0_arr = grady0.reshape((m*n,3))
-    #print gradx0
-    
     im0_small_sim = simulate(simulation_type,im0_small,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
-    gradx0s = dxp1(im0_small_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
-    grady0s = dyp1(im0_small_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
+    
+    
+    # Gradients of original image and simulated image
+    if numpy_grad:
+        grads0 = numpy.gradient(im0_small)
+        gradx0 = grads0[0]; gradx0_arr = gradx0.reshape((m*n,3))
+        grady0 = grads0[1]; grady0_arr = grady0.reshape((m*n,3))
+    
+        grads0s = numpy.gradient(im0_small_sim)
+        gradx0s = grads0s[0]; gradx0s_arr = gradx0s.reshape((m*n,3))
+        grady0s = grads0s[1]; grady0s_arr = grady0s.reshape((m*n,3))
+    else: 
+        gradx0 = dxp1(im0_small,dict); gradx0_arr = gradx0.reshape((m*n,3))
+        grady0 = dyp1(im0_small,dict); grady0_arr = grady0.reshape((m*n,3))
+        gradx0s = dxp1(im0_small_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
+        grady0s = dyp1(im0_small_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
     
     # Error between the two gradients
     dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
@@ -1882,8 +1891,17 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
         # Use difference in gradient domaine
         if ms_first: sys.stdout.write("Ed: Gradient PCA, ")
         # Get gradients of original and its simulation
-        gradx0 = dxp1(im); grady0 = dyp1(im); 
-        gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim); 
+        
+        
+        numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
+        if numpy_grad:
+                gradx0 = dxp1(im); grady0 = dyp1(im); 
+                gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim)
+        else:
+            grads0 = numpy.gradient(im); gradx0 = grads0[0]; grady0 = grads0[1]
+            grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]
+                    
+                     
         # Error between the two gradients
         dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
         dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
@@ -2078,6 +2096,7 @@ def optimization_poisson(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,
     data = dict['data'] if dict.has_key('data') else None
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
     dt = dict['dt']if dict.has_key('dt') else .25
+    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
     
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; arr = []
     sys.stdout.write('|')
@@ -2090,9 +2109,18 @@ def optimization_poisson(im,im0,gradxdalt,gradydalt,simulation_type,coldef_type,
             dict['too_many']=1
         im = im_new.copy()
         
-        gradx = dxp1(im,dict); grady = dyp1(im,dict)
-        pois =  dxm1(gradx,dict) + dym1(grady,dict) - \
-                dxm1(gradxdalt,dict) - dym1(gradydalt,dict)
+        if numpy_grad:
+            grads =  numpy.gradient(im); gradx = grads[0]; grady = grads[1]; 
+            gradgradx = numpy.gradient(gradx)[0]; gradgrady = numpy.gradient(grady)[1]
+            gradgradxdalt = numpy.gradient(gradxdalt)[0]; gradgradydalt = numpy.gradient(gradydalt)[1]
+            
+        else: 
+            gradx = dxp1(im,dict); grady = dyp1(im,dict)
+            gradgradx = dxm1(gradx,dict); gradgrady = dym1(grady,dict)
+            gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
+             
+        pois =  gradgradx+gradgrady - \
+                (gradgradxdalt+gradgradydalt)
         
         boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
         if (boundary<=2): im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * pois[1:-1, 1:-1]
@@ -2149,7 +2177,8 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
     data = dict['data'] if dict.has_key('data') else None
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
     dt = dict['dt']if dict.has_key('dt') else .1
-    eps = 0.99#.000000000000000001#.00000000000000001
+    eps = 0.000000000001#.000000000000000001#.00000000000000001
+    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
     
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; arr = []
     #print numpy.min(im_new),numpy.mean(im_new),numpy.max(im_new)
@@ -2171,10 +2200,10 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
          
         #gradx = dxp1(im_new,dict); grady = dyp1(im_new,dict)
         #print numpy.max(dxp1(im_new,dict)), numpy.max(gradxdalt)
-        gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
+        #gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
         #print "Gradient nans (x and y): ", numpy.isnan(gradx).any(), numpy.isnan(grady).any()
         #grad_norm = numpy.sqrt(numpy.sum(gradx**2+grady**2,axis=1))
-        grad_norm = numpy.sqrt(gradx**2+grady**2)+eps
+        #grad_norm = numpy.sqrt(gradx**2+grady**2)+eps
         #print "Norm 0: ", numpy.sum(grad_norm == 0)
         #grad_norm_inv = 1./grad_norm
         #print "Norm nan: ", numpy.isnan(grad_norm_inv).any()
@@ -2205,7 +2234,22 @@ def optimization_total_variation(im,im0,gradxdalt,gradydalt,simulation_type,cold
         #print numpy.shape(grad_norm)
         #g = gradx*grad_norm; h = grady*grad_norm_inv
         #print "sign func nan (x and y): ", numpy.isnan(g).any(), numpy.isnan(h).any()
-        gradgradx = dxm1(gradx/grad_norm, dict); gradgrady = dym1(grady*grad_norm, dict)
+        #gradgradx = dxm1(gradx/grad_norm, dict); gradgrady = dym1(grady*grad_norm, dict)
+        
+        
+        if numpy_grad:
+            gradx = numpy.gradient(dxp1(im_new,dict) - gradxdalt)[0] 
+            grady = numpy.gradient(dyp1(im_new,dict) - gradydalt)[1] 
+            grad_norm = numpy.sqrt(gradx**2+grady**2)+eps   
+            gradgradx = numpy.gradient(gradx/grad_norm)[0]
+            gradgrady = numpy.gradient(grady*grad_norm)[1]
+            
+        else: 
+            gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
+            grad_norm = numpy.sqrt(gradx**2+grady**2)+eps   
+            gradgradx = dxm1(gradx/grad_norm, dict); gradgrady = dym1(grady*grad_norm, dict)
+        
+        
                                                                                                
         #grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
         tv = (gradgradx + gradgrady)#/grad_norm
@@ -2274,6 +2318,7 @@ def optimization_anisotropic(im,im0,gradxdalt,gradydalt,simulation_type,coldef_t
     dt = dict['dt']if dict.has_key('dt') else .1
     anisotropic = dict['anisotropic'] if dict.has_key('anisotropic') else 0
     eps = 0.99#.000000000000000001#.00000000000000001
+    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
     
     gradx0 = dxp1(im0); grady0 = dyp1(im0)
     g_xx = gradx0*gradx0; g_xy = gradx0*grady0; g_yy = grady0*grady0#; g_yx = grady0*gradx0
@@ -2300,10 +2345,19 @@ def optimization_anisotropic(im,im0,gradxdalt,gradydalt,simulation_type,coldef_t
             dict['too_many']=1
         im = im_new.copy()
         
-        gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
-        grad_norm = numpy.sqrt(gradx**2+grady**2)+eps
-        gradgradx = dxm1(g*gradx, dict); gradgrady = dym1(g*grady, dict)  
-        #gradgradx = dxm1(g*gradx/grad_norm, dict); gradgrady = dym1(g*grady*grad_norm, dict)                                                                         
+        
+        if numpy_grad:
+            gradx = numpy.gradient(dxp1(im_new,dict) - gradxdalt)[0] 
+            grady = numpy.gradient(dyp1(im_new,dict) - gradydalt)[1] 
+            #grad_norm = numpy.sqrt(gradx**2+grady**2)+eps   
+            gradgradx = numpy.gradient(g*gradx)[0]
+            gradgrady = numpy.gradient(g*grady)[1]
+            
+        else: 
+            gradx = dxp1(im_new,dict) - gradxdalt; grady = dyp1(im_new,dict) - gradydalt
+            #grad_norm = numpy.sqrt(gradx**2+grady**2)+eps   
+            gradgradx = dxm1(g*gradx, dict); gradgrady = dym1(g*grady, dict)
+        
         tv = (gradgradx + gradgrady)#/grad_norm
                
         boundary = int(dict['boundary']) if dict.has_key('boundary') else 0 
