@@ -1646,7 +1646,7 @@ def dxp1(im,im0,dict={}):
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[r_[arange(1, m), m - 1], ...]
-    if boundary==1: im_shift[-1, ...] = im[-2, ...] - im0[-2, ...] + im0[-1, ...] # gradu[-1] = gradu0[-1]
+    if boundary==1: im_shift[-1, ...] = im[-1, ...] + im0[-1, ...] - im0[-2, ...] # gradu[-1] = gradu0[-1]
     elif boundary==5: gradx = im[r_[arange(1, m), m - 2], ...] - im
     gradx = im_shift - im
     if boundary==3: gradx[-1,...] = gradx[-2, ...] # gradgrad[-1] = 0
@@ -1662,7 +1662,7 @@ def dxm1(im,im0,dict={}):
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[r_[0, arange(0, m-1)], ...]
-    if boundary==1: im_shift[0, ...] = im[1, ...] -  im0[1, ...] + im0[0, ...] # gradu[0] = gradu0[1]
+    if boundary==1: im_shift[0, ...] = im[0, ...] +  im0[1, ...] - im0[0, ...] # gradu[0] = gradu0[1]
     elif boundary==5: gradx = im - im[r_[1, arange(0, m-1)], ...]
     gradx = im - im_shift
     if boundary==3: gradx[0, ...] = gradx[1, ...] # gradgrad[0] = 0
@@ -1677,7 +1677,7 @@ def dyp1(im,im0,dict={}):
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[:, r_[arange(1, n), n - 1], ...]
-    if boundary==1: im_shift[:, -1, ...] = im[:, -2, ...] - im0[:, -2, ...] + im0[:, -1, ...] # gradu[-1] = gradu0[-1]
+    if boundary==1: im_shift[:, -1, ...] = im[:, -1, ...] + im0[:, -2, ...] - im0[:, -1, ...] # gradu[-1] = gradu0[-1]
     elif boundary==5: im_shift = im[:, r_[arange(1, n), n - 2], ...]
     #grady[:,-1,...] = -grady[:,-1,...]
     grady = im_shift - im
@@ -1693,7 +1693,7 @@ def dym1(im,im0,dict={}):
     
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[:, r_[0, arange(0, n - 1)], ...]
-    if boundary==1: im_shift[:, 0, ...] = im[:, 1, ...] -  im0[:, 1, ...] + im0[:, 0, ...] # gradu[0] = gradu0[1]
+    if boundary==1: im_shift[:, 0, ...] = im[:, 0, ...] +  im0[:, 1, ...] - im0[:, 0, ...] # gradu[0] = gradu0[1]
     elif boundary==5: grady = im - im[:, r_[1, arange(0, n - 1)], ...]
     #grady[:,0,...] = -grady[:,0,...]
     grady =  im - im_shift
@@ -2093,6 +2093,8 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     data = dict['data'] if dict.has_key('data') else None
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
     numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
+    dt = dict['dt']if dict.has_key('dt') else .25
+    boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
     
     if numpy_grad: grads = numpy.gradient(im0); gradx0 = grads[0]; grady0 = grads[1];
     else: gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
@@ -2113,7 +2115,9 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
             
-        im_new = optimization_boundary(im_new, im0, opt, dict)
+        #im_new = optimization_boundary(im_new, im0, opt, dict)
+        if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] # Keep boundary values constant
+        else: im_new = im_new + dt*opt
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1. # Gamut clipping
         
         if first_RMSE: first_RMSE = False; test = numpy.inf
@@ -2136,18 +2140,6 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     if optimization==3: del dict['g']
     
     return im_new 
-
-def optimization_boundary(im_old, im0, optimization,dict):
-    
-    im_new = im_old.copy()
-    
-    dt = dict['dt']if dict.has_key('dt') else .25
-    boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
-    #print optimization[0,...]
-    if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * optimization[1:-1, 1:-1] # Keep boundary values constant
-    else: im_new = im_new + dt*optimization
-    
-    return im_new
 
 def optimization_poisson(gradx,grady,gradxdalt,gradydalt,dict):
     """
