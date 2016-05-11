@@ -3,45 +3,37 @@
 ###
 
 from PIL import Image, ImageDraw, ImageEnhance
-#from scipy.interpolate import griddata
-#from test_wech import coldefType2Int
 import numpy
-#import scipy.io
+from matplotlib.mlab import PCA
+from scipy.misc import imresize
 import colour
-#import time
-#import math
-import pylab
+from pylab import *
+from scipy.interpolate import griddata
+from scipy.ndimage.filters import gaussian_filter
+from scipy.interpolate import griddata
 import os
 import settings
 import threading
+import socket
 import time
-#import subprocess
-#import sys
-#import cv2
+
 try:
     from pymatbridge import Matlab
 except ImportError:
     print 'Daltonization method ??? cannot be used.'
     pass
-    #raise ImportError('Daltonization method: ??? cannot be used')
 import sys
-#from test_wech import simType2Int, daltType2Int, getStatsFromFilename, setStatsToFilename, getAllXXXinPath
-
-from scipy.interpolate import griddata
 
 path_matlab = os.path.join(settings.module_path,'code','Matlab','implementation')
 path_matlab_alsam = os.path.join(settings.module_path,'code','Matlab','alsam')
 module_path = settings.module_path
 
 def coldefType2Int(coldef_type):
-    if coldef_type == "p":
-        return 1
-    elif coldef_type == "d":
-        return 2
-    elif coldef_type == "t":
-        return 3
-    else:
-        return 0
+    
+    if coldef_type == "p": return 1
+    elif coldef_type == "d": return 2
+    elif coldef_type == "t": return 3
+    else: return 0
 
 def convertToLuminanceImage(img_in, options):
     
@@ -633,9 +625,6 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
 
 #print module_path"""
 
-import socket
-import time
-
 def daltonization_huan(img_in,options):
     
     print "Caution: Please do not use this function for serious bussiness.\nIt is horrible implementation, mixing up Matlab snippets in the Python code."
@@ -809,30 +798,7 @@ def daltonization_yoshi_alsam_extra(img_in,options):
     img_array = numpy.uint8(sRGBDaltonized_arr)
     img_out = Image.fromarray(img_array)
     
-    return img_out
-"""
-size = (999,999)
-    
-options = {}
-img_in = Image.open("images/0330000000.png")
-img_in.thumbnail(size)
-img_dalt = daltonization_yoshi_alsam(img_in,options)
-
-
-from PIL import ImageDraw
-img_in_sim = simulation_brettel(img_in,'p')
-draw = ImageDraw.Draw(img_in_sim)
-draw.text((0,0), "Original", fill=(255,0,0))
-del draw
-img_dalt_sim = simulation_brettel(img_dalt,'p')
-
-img_gray = convertToLuminanceImage(img_in,{})
-img_gray.show()
-#img_in.show()
-#img_in_sim.show()
-#img_dalt_sim.show()
-"""    
-    
+    return img_out   
     
 def daltonization_kuhn(img_in,options):
     
@@ -851,16 +817,13 @@ def daltonization_kuhn(img_in,options):
         options['exagerated'] = 0
     
     par_dir = os.path.abspath(os.path.join(settings.module_path, os.pardir))
-    #print settings.module_path
     path_tmp = os.path.join(par_dir,'colordeficiency-images','tmp') # we have to think from the c++ folder
-    #print path_tmp
     filepath_orig_tmp = os.path.join(path_tmp,"kuhnorig_tmp.bmp")
     options['filepath_orig_tmp'] = filepath_orig_tmp
     img_in.save(filepath_orig_tmp)
     
     filepath_recolor_tmp = os.path.join(path_tmp,"kuhnorig_tmp_recolor_kuhn.bmp")
     filepath_sim_tmp = os.path.join(path_tmp,"kuhnorig_tmp_simulate_brettel.bmp")
-    #print "hiersimmer"
     
     wine_thread = threading.Thread(target=runcvdKuhn2008ExeThread,args=(options,))
     wine_thread.start()
@@ -899,10 +862,6 @@ def daltonization_kuhn(img_in,options):
     
     print 'and moving on ...'
     return img_out
-
-#daltonization_kuhn({'coldef_type':p,'max_num_quant':256, 'img_in':img_in})
-#daltonization_kuhn({'coldef_type':d,'max_num_quant':256, 'img_in':img_in})
-#daltonization_kuhn({'coldef_type':t,'max_num_quant':256, 'img_in':img_in})
 
 def showLMSSpace():
     
@@ -966,17 +925,11 @@ def simulate( simulation_type, img_in, coldef_type, coldef_strength=1.0):
     """
     #img_out = crossOut(img_in)
     
-    if simulation_type == "vienot":
-        img_out = simulation_vienot(img_in, coldef_type,coldef_strength)
-    elif simulation_type == "vienot-adjusted":
-        img_out = simulation_vienot_adjusted(img_in, coldef_type,coldef_strength)
-    elif simulation_type == "kotera":
-        img_out = simulation_kotera(img_in, coldef_type,coldef_strength)
-    elif simulation_type == "brettel":
-        img_out = simulation_brettel(img_in, coldef_type, coldef_strength)
-    elif simulation_type == "dummy":
-        options = {}
-        img_out = convertToLuminanceImage(img_in,options)
+    if simulation_type == "vienot": img_out = simulation_vienot(img_in, coldef_type,coldef_strength)
+    elif simulation_type == "vienot-adjusted": img_out = simulation_vienot_adjusted(img_in, coldef_type,coldef_strength)
+    elif simulation_type == "kotera": img_out = simulation_kotera(img_in, coldef_type,coldef_strength)
+    elif simulation_type == "brettel": img_out = simulation_brettel(img_in, coldef_type, coldef_strength)
+    elif simulation_type == "dummy": img_out = convertToLuminanceImage(img_in,{})
     else:
         print 'Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(settings.simulation_types)+'".'
         img_out = crossOut(img_in)
@@ -1255,20 +1208,17 @@ def daltonization_yoshi_c2g_only(img_in, options):
 
 def daltonization_yoshi_c2g(img_in,options):
         
-    if options.has_key('coldef_type'):
-        coldef_type = options['coldef_type']
+    if options.has_key('coldef_type'): coldef_type = options['coldef_type']
     else:
         sys.stdout.write(' Error: No coldef_type. You have to choose a valid color deficiency type.')
         return img_in
     
-    if options.has_key('alpha'):
-        alpha = options['alpha']
+    if options.has_key('alpha'): alpha = options['alpha']
     else:
         sys.stdout.write('Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
         
-    if options.has_key('beta'):
-        beta = options['beta']
+    if options.has_key('beta'): beta = options['beta']
     else:
         sys.stdout.write(' Caution: No beta has been chosen. Using default value of 0.0.')
         beta = 0.0
@@ -1283,21 +1233,17 @@ def daltonization_yoshi_c2g(img_in,options):
     # 2.step: Enhance luminance channel if wanted.
     
     # Check if user wants to use enhanced gray channel. False by default
-    if options.has_key('enhance'): 
-        enhance = options['enhance']
+    if options.has_key('enhance'): enhance = options['enhance']
     else:
         sys.stdout.write(" Caution: No value for enhancement chosen. Chose default: True")
         enhance = True
         
     if enhance:
         # Make gray image of original RGB image
-        if options.has_key('its'):
-            its = options['its']
-        else:
-            its = settings.its_default # number of iterations (ni) should be >100
+        if options.has_key('its'): its = options['its']
+        else: its = settings.its_default # number of iterations (ni) should be >100
         
-        if options.has_key('pts'):
-            pts = options['pts']
+        if options.has_key('pts'): pts = options['pts']
         else:
             pts =  settings.pts_default # number of sample points (ns) should be between 2 and 10, where 2 means local adjustments and 10 means mainly global adjustments
         # The noise is anti-proportional to the product ni*ns, which should be > 1000.
@@ -1367,30 +1313,16 @@ def daltonize(img_in,options):
         options['coldef_type'] = settings.default['coldef_type']    
     #dict = {'img_in': img_in, 'coldef_type': coldef_type}
     
-    if daltonization_type == "anagnostopoulos":
-        img_out = daltonization_anagnostopoulos(img_in,options)
-    elif daltonization_type == "kotera":
-        img_out = daltonization_kotera(img_in,options)
-    elif daltonization_type == "kuhn":
-        img_out = daltonization_kuhn(img_in,options)
-    elif daltonization_type == "huan":
-        img_out = daltonization_huan(img_in,options)
-    elif daltonization_type == "yoshi-simone-only":
-        img_out = daltonization_yoshi_c2g_only(img_in,options)
-    elif daltonization_type == "yoshi-alsam-only":
-        img_out = daltonization_yoshi_alsam(img_in,options)
-    elif daltonization_type == "yoshi-simone":
-        img_out = daltonization_yoshi_c2g(img_in,options)
-    elif daltonization_type == "yoshi-alsam":
-        img_out = daltonization_yoshi_alsam_extra(img_in,options)
-    elif daltonization_type == "":
-        img_out = daltonization_yoshi_gradient(img_in, options)
-    elif daltonization_type == "dummy":
-        img_out = convertToLuminanceImage(img_in,options)
-        #elif daltonization_type == "yoshi_c2g":
-        #    img_out = daltonization_yoshi_c2g(img_in,options)
-        #elif daltonization_type == "yoshi_c2g_only":
-        #    img_out = daltonization_yoshi_c2g_only(img_in,options)
+    if daltonization_type == "anagnostopoulos": img_out = daltonization_anagnostopoulos(img_in,options)
+    elif daltonization_type == "kotera": img_out = daltonization_kotera(img_in,options)
+    elif daltonization_type == "kuhn": img_out = daltonization_kuhn(img_in,options)
+    elif daltonization_type == "huan": img_out = daltonization_huan(img_in,options)
+    elif daltonization_type == "yoshi-simone-only": img_out = daltonization_yoshi_c2g_only(img_in,options)
+    elif daltonization_type == "yoshi-alsam-only": img_out = daltonization_yoshi_alsam(img_in,options)
+    elif daltonization_type == "yoshi-simone": img_out = daltonization_yoshi_c2g(img_in,options)
+    elif daltonization_type == "yoshi-alsam": img_out = daltonization_yoshi_alsam_extra(img_in,options)
+    elif daltonization_type == "": img_out = daltonization_yoshi_gradient(img_in, options)
+    elif daltonization_type == "dummy": img_out = convertToLuminanceImage(img_in,options)
     else:
         print 'Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(settings.daltonization_types)+'".'
         return img_in
@@ -1512,55 +1444,6 @@ def daltonize(img_in,options):
 # 
 #         sys.stdout.write("\n")
 
-def anne():
-
-    img_path = "/Users/thomas/Desktop/Anne"
-    img_name = "mapdesign.jpeg"
-    img = Image.open(os.path.join(img_path, img_name))
-    img.show()
-    coldef_types = ['p']
-
-    daltonization_types = ['huan']#settings.daltonization_types
-    for daltonization_type in daltonization_types:
-        for coldef_type in coldef_types:
-            print daltonization_type
-            img_dalt = daltonize(img,{'daltonization_type': daltonization_type, 'coldef_type': coldef_type})
-            img_dalt.show()
-            img_dalt.save(os.path.join(img_path, daltonization_type+"-"+coldef_type+"-"+img_name))
-
-
-#[input, output] = makeSimulationLookupTable('brettel', 'p')
-#numpy.savetxt('input.txt',input,delimiter=";")
-#numpy.savetxt('output.txt',output,delimiter=";")
-
-#options = {'coldef_types':['p','d'], 'simulation_types': ['brettel'], 'daltonization_types': ['yoshi-alsam'],'alpha':0.5}
-#images = ['images/IMT6131/0340000000.png','images/IMT6131/0430000000.png','images/IMT6131/0810000000.png']
-#daltonize_pics(images,options)
-#simulate_pics(images,options)
-
-"""
-size = numpy.array((1000,1000))
-arr = [5,6,7,8,9,10]
-#arr = ['0a','1a','2a','3a']
-
-for i in arr:
-    #print size
-    image = Image.open("../colordeficiency-images/0340000000.png")
-    #image = image.resize((2300,2300))
-    image = image.resize(size)
-    size -= 1
-    #image.show()
-    image_dalt = daltonize(image, {"daltonization_type":"huan", 'coldef_type': "d"})
-    image_dalt.save("/Users/thomas/Desktop/huang-test/test"+str(i)+".png")
-    
-    image_dalt = daltonize(image, {"daltonization_type":"kuhn", 'coldef_type': "d"})
-    image_dalt.save("/Users/thomas/Desktop/kuhn-test/test"+str(i)+".png")
-"""
-
-#images = getAllXXXinPath('images/IMT6131','.png')  
-#images = [os.path.join('images/IMT6131',file) for file in images]
-#simulate_pics(images,options)
-
 def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5,colorspace="sRGB"):
     
     itv = numpy.linspace(0,255,accuracy)
@@ -1575,10 +1458,8 @@ def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5,colorspace
     
     input_arr = numpy.uint8(numpy.reshape(input_tab,(mn,1,3)))
     input_img = Image.fromarray(input_arr)
-    #input_img.show()
     output_img = simulate(simulation_type, input_img, coldef_type)
-         
-    #output_img.show()
+    
     output_array = numpy.asarray(output_img)
     output_tab = numpy.reshape(output_array,(mn,3))    
     
@@ -1605,27 +1486,15 @@ def lookup(img_in, input_tab, output_tab):
         d = res[2]
         input_vec = numpy.reshape(input_arr,(m*n,d))
     
-    #print numpy.shape(input_vec), numpy.shape(input_tab), numpy.shape(output_tab)
     output_vec = griddata(input_tab, output_tab, input_vec, 'linear')
-    if numpy.shape(res)[0]<3:
-        output_arr = output_vec.reshape(m,n)
-    else:
-        #print numpy.shape(output_vec)
-        output_arr = output_vec.reshape(m,n,d)
-    #print output_arr
-    
-    #img_out = Image.fromarray(numpy.uint8(output_arr))
-    #return img_out
+    if numpy.shape(res)[0]<3: output_arr = output_vec.reshape(m,n)
+    else: output_arr = output_vec.reshape(m,n,d)
 
     return output_arr
 
 ###
 # Total variation Daltonization starts here
 ###
-
-
-from pylab import *
-from scipy.interpolate import griddata
 
 def s(im):
     """
@@ -1647,7 +1516,6 @@ def dxp1(im,im0,dict={}):
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[r_[arange(1, m), m - 1], ...]
     if boundary==1: im_shift[-1, ...] = im[-1, ...] + im0[-1, ...] - im0[-2, ...] # gradu[-1] = gradu0[-1]
-    elif boundary==5: gradx = im[r_[arange(1, m), m - 2], ...] - im
     gradx = im_shift - im
     if boundary==3: gradx[-1,...] = gradx[-2, ...] # gradgrad[-1] = 0
     return gradx
@@ -1663,7 +1531,6 @@ def dxm1(im,im0,dict={}):
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[r_[0, arange(0, m-1)], ...]
     if boundary==1: im_shift[0, ...] = im[0, ...] +  im0[1, ...] - im0[0, ...] # gradu[0] = gradu0[1]
-    elif boundary==5: gradx = im - im[r_[1, arange(0, m-1)], ...]
     gradx = im - im_shift
     if boundary==3: gradx[0, ...] = gradx[1, ...] # gradgrad[0] = 0
     return gradx
@@ -1678,8 +1545,6 @@ def dyp1(im,im0,dict={}):
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[:, r_[arange(1, n), n - 1], ...]
     if boundary==1: im_shift[:, -1, ...] = im[:, -1, ...] + im0[:, -2, ...] - im0[:, -1, ...] # gradu[-1] = gradu0[-1]
-    elif boundary==5: im_shift = im[:, r_[arange(1, n), n - 2], ...]
-    #grady[:,-1,...] = -grady[:,-1,...]
     grady = im_shift - im
     if boundary==3: grady[:, -1,...] = grady[:, -2, ...] # gradgrad[-1] = 0
     return grady
@@ -1694,21 +1559,17 @@ def dym1(im,im0,dict={}):
     boundary = dict['boundary'] if dict.has_key('boundary') else 0
     im_shift = im[:, r_[0, arange(0, n - 1)], ...]
     if boundary==1: im_shift[:, 0, ...] = im[:, 0, ...] +  im0[:, 1, ...] - im0[:, 0, ...] # gradu[0] = gradu0[1]
-    elif boundary==5: grady = im - im[:, r_[1, arange(0, n - 1)], ...]
-    #grady[:,0,...] = -grady[:,0,...]
     grady =  im - im_shift
     if boundary==3: grady[:, 0, ...] = grady[:, 1, ...] # gradgrad[-1] = 0
     return grady 
     
-from matplotlib.mlab import PCA
-import scipy
-from scipy.misc import imresize
+
     
 def daltonization_yoshi_042016(im,dict):
 
     modus = dict['modus'] if dict.has_key('modus') else 0
-    dict.update({'ms_first': 1})
-    dict.update({'im0': im.copy()})
+    dict.update({'ms_first': 1,
+                 'im0': im.copy()})
 
     if modus==0:
         print "Using simple daltonization: "
@@ -1722,8 +1583,6 @@ def daltonization_yoshi_042016(im,dict):
         im_dalt = smoothing(im,max_sigma,daltonization_yoshi_gradient,dict)
         
     return im_dalt
-
-from scipy.ndimage.filters import gaussian_filter
 
 def daltonization_yoshi_gradient(im,dict):
     
@@ -1753,17 +1612,14 @@ def daltonization_yoshi_gradient(im,dict):
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
     numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
-        
     m,n,d = numpy.shape(im)
         
     #######
     ## Design the improved gradient
     #######
     
-    #print numpy.shape(im0)
     im0_small = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
     im0_small_sim = simulate(simulation_type,im0_small,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
-    #print RMSE(im0_small, im0_small_sim)
     
     # Gradients of original image and simulated image
     if numpy_grad:
@@ -1784,16 +1640,9 @@ def daltonization_yoshi_gradient(im,dict):
         #grady0 = gaussian_filter(grady0,(10,10,0))
         #gradx0s = gaussian_filter(gradx0s,(10,10,0))
         #grady0s = gaussian_filter(grady0s,(10,10,0))
-    # Error between the two gradients
-    # dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
-    # dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
     
     # Compute vectors in principal projection directions
     ed,el,ec = computeDaltonizationUnitVectors(im0_small,im0_small_sim,dict)
-    
-    # Construct Improved gradient           
-    #dx0dot_arr = numpy.array([numpy.dot(dx0_arr,ed),]*d).transpose()
-    #dy0dot_arr = numpy.array([numpy.dot(dy0_arr,ed),]*d).transpose()
         
     gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose()
     grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
@@ -1806,40 +1655,17 @@ def daltonization_yoshi_gradient(im,dict):
     
     # Combination for the gradient 
     boost_ec = dict['boost_ec'] if dict.has_key('boost_ec') else 1.
-    #boost_el = dict['boost_el'] if dict.has_key('boost_el') else 1.
     combination = dict['combination'] if dict.has_key('combination') else 1
     if combination==1:
         if ms_first: sys.stdout.write("Chroma only.\n")
-        is_gradx0dot = 1
-        if dict.has_key('is_gradx0dot'):
-            is_gradx0dot = dict['is_gradx0dot']
-        if is_gradx0dot:
-            gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-            gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
-        else:
-            #gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-            #gradydalt_arr = grady0_arr+(dy0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
-            pass
-    """        
-    elif combination==2:
-        print "Lightness only."
-        gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost_el*lambdneg_arr*el); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-        gradydalt_arr = grady0_arr+(dy0dot_arr*boost_el*lambdneg_arr*el); gradydalt = gradydalt_arr.reshape((m,n,3))
-          
-    elif combination==3:
-        print "Lightness and chroma combined."
-        gradxdalt_arr = gradx0_arr+(dx0dot_arr*boost_el*lambdneg_arr*el)+(dx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-        gradydalt_arr = grady0_arr+(dy0dot_arr*boost_el*lambdneg_arr*el)+(dy0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
-    """
+        gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+        gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
         
     #######
     ## Compute the daltonized image through optimization (???)
-    #######
-    
+    #######  
     
     im_dalt = optimization(im,im0_small,gradxdalt,gradydalt,dict)
-    
-    
     if ms_first: dict['ms_first'] = 0 # Only for first iteration 
     if numpy.shape(im) == numpy.shape(im0): # Only for last iteration
         too_many = dict['too_many'] if dict.has_key('too_many') else 0
@@ -1880,15 +1706,13 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
         if ms_first: sys.stdout.write("Ed: Gradient PCA, ")
         # Get gradients of original and its simulation
         
-        
         numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
         if numpy_grad:
                 gradx0 = dxp1(im); grady0 = dyp1(im); 
                 gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim)
         else:
             grads0 = numpy.gradient(im); gradx0 = grads0[0]; grady0 = grads0[1]
-            grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]
-                    
+            grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]           
                      
         # Error between the two gradients
         dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
@@ -1897,8 +1721,6 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
         ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
     
     ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
-    #print ed
-    
     #ed_tmp = im0_small_arr-im0_small_sim_arr;
     #ed_tmp[(ed_tmp[:,0]==.0)&(ed_tmp[:,0]==.0)&(ed_tmp[:,0]==.0),:]=ed
     #ed_tmp_norm = numpy.sqrt(numpy.sum(ed_tmp**2, axis=1));  #numpy.linalg.norm(ed_tmp)
@@ -1973,23 +1795,7 @@ def computeChiAndLambda1(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,
                           (numpy.sum((gradx0s_arr+chipos_arr*gradx0dot_arr*ec)**2 +\
                                      (grady0s_arr+chipos_arr*grady0dot_arr*ec)**2,axis=1))
         print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
-    
-    """    
-    # Compute Lambd for each pixel
-    a = numpy.sqrt(numpy.sum((gradx0dot_arr*el)**2,axis=1)+ \
-                   numpy.sum((grady0dot_arr*el)**2,axis=1))
-    b = 2*(numpy.sum(gradx0dot_arr*el*gradx0s_arr,axis=1)+ \
-           numpy.sum(grady0dot_arr*el*grady0s_arr,axis=1))
-    c = numpy.sqrt(numpy.sum(gradx0s_arr**2,axis=1)+numpy.sum(grady0s_arr**2,axis=1))- \
-        numpy.sqrt(numpy.sum(gradx0_arr**2,axis=1)+numpy.sum(grady0_arr**2,axis=1))
-    
-    under_sqrt = b**2-4*a*c
-    under_sqrt[under_sqrt<0] = 0.
-    lambd_neg = (-b-numpy.sqrt(under_sqrt))/(2*a)
-    lambd_neg[numpy.isnan(lambd_neg)] = 0.
-    lambdneg_arr = numpy.array([lambd_neg,]*d).transpose()
-    """
-        
+
     return chipos_arr#, lambdneg_arr
 
 def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
@@ -2050,25 +1856,6 @@ def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
                 (numpy.sum((gradx0_arr-gradx0dot_arr*ed+chipos_arr*gradx0dot_arr*ec)**2 +\
                            (grady0_arr-grady0dot_arr*ed+chipos_arr*grady0dot_arr*ec)**2,axis=1))
         print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
-            
-    
-    """    
-    # Compute Lambd for each pixel
-    a = numpy.sqrt(numpy.sum((gradx0dot_arr*el)**2,axis=1)+ \
-                   numpy.sum((grady0dot_arr*el)**2,axis=1))
-    b = 2*(numpy.sum(gradx0_arr*gradx0dot_arr*el-gradx0dot_arr*ed*gradx0dot_arr*el,axis=1)+ \
-           numpy.sum(grady0_arr*grady0dot_arr*el-grady0dot_arr*ed*grady0dot_arr*el,axis=1))
-    c = numpy.sum((gradx0dot_arr*ed)**2,axis=1)+ \
-        numpy.sum((grady0dot_arr*ed)**2,axis=1)- \
-        2*numpy.sum(gradx0_arr*gradx0dot_arr*ed,axis=1)- \
-        2*numpy.sum(grady0_arr*grady0dot_arr*ed,axis=1)
-    
-    under_sqrt = b**2-4*a*c
-    under_sqrt[under_sqrt<0] = 0.
-    lambd_neg = (-b-numpy.sqrt(under_sqrt))/(2*a)
-    lambd_neg[numpy.isnan(lambd_neg)] = 0.        
-    lambdneg_arr = numpy.array([lambd_neg,]*d).transpose()
-    """
         
     return chipos_arr#,lambdneg_arr  
 
@@ -2284,26 +2071,3 @@ def smoothing(im,sigma,func,dict={}):
     im_updated = err+im_blurred_updated
     im_new = im_updated
     return im_new
-    
-def nrk_interview():
-    im_name = '0030000000'
-    im = Image.open(os.path.join('../colordeficiency-images/',im_name+'.png'))
-    #im
-    #im_name = 'berries2-gradient'
-    #a = simulate
-    simulation_type = 'kotera'
-    coldef_type = 'p'
-    
-    a_00 = simulate( simulation_type, im, coldef_type, .0)
-    a_00.show()
-    
-    a_25 = simulate( simulation_type, im, coldef_type, .25)
-    a_25.show()
-    
-    a_75 = simulate( simulation_type, im, coldef_type, .25)
-    a_75.show()
-    
-    a_10 = simulate( simulation_type, im, coldef_type, 1.0)
-    a_10.show()
-
-#tvdalt_engineeredgradient()
