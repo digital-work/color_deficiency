@@ -1780,10 +1780,10 @@ def daltonization_yoshi_gradient(im,dict):
         gradx0s = dxp1(im0_small_sim,im0_small_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
         grady0s = dyp1(im0_small_sim,im0_small_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
         
-        gradx0 = gaussian_filter(gradx0,(10,10,0))
-        grady0 = gaussian_filter(grady0,(10,10,0))
-        gradx0s = gaussian_filter(gradx0s,(10,10,0))
-        grady0s = gaussian_filter(grady0s,(10,10,0))
+        #gradx0 = gaussian_filter(gradx0,(10,10,0))
+        #grady0 = gaussian_filter(grady0,(10,10,0))
+        #gradx0s = gaussian_filter(gradx0s,(10,10,0))
+        #grady0s = gaussian_filter(grady0s,(10,10,0))
     # Error between the two gradients
     # dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
     # dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
