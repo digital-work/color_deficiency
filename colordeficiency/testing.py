@@ -769,7 +769,8 @@ def tvdalt_completenormbtwabsoutegradient_onoriginal():
 def computeTestName(dict):
     #print dict
     test_name = ''
-    if dict['multi_scaling']: test_name += 'multi-scaling_'
+    if dict['modus']==1: test_name += 'multi-scaling_'
+    elif dict['modus']==2: test_name += 'smoothing_'
     else: test_name += 'simple_'
         
     if dict['img_PCA']: test_name += 'image-PCA_'
@@ -802,9 +803,11 @@ def computeTestName(dict):
 def tvdalt_engineeredgradient():
     
     images = []
-    images.append(('0340000000-mirr',{'multi_scaling':1}))
-    images.append(('0340000000',{'multi_scaling':1}))
-    #images.append(('berries2',{'multi_scaling':0}))
+    #images.append(('0340000000-mirr',{'modus':1}))
+    #images.append(('0340000000',{'modus':1}))
+    #images.append(('berries2',{'modus':0}))
+    images.append(('0810000000',{'modus': 0}))
+    #images.append(('0810000000-blurred',{'modus': 0}))
     
     #im_names.append('berries2-inverted')
     #im_names.append('bananas1')
@@ -842,12 +845,14 @@ def tvdalt_engineeredgradient():
                        'data': data,
                        'dt': .20,
                        #'data2': data2,
-                       'cutoff': .01,
+                       'max_sigma': 20,
+                       'max_its': 1000,
+                       'cutoff': .00005,
                        'is_simulated': 0,
                        'simulation_type': simulation_type,
-                        'coldef_type': coldef_type,
-                        'im_name': im_name,
-                        'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ed'),
+                       'coldef_type': coldef_type,
+                       'im_name': im_name,
+                       'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ed'),
                         #'im_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors',im_name)
                     })
         dict_2 = dict_1.copy()
@@ -861,7 +866,7 @@ def tvdalt_engineeredgradient():
         dict_5 = dict_1.copy()
         dict_5.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/el')})
         dict_6 = dict_5.copy()
-        dict_6.update({'constant_lightness': 1})
+        dict_6.update({'constant_lightness': 0})
         
         # ec
         dict_7 = dict_1.copy()
@@ -875,12 +880,12 @@ def tvdalt_engineeredgradient():
         dict_10 = dict_9.copy()
         dict_10.update({'chi_computations': 2})
         
-        # Show multi scaling
+        # Show different modi
         dict_11 = dict_1.copy()
         dict_11.update({'path_out': os.path.join('/Users/thomas/Desktop/multi-scaling')})
         dict_12 = dict_11.copy()
-        if dict_11['multi_scaling']: dict_12.update({'multi_scaling': 1})
-        else: dict_12.update({'multi_scaling': 0})
+        if dict_11['modus']: dict_12.update({'modus': 0})
+        else: dict_12.update({'modus': 1})
         
         # Use different boundary computations
         dict_13 = dict_1.copy() #
@@ -897,7 +902,7 @@ def tvdalt_engineeredgradient():
         # Use different optimization computations
         dict_18 = dict_1.copy() #
         dict_18.update({'path_out': os.path.join('/Users/thomas/Desktop/optimization')})
-        dict_19 = dict_17.copy() #
+        dict_19 = dict_18.copy() #
         dict_19.update({'optimization': 2})
         dict_20 = dict_1.copy() #
         dict_20.update({'path_out': os.path.join('/Users/thomas/Desktop/anisotropic'), 
@@ -906,15 +911,41 @@ def tvdalt_engineeredgradient():
         dict_21 = dict_20.copy()
         dict_21.update({'anisotropic': 3})
         
-        #dict_list.append(dict_13)
+        dict_22 = dict_20.copy()
+        dict_22.update({'anisotropic': 1})
+        dict_23 = dict_20.copy()
+        dict_23.update({'anisotropic': 2})
+        
+        """
+        dict_list.append(dict_1)
+        dict_list.append(dict_2)
+        
+        dict_list.append(dict_3)
+        dict_list.append(dict_4)
+        
+        dict_list.append(dict_5)
+        dict_list.append(dict_6)
+        dict_list.append(dict_7)
+        dict_list.append(dict_8)
+        dict_list.append(dict_9)
+        dict_list.append(dict_10)
+        dict_list.append(dict_11)
+        dict_list.append(dict_12)
+        """
+        dict_list.append(dict_13)
         #dict_list.append(dict_14)
         #dict_list.append(dict_15)
-        dict_list.append(dict_16)
+        #dict_list.append(dict_16)
         #dict_list.append(dict_17)
-        #dict_list.append(dict_18)
-        #dict_list.append(dict_19)
-        #dict_list.append(dict_20)
-    
+        """
+        dict_list.append(dict_18)
+        dict_list.append(dict_19)
+        dict_list.append(dict_20)
+        dict_list.append(dict_21)
+        
+        dict_list.append(dict_19)
+        #dict_list.append(dict_23)
+        """
         for dict_i in dict_list:
             
             dict_i.update({'test_name': computeTestName(dict_i)})
