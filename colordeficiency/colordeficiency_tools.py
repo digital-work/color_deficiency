@@ -1269,4 +1269,355 @@ def test1():
         #im_sim.show()
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
         print coldef_type + " simulation done"
+
+#####
+# All tools for gradient space daltonization methods
+#####
+
+def dxp1(im,im0,dict={}):
+    """
+    Finite difference positive x
+    0 - fixed edges, 1 - # gradu[-1] = gradu0[-1], 2 - gradu[-1] = 0, 3 - gradgrad[-1] = 0
+    """
+    sh = shape(im); m = sh[0]; n = sh[1]
+    
+    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    im_shift = im[r_[arange(1, m), m - 1], ...]
+    if boundary==1: im_shift[-1, ...] = im[-1, ...] + im0[-1, ...] - im0[-2, ...] # gradu[-1] = gradu0[-1]
+    gradx = im_shift - im
+    if boundary==3: gradx[-1,...] = gradx[-2, ...] # gradgrad[-1] = 0
+    return gradx
+
+def dxm1(im,im0,dict={}):
+    """
+    Finite difference negative x
+    0 - fixed edges, 1 - # gradu[0] = gradu0[0], 2 - gradu[0] = 0, 3 - gradgrad[0] = 0
+    """
+    sh = shape(im); m = sh[0]; n = sh[1]
+    
+    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    im_shift = im[r_[0, arange(0, m-1)], ...]
+    if boundary==1: im_shift[0, ...] = im[0, ...] +  im0[1, ...] - im0[0, ...] # gradu[0] = gradu0[1]
+    gradx = im - im_shift
+    if boundary==3: gradx[0, ...] = gradx[1, ...] # gradgrad[0] = 0
+    return gradx
+
+def dyp1(im,im0,dict={}):
+    """
+    Finite difference positive y
+    0 - fixed edges, 1 - # gradu[-1] = gradu0[-1], 2 - gradu[-1] = 0, 3 - gradgrad[-1] = 0
+    """
+    sh = shape(im); m = sh[0]; n = sh[1]
+    
+    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    im_shift = im[:, r_[arange(1, n), n - 1], ...]
+    if boundary==1: im_shift[:, -1, ...] = im[:, -1, ...] + im0[:, -2, ...] - im0[:, -1, ...] # gradu[-1] = gradu0[-1]
+    grady = im_shift - im
+    if boundary==3: grady[:, -1,...] = grady[:, -2, ...] # gradgrad[-1] = 0
+    return grady
+
+def dym1(im,im0,dict={}):
+    """
+    Finite difference negative y
+    0 - fixed edges, 1 - # gradu[-1] = gradu0[-1], 2 - gradu[-1] = 0, 3 - gradgrad[-1] = 0
+    """
+    sh = shape(im); m = sh[0]; n = sh[1]
+    
+    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    im_shift = im[:, r_[0, arange(0, n - 1)], ...]
+    if boundary==1: im_shift[:, 0, ...] = im[:, 0, ...] +  im0[:, 1, ...] - im0[:, 0, ...] # gradu[0] = gradu0[1]
+    grady =  im - im_shift
+    if boundary==3: grady[:, 0, ...] = grady[:, 1, ...] # gradgrad[-1] = 0
+    return grady 
+
+def computeDaltonizationUnitVectors(im,im_sim,dict):
+    
+    m,n,d = numpy.shape(im)
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    
+    ### Direction of lightness
+    constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
+    if constant_lightness:
+        if ms_first: pass#sys.stdout.write("El: Constant lightness. ")
+        el = numpy.array([0.2126,0.7152,0.0722]) 
+    else: 
+        if ms_first: sys.stdout.write("El: Neutral gray lightness. ")
+        el = numpy.array([1.,1.,1.])
+    el = el / numpy.linalg.norm(el)
+    
+    ### Direction of confusion colors
+    img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1
+    # Kann wech. Benutz immer image PCA
+    if img_PCA:
+        # Use difference in image domaine
+        if ms_first: pass#sys.stdout.write("Ed: Image PCA, ")
+        d0 = im - im_sim; d0_arr = d0.reshape((m*n,3))
+        ed_PCA = PCA(d0_arr, standardize=False)
+    else:
+        # Kann wech
+        # Use difference in gradient domaine
+        if ms_first: pass#sys.stdout.write("Ed: Gradient PCA, ")
+        # Get gradients of original and its simulation
         
+        numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
+        if numpy_grad:
+                gradx0 = dxp1(im); grady0 = dyp1(im); 
+                gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim)
+        else:
+            grads0 = numpy.gradient(im); gradx0 = grads0[0]; grady0 = grads0[1]
+            grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]           
+                     
+        # Error between the two gradients
+        dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
+        dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
+          
+        ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
+    
+    ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
+    #ed_tmp = im0_small_arr-im0_small_sim_arr;
+    #ed_tmp[(ed_tmp[:,0]==.0)&(ed_tmp[:,0]==.0)&(ed_tmp[:,0]==.0),:]=ed
+    #ed_tmp_norm = numpy.sqrt(numpy.sum(ed_tmp**2, axis=1));  #numpy.linalg.norm(ed_tmp)
+    #ed_tmp_norm_arr = numpy.zeros((m*n,3))
+    #for i in range(0,3):
+    #    ed_tmp_norm_arr[:,i] = ed_tmp_norm
+    #ed_tmp = ed_tmp /ed_tmp_norm_arr   
+    
+    ed_orthogonalization = dict['ed_orthogonalization'] if dict.has_key('ed_orthogonalization') else 0
+    if ed_orthogonalization:
+        if ms_first: sys.stdout.write("orthogonalized. ")
+        ed = ed - numpy.dot(ed,el)/numpy.dot(el,el)*el # Gram-Schmidt orthogonalization
+        ed = ed / numpy.linalg.norm(ed)
+    else:
+        if ms_first: pass #sys.stdout.write("not orthogonalized. ")
+    #el_tmp = numpy.array([el,]*(m*n))  
+    
+    ### Direction of optimal daltonization
+    ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
+    
+    #ec_tmp = numpy.cross(ed_tmp,el_tmp)
+    #ec_tmp_norm = numpy.sqrt(numpy.sum(ec_tmp**2, axis=1));  #numpy.linalg.norm(ed_tmp)
+    #ec_tmp_norm_arr = numpy.zeros((m*n,3))
+    #for i in range(0,3):
+    #    ec_tmp_norm_arr[:,i] = ec_tmp_norm
+    #ec_tmp = ec_tmp / ec_tmp_norm_arr
+    
+    #if ms_first: sys.stdout.write('\n')
+    
+    return ed,el,ec
+
+def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict={}):
+    
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Chi computations 1. ")
+    eps = .000001
+        
+    mn,d =  numpy.shape(gradx0_arr)
+    print mn, numpy.shape(im0)
+   # print mn
+    
+    gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose()
+    grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
+      
+    # Compute Chi for each pixel
+    a = numpy.sum((gradx0dot_arr*ec)**2 + \
+                  (grady0dot_arr*ec)**2,axis=1)
+    b = 2*(numpy.sum(gradx0dot_arr*ec*gradx0s_arr + \
+                     grady0dot_arr*ec*grady0s_arr,axis=1))
+    c = numpy.sum(gradx0s_arr**2 + \
+                  grady0s_arr**2 - \
+                  gradx0_arr**2 - \
+                  grady0_arr**2,axis=1)
+       
+    chi_red = dict['chi_red'] if dict.has_key('chi_red') else 1.0 
+    
+    under_sqrt = b**2-4*a*c
+    under_sqrt[under_sqrt<0] = 0.
+    chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a+eps)
+    chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
+    if chi_red == 0:
+        eps = .00001
+        sRGB = colour.data.Data(colour.space.srgb,im0)
+        lab  = sRGB.get(colour.space.cielab)
+        chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); print numpy.shape(chroma);chroma_arr = chroma.reshape((mn,))
+        
+        if numpy.sum(numpy.abs(chi_neg/(chroma_arr+eps))) > numpy.sum(numpy.abs(chi_pos/(chroma_arr+eps))): chi = chi_pos; print "red"
+        else: chi = chi_neg; print "green"
+    elif chi_red == 2.:
+        # All of them are either bigger or smaller
+        #print "hiersimmer1" 
+        eps = .00001
+        sRGB = colour.data.Data(colour.space.srgb,im0)
+        lab  = sRGB.get(colour.space.cielab)
+        chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); print numpy.shape(chroma);chroma_arr = chroma.reshape((mn,))
+        p=chi_pos.copy()/(chroma_arr+eps);p[chi_pos>=chi_neg]=0
+        n=chi_neg.copy()/(chroma_arr+eps);n[chi_neg>chi_pos]=0
+        chi=p+n
+    elif chi_red == 1.: chi = chi_pos; print "red"
+    elif chi_red ==-1.: chi = chi_neg; print "green"
+    chi[numpy.isnan(chi)] = 0.
+    chi_arr = numpy.array([chi,]*d).transpose()
+    
+    # Check if computations have been correct
+    correction = 0
+    if correction:
+        print "a: ", numpy.max(a), numpy.min(a), numpy.mean(a)
+        print "b: ", numpy.max(b), numpy.min(b), numpy.mean(b)
+        print "c: ", numpy.max(c), numpy.min(c), numpy.mean(c)
+        check = numpy.sum((gradx0_arr)**2 + \
+                          (grady0_arr)**2,axis=1)- \
+                          (numpy.sum((gradx0s_arr+chi_arr*gradx0dot_arr*ec)**2 +\
+                                     (grady0s_arr+chi_arr*grady0dot_arr*ec)**2,axis=1))
+        print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
+
+    return chi_arr#, lambdneg_arr
+
+def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
+    """
+    Does this make sense even?
+    """
+    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    if ms_first: sys.stdout.write("Chi computations 2. ")
+    eps = .000001
+    
+    common_dot_product = 1
+    mn,d =  numpy.shape(gradx0_arr)
+    
+    if common_dot_product:          
+        gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose() 
+        grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
+        
+    else:
+        print "hiersimmer"
+        gradx0dot_arr = numpy.zeros((mn,d))
+        grady0dot_arr = numpy.zeros((mn,d))
+        for i in range(0,(mn)):
+            a_tmp = numpy.dot(gradx0_arr[i,:],ed[i,:])
+            b_tmp = numpy.dot(grady0_arr[i,:],ed[i,:])
+            for j in range(0,d):
+                gradx0dot_arr[i,j] = a_tmp
+                grady0dot_arr[i,j] = b_tmp
+      
+    # Compute Chi for each pixel
+    a = numpy.sum((gradx0dot_arr*ec)**2 + \
+                  (grady0dot_arr*ec)**2,axis=1)
+    b = 2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ec)-(gradx0dot_arr*ed)*(gradx0dot_arr*ec) + \
+                     grady0_arr*(grady0dot_arr*ec)-(grady0dot_arr*ed)*(grady0dot_arr*ec),axis=1))
+    c = numpy.sum((gradx0dot_arr*ed)**2 + \
+                  (grady0dot_arr*ed)**2,axis=1)- \
+        2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ed) + \
+                     grady0_arr*(grady0dot_arr*ed),axis=1))
+    
+    chi_red = 1.0
+    if dict.has_key('chi_red'):
+        chi_red = 1.0 if dict['chi_red'] == 1 else -1.0
+        print chi_red
+    
+    under_sqrt = b**2-4*a*c
+    under_sqrt[under_sqrt<0] = 0.
+    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a+eps)
+    chi_pos[numpy.isnan(chi_pos)] = 0.
+    chipos_arr = numpy.array([chi_pos,]*d).transpose()
+    
+    # Check if computations have been correct
+    correction = 0
+    if correction:
+        print "a: ", numpy.max(a), numpy.min(a), numpy.mean(a)
+        print "b: ", numpy.max(b), numpy.min(b), numpy.mean(b)
+        print "c: ", numpy.max(c), numpy.min(c), numpy.mean(c)
+        check = numpy.sum((gradx0_arr)**2 + \
+                          (grady0_arr)**2,axis=1) - \
+                (numpy.sum((gradx0_arr-gradx0dot_arr*ed+chipos_arr*gradx0dot_arr*ec)**2 +\
+                           (grady0_arr-grady0dot_arr*ed+chipos_arr*grady0dot_arr*ec)**2,axis=1))
+        print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
+        
+    return chipos_arr#,lambdneg_arr  
+
+def anisotropicG(gradx0,grady0,dict):
+    
+    g_xx = gradx0*gradx0; g_xy = gradx0*grady0; g_yy = grady0*grady0#; g_yx = grady0*gradx0
+    eig_pos = (g_xy+g_yy+numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.; eig_neg = (g_xy+g_yy-numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.
+    
+    anisotropic = dict['anisotropic'] if dict.has_key('anisotropic') else 0
+    if anisotropic/3 < 3: f = numpy.sqrt(eig_pos-eig_neg)
+    elif anisotropic/3 >= 3: f = numpy.sqrt(eig_pos)
+        
+    if anisotropic%3 == 0: g = f
+    elif anisotropic%3 == 1: g = 1/(1+f)
+    elif anisotropic%3 == 2: g = numpy.exp(-f)
+    
+    return g
+
+def RMSE(u_old,u_new):
+    """
+    RMSe of two images
+    """
+    if numpy.shape(u_old) != numpy.shape(u_new):
+        print "Error: Both images have to be the same size"
+    m,n,d = numpy.shape(u_old)
+    rmse = numpy.sum(numpy.sqrt(numpy.sum((u_new-u_old)**2,axis=2))) / (m*n)
+    
+    return rmse
+
+def GRMSE(grad_uold,grad_unew):
+    """
+    RMSE of two gradient images
+    """
+    gradx_uold = grad_uold['gradx']; gradx_unew = grad_unew['gradx']
+    grady_uold = grad_uold['grady']; grady_unew = grad_unew['grady'] 
+    if (numpy.shape(gradx_uold) != numpy.shape(gradx_unew)) or (numpy.shape(grady_uold) != numpy.shape(grady_unew)):
+        print "Error: Both images have to be the same size"  
+    m,n,d = numpy.shape(gradx_uold)
+    grmse = numpy.sum(numpy.sqrt(numpy.sum((gradx_unew-gradx_uold)**2,axis=2)+ \
+                                 numpy.sum((grady_unew-grady_uold)**2,axis=2))) / (2*m*n)
+    
+    return grmse
+
+def multiscaling(im,func,dict={}):
+    
+    min_size = 2**5
+    interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
+    mode = dict['mode'] if dict.has_key('mode') else 'RGB'
+    m,n,d = numpy.shape(im); size = numpy.array((m,n))
+    
+    if m <= min_size or n <= min_size:
+        im_new = func(im,dict)
+        return im_new
+    else:
+        im_small = imresize(im,(0.5*size).astype(int),interp=interp,mode=mode)/255.
+        err = im - imresize(im_small,size,interp=interp,mode=mode)/255.
+        im_small_updated = multiscaling(im_small,func,dict)
+        im_updated = err + imresize(im_small_updated,size,interp=interp,mode=mode)/255.
+        im_new = func(im_updated,dict)
+        return im_new
+    
+def smoothing(im,sigma,func,dict={}):
+    
+    max_sigma = dict['max_sigma']
+    """
+    if sigma > max_sigma:
+        sigma -=2
+        print "using ", sigma
+        
+        im_blurred = gaussian_filter(im,(sigma,sigma,0))
+        im_new = func(im_blurred,dict)
+        return im_new
+    else:
+        print sigma
+        im_blurred = gaussian_filter(im,(2,2,0))
+        err = im - im_blurred
+        im_blurred_updated = smoothing(im_blurred,sigma+2,func,dict)
+        im_updated = err + im_blurred_updated
+        im_new = func(im_updated,dict)
+        return im_new
+    """
+    print sigma
+    im_blurred = gaussian_filter(im,(sigma,sigma,0))
+    #dict.update({'im0': im_blurred.copy()})
+    #data = dict['data'] if dict.has_key('data') else None
+    #data.set_array(im_blurred); draw()
+    err = im - im_blurred
+    im_blurred_updated = func(im_blurred,dict)
+    im_updated = err+im_blurred_updated
+    im_new = func(im_updated,dict)
+    
+    return im_new

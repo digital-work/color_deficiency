@@ -404,20 +404,6 @@ def simulation_kotera(img_in, coldef_type, coldef_strength=1.):
     img_out = Image.fromarray(img_array)
     
     return img_out
-
-def simulation_brettel_dic(img_in, dict):
-    
-    if dict.has_key('coldef_type'):
-        coldef_type = dict['coldef_type']
-    else:
-        print "Error: You have to choose a color deficiency type."
-        return img_in
-    
-    coldef_strength = 1.
-    if dict.has_key('coldef_strength'):
-        coldef_strength = dict['coldef_strength']
-    
-    return simulation_brettel(img_in, coldef_type, coldef_strength)
     
 
 def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
@@ -1505,89 +1491,33 @@ def s(im):
     retim[..., 1] = .5 * (im[..., 0] + im[..., 1])
     return retim
 
-
-def dxp1(im,im0,dict={}):
-    """
-    Finite difference positive x
-    0 - fixed edges, 1 - # gradu[-1] = gradu0[-1], 2 - gradu[-1] = 0, 3 - gradgrad[-1] = 0
-    """
-    sh = shape(im); m = sh[0]; n = sh[1]
-    
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    im_shift = im[r_[arange(1, m), m - 1], ...]
-    if boundary==1: im_shift[-1, ...] = im[-1, ...] + im0[-1, ...] - im0[-2, ...] # gradu[-1] = gradu0[-1]
-    gradx = im_shift - im
-    if boundary==3: gradx[-1,...] = gradx[-2, ...] # gradgrad[-1] = 0
-    return gradx
-
-
-def dxm1(im,im0,dict={}):
-    """
-    Finite difference negative x
-    0 - fixed edges, 1 - # gradu[0] = gradu0[0], 2 - gradu[0] = 0, 3 - gradgrad[0] = 0
-    """
-    sh = shape(im); m = sh[0]; n = sh[1]
-    
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    im_shift = im[r_[0, arange(0, m-1)], ...]
-    if boundary==1: im_shift[0, ...] = im[0, ...] +  im0[1, ...] - im0[0, ...] # gradu[0] = gradu0[1]
-    gradx = im - im_shift
-    if boundary==3: gradx[0, ...] = gradx[1, ...] # gradgrad[0] = 0
-    return gradx
-
-def dyp1(im,im0,dict={}):
-    """
-    Finite difference positive y
-    0 - fixed edges, 1 - # gradu[-1] = gradu0[-1], 2 - gradu[-1] = 0, 3 - gradgrad[-1] = 0
-    """
-    sh = shape(im); m = sh[0]; n = sh[1]
-    
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    im_shift = im[:, r_[arange(1, n), n - 1], ...]
-    if boundary==1: im_shift[:, -1, ...] = im[:, -1, ...] + im0[:, -2, ...] - im0[:, -1, ...] # gradu[-1] = gradu0[-1]
-    grady = im_shift - im
-    if boundary==3: grady[:, -1,...] = grady[:, -2, ...] # gradgrad[-1] = 0
-    return grady
-
-def dym1(im,im0,dict={}):
-    """
-    Finite difference negative y
-    0 - fixed edges, 1 - # gradu[-1] = gradu0[-1], 2 - gradu[-1] = 0, 3 - gradgrad[-1] = 0
-    """
-    sh = shape(im); m = sh[0]; n = sh[1]
-    
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
-    im_shift = im[:, r_[0, arange(0, n - 1)], ...]
-    if boundary==1: im_shift[:, 0, ...] = im[:, 0, ...] +  im0[:, 1, ...] - im0[:, 0, ...] # gradu[0] = gradu0[1]
-    grady =  im - im_shift
-    if boundary==3: grady[:, 0, ...] = grady[:, 1, ...] # gradgrad[-1] = 0
-    return grady 
-    
-
-    
+from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda1, computeChiAndLambda2, anisotropicG, multiscaling, smoothing, RMSE, GRMSE
+  
 def daltonization_yoshi_042016(im,dict):
 
     modus = dict['modus'] if dict.has_key('modus') else 0
     dict.update({'ms_first': 1,
                  'im0': im.copy()})
-
     if modus==0:
-        print "Using simple daltonization: "
+        sys.stdout.write("Simple. ")
         im_dalt = daltonization_yoshi_gradient(im,dict)
     elif modus==1:
-        print "Using multi scaling daltonization: "
+        sys.stdout.write("Multi scaling. ")
         im_dalt = multiscaling(im,daltonization_yoshi_gradient,dict)
     elif modus==2:
-        print "Using Gaussian smooting daltonization: "
-        max_sigma = dict['max_sigma'] if dict.has_key('max_sigma') else 10
+        sys.stdout.write("Smoothing. ")
+        no_max_sigma = False
+        if dict.has_key('max_sigma'): max_sigma = dict['max_sigma']
+        else: max_sigma = 1; dict['max_sigma'] = max_sigma; no_max_sigma = True
         im_dalt = smoothing(im,max_sigma,daltonization_yoshi_gradient,dict)
+        if no_max_sigma: del dict['max_sigma']
         
     return im_dalt
 
 def daltonization_yoshi_gradient(im,dict):
     
     name = "daltonization_yoshi_gradient"
-    print 'starting'
+    #print 'starting'
 
     # Required variables
     if not dict.has_key('im0'):
@@ -1612,44 +1542,75 @@ def daltonization_yoshi_gradient(im,dict):
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
     numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
+    modus = dict['modus'] if dict.has_key('modus') else 0
     m,n,d = numpy.shape(im)
         
     #######
     ## Design the improved gradient
     #######
     
-    im0_small = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
-    im0_small_sim = simulate(simulation_type,im0_small,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
+    if modus==1: im0_updated = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
+    elif modus==2: sigma = dict['max_sigma']; im0_updated = gaussian_filter(im0,(sigma,sigma,0))
+    else: im0_updated=im0.copy()
+    im0_updated_sim = simulate(simulation_type,im0_updated,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
+        
     
     # Gradients of original image and simulated image
     if numpy_grad:
-        grads0 = numpy.gradient(im0_small)
+        grads0 = numpy.gradient(im0_updated)
         gradx0 = grads0[0]; gradx0_arr = gradx0.reshape((m*n,3))
         grady0 = grads0[1]; grady0_arr = grady0.reshape((m*n,3))
     
-        grads0s = numpy.gradient(im0_small_sim)
+        grads0s = numpy.gradient(im0_updated_sim)
         gradx0s = grads0s[0]; gradx0s_arr = gradx0s.reshape((m*n,3))
         grady0s = grads0s[1]; grady0s_arr = grady0s.reshape((m*n,3))
     else: 
-        gradx0 = dxp1(im0_small,im0_small,dict); gradx0_arr = gradx0.reshape((m*n,3))
-        grady0 = dyp1(im0_small,im0_small,dict); grady0_arr = grady0.reshape((m*n,3))
-        gradx0s = dxp1(im0_small_sim,im0_small_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
-        grady0s = dyp1(im0_small_sim,im0_small_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
+        gradx0 = dxp1(im0_updated,im0_updated,dict); gradx0_arr = gradx0.reshape((m*n,3))
+        grady0 = dyp1(im0_updated,im0_updated,dict); grady0_arr = grady0.reshape((m*n,3))
+        gradx0s = dxp1(im0_updated_sim,im0_updated_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
+        grady0s = dyp1(im0_updated_sim,im0_updated_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
         
-        #gradx0 = gaussian_filter(gradx0,(10,10,0))
-        #grady0 = gaussian_filter(grady0,(10,10,0))
-        #gradx0s = gaussian_filter(gradx0s,(10,10,0))
-        #grady0s = gaussian_filter(grady0s,(10,10,0))
+        if modus==2:
+            sigma = dict['max_sigma']
+            gradx0 = gaussian_filter(gradx0,(sigma,sigma,0)); grady0 = gaussian_filter(grady0,(sigma,sigma,0))
+            gradx0s = gaussian_filter(gradx0s,(sigma,sigma,0)); grady0s = gaussian_filter(grady0s,(sigma,sigma,0))
     
     # Compute vectors in principal projection directions
-    ed,el,ec = computeDaltonizationUnitVectors(im0_small,im0_small_sim,dict)
+    ed,el,ec = computeDaltonizationUnitVectors(im0_updated,im0_updated_sim,dict)
         
     gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose()
-    grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
-
+    grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()    
+    
+    no_chi_red = False
+    if not dict.has_key('chi_red'): no_chi_red = True; dict['chi_red']=0
+    if dict['chi_red']==0:
+        d0 = im0_updated - im0_updated_sim; no_chi_red = True
+        if ms_first: 
+            sys.stdout.write("Computing chi_red automatically: ")
+            
+        #img_in = img_in.convert('RGB')
+        #img_array = numpy.asarray(img_in, dtype=float)/255.
+    
+        
+            
+        if numpy.ndarray.mean(im0_updated[:,:,0]) < numpy.ndarray.mean(im0_updated[:,:,1]): 
+            dict['chi_red'] = 1. 
+            if ms_first: sys.stdout.write('red')
+        else: 
+            dict['chi_red'] = -1. 
+            if ms_first: sys.stdout.write('green ')
+        if ms_first: 
+            sys.stdout.write(".\n")
+            sRGB = colour.data.Data(colour.space.srgb,im0_updated)
+            lab  = sRGB.get(colour.space.cielab)
+            #print numpy.mean(lab[:,:,0]), numpy.mean(lab[:,:,1]), numpy.mean(lab[:,:,2])
+            #print numpy.mean(d0[:,:,0]), numpy.mean(d0[:,:,1]), numpy.mean(d0[:,:,2])
+            #print numpy.mean(im0_updated[:,:,0]), numpy.mean(im0_updated[:,:,1]), numpy.mean(im0_updated[:,:,2])
+            #print numpy.mean(im0_updated_sim[:,:,0]), numpy.mean(im0_updated_sim[:,:,1]), numpy.mean(im0_updated_sim[:,:,2])
+     
     chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
     if chi_computations==1:
-        chipos_arr = computeChiAndLambda1(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
+        chipos_arr = computeChiAndLambda1(im0_updated,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
     elif chi_computations==2:
         chipos_arr = computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict)
     
@@ -1661,204 +1622,19 @@ def daltonization_yoshi_gradient(im,dict):
         gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
         gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
         
+    if no_chi_red: del dict['chi_red']
+    
     #######
     ## Compute the daltonized image through optimization (???)
     #######  
     
-    im_dalt = optimization(im,im0_small,gradxdalt,gradydalt,dict)
-    if ms_first: dict['ms_first'] = 0 # Only for first iteration 
+    im_dalt = optimization(im,im0_updated,gradxdalt,gradydalt,dict)
+    if ms_first: dict['ms_first'] = 0 # Only for first iteration
     if numpy.shape(im) == numpy.shape(im0): # Only for last iteration
         too_many = dict['too_many'] if dict.has_key('too_many') else 0
         if too_many: sys.stdout.write("\nX: Too many iterations. Breaking off.")
         sys.stdout.write('\n')
-    
     return im_dalt
-    
-def prepareOptimizedGradient(im,dict):
-    pass
-
-def computeDaltonizationUnitVectors(im,im_sim,dict):
-    
-    m,n,d = numpy.shape(im)
-    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    
-    ### Direction of lightness
-    constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
-    if constant_lightness:
-        if ms_first: sys.stdout.write("El: Constant lightness. ")
-        el = numpy.array([0.2126,0.7152,0.0722]) 
-    else: 
-        if ms_first: sys.stdout.write("El: Neutral gray lightness. ")
-        el = numpy.array([1.,1.,1.])
-    el = el / numpy.linalg.norm(el)
-    
-    ### Direction of confusion colors
-    img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1
-    # Kann wech. Benutz immer image PCA
-    if img_PCA:
-        # Use difference in image domaine
-        if ms_first: sys.stdout.write("Ed: Image PCA, ")
-        d0 = im - im_sim; d0_arr = d0.reshape((m*n,3))
-        ed_PCA = PCA(d0_arr, standardize=False)
-    else:
-        # Kann wech
-        # Use difference in gradient domaine
-        if ms_first: sys.stdout.write("Ed: Gradient PCA, ")
-        # Get gradients of original and its simulation
-        
-        numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
-        if numpy_grad:
-                gradx0 = dxp1(im); grady0 = dyp1(im); 
-                gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim)
-        else:
-            grads0 = numpy.gradient(im); gradx0 = grads0[0]; grady0 = grads0[1]
-            grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]           
-                     
-        # Error between the two gradients
-        dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
-        dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
-          
-        ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
-    
-    ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
-    #ed_tmp = im0_small_arr-im0_small_sim_arr;
-    #ed_tmp[(ed_tmp[:,0]==.0)&(ed_tmp[:,0]==.0)&(ed_tmp[:,0]==.0),:]=ed
-    #ed_tmp_norm = numpy.sqrt(numpy.sum(ed_tmp**2, axis=1));  #numpy.linalg.norm(ed_tmp)
-    #ed_tmp_norm_arr = numpy.zeros((m*n,3))
-    #for i in range(0,3):
-    #    ed_tmp_norm_arr[:,i] = ed_tmp_norm
-    #ed_tmp = ed_tmp /ed_tmp_norm_arr   
-    
-    ed_orthogonalization = dict['ed_orthogonalization'] if dict.has_key('ed_orthogonalization') else 0
-    if ed_orthogonalization:
-        if ms_first: sys.stdout.write("orthogonalized. ")
-        ed = ed - numpy.dot(ed,el)/numpy.dot(el,el)*el # Gram-Schmidt orthogonalization
-        ed = ed / numpy.linalg.norm(ed)
-    else:
-        if ms_first: sys.stdout.write("not orthogonalized. ")
-    #el_tmp = numpy.array([el,]*(m*n))  
-    
-    ### Direction of optimal daltonization
-    ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
-    
-    #ec_tmp = numpy.cross(ed_tmp,el_tmp)
-    #ec_tmp_norm = numpy.sqrt(numpy.sum(ec_tmp**2, axis=1));  #numpy.linalg.norm(ed_tmp)
-    #ec_tmp_norm_arr = numpy.zeros((m*n,3))
-    #for i in range(0,3):
-    #    ec_tmp_norm_arr[:,i] = ec_tmp_norm
-    #ec_tmp = ec_tmp / ec_tmp_norm_arr
-    
-    if ms_first: sys.stdout.write('\n')
-    
-    return ed,el,ec    
-
-def computeChiAndLambda1(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict={}):
-    
-    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    if ms_first: sys.stdout.write("Chi computations 1. ")
-    eps = .000001
-        
-    mn,d =  numpy.shape(gradx0_arr)
-    
-    gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose()
-    grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
-      
-    # Compute Chi for each pixel
-    a = numpy.sum((gradx0dot_arr*ec)**2 + \
-                  (grady0dot_arr*ec)**2,axis=1)
-    b = 2*(numpy.sum(gradx0dot_arr*ec*gradx0s_arr + \
-                     grady0dot_arr*ec*grady0s_arr,axis=1))
-    c = numpy.sum(gradx0s_arr**2 + \
-                  grady0s_arr**2 - \
-                  gradx0_arr**2 - \
-                  grady0_arr**2,axis=1)
-    
-    chi_red = -1.0
-    if dict.has_key('chi_red'):
-        chi_red = 1.0 if dict['chi_red'] == 1 else -1.0
-        #print chi_red
-    
-    under_sqrt = b**2-4*a*c
-    under_sqrt[under_sqrt<0] = 0.
-    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a+eps)
-    chi_pos[numpy.isnan(chi_pos)] = 0.
-    chipos_arr = numpy.array([chi_pos,]*d).transpose()
-    
-    # Check if computations have been correct
-    correction = 0
-    if correction:
-        print "a: ", numpy.max(a), numpy.min(a), numpy.mean(a)
-        print "b: ", numpy.max(b), numpy.min(b), numpy.mean(b)
-        print "c: ", numpy.max(c), numpy.min(c), numpy.mean(c)
-        check = numpy.sum((gradx0_arr)**2 + \
-                          (grady0_arr)**2,axis=1)- \
-                          (numpy.sum((gradx0s_arr+chipos_arr*gradx0dot_arr*ec)**2 +\
-                                     (grady0s_arr+chipos_arr*grady0dot_arr*ec)**2,axis=1))
-        print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
-
-    return chipos_arr#, lambdneg_arr
-
-def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
-    """
-    Does this make sense even?
-    """
-    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    if ms_first: sys.stdout.write("Chi computations 2. ")
-    eps = .000001
-    
-    common_dot_product = 1
-    mn,d =  numpy.shape(gradx0_arr)
-    
-    if common_dot_product:          
-        gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose() 
-        grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
-        
-    else:
-        print "hiersimmer"
-        gradx0dot_arr = numpy.zeros((mn,d))
-        grady0dot_arr = numpy.zeros((mn,d))
-        for i in range(0,(mn)):
-            a_tmp = numpy.dot(gradx0_arr[i,:],ed[i,:])
-            b_tmp = numpy.dot(grady0_arr[i,:],ed[i,:])
-            for j in range(0,d):
-                gradx0dot_arr[i,j] = a_tmp
-                grady0dot_arr[i,j] = b_tmp
-      
-    # Compute Chi for each pixel
-    a = numpy.sum((gradx0dot_arr*ec)**2 + \
-                  (grady0dot_arr*ec)**2,axis=1)
-    b = 2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ec)-(gradx0dot_arr*ed)*(gradx0dot_arr*ec) + \
-                     grady0_arr*(grady0dot_arr*ec)-(grady0dot_arr*ed)*(grady0dot_arr*ec),axis=1))
-    c = numpy.sum((gradx0dot_arr*ed)**2 + \
-                  (grady0dot_arr*ed)**2,axis=1)- \
-        2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ed) + \
-                     grady0_arr*(grady0dot_arr*ed),axis=1))
-    
-    chi_red = 1.0
-    if dict.has_key('chi_red'):
-        chi_red = 1.0 if dict['chi_red'] == 1 else -1.0
-        print chi_red
-    
-    under_sqrt = b**2-4*a*c
-    under_sqrt[under_sqrt<0] = 0.
-    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a+eps)
-    chi_pos[numpy.isnan(chi_pos)] = 0.
-    chipos_arr = numpy.array([chi_pos,]*d).transpose()
-    
-    # Check if computations have been correct
-    correction = 0
-    if correction:
-        print "a: ", numpy.max(a), numpy.min(a), numpy.mean(a)
-        print "b: ", numpy.max(b), numpy.min(b), numpy.mean(b)
-        print "c: ", numpy.max(c), numpy.min(c), numpy.mean(c)
-        check = numpy.sum((gradx0_arr)**2 + \
-                          (grady0_arr)**2,axis=1) - \
-                (numpy.sum((gradx0_arr-gradx0dot_arr*ed+chipos_arr*gradx0dot_arr*ec)**2 +\
-                           (grady0_arr-grady0dot_arr*ed+chipos_arr*grady0dot_arr*ec)**2,axis=1))
-        print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
-        
-    return chipos_arr#,lambdneg_arr  
-
 
 def optimization(im,im0,gradxdalt,gradydalt,dict):
 
@@ -1875,6 +1651,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         name = "anisotropic optimization"
         if ms_first: sys.stdout.write("Anisotropic optimization: ")
     
+    # Optional parameters
     cutoff = dict['cutoff'] if dict.has_key('cutoff') else .1
     max_its = dict['max_its'] if dict.has_key('max_its') else 1000
     data = dict['data'] if dict.has_key('data') else None
@@ -1901,8 +1678,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         if optimization==1: opt = optimization_poisson(gradx,grady,gradxdalt,gradydalt,dict)
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
-            
-        #im_new = optimization_boundary(im_new, im0, opt, dict)
+        
         if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] # Keep boundary values constant
         else: im_new = im_new + dt*opt
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1. # Gamut clipping
@@ -1965,21 +1741,6 @@ def optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict):
     
     return tv
 
-def anisotropicG(gradx0,grady0,dict):
-    
-    g_xx = gradx0*gradx0; g_xy = gradx0*grady0; g_yy = grady0*grady0#; g_yx = grady0*gradx0
-    eig_pos = (g_xy+g_yy+numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.; eig_neg = (g_xy+g_yy-numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.
-    
-    anisotropic = dict['anisotropic'] if dict.has_key('anisotropic') else 0
-    if anisotropic/3 < 3: f = numpy.sqrt(eig_pos-eig_neg)
-    elif anisotropic/3 >= 3: f = numpy.sqrt(eig_pos)
-        
-    if anisotropic%3 == 0: g = f
-    elif anisotropic%3 == 1: g = 1/(1+f)
-    elif anisotropic%3 == 2: g = numpy.exp(-f)
-    
-    return g
-
 def optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict):
     """
     Using anisotropic equation to solve optimization formula in order to obtain gradxdalt and gradydalt.
@@ -1997,77 +1758,3 @@ def optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict):
     anis = (gradgradx + gradgrady)
     
     return anis
-
-def RMSE(u_old,u_new):
-    """
-    RMSe of two images
-    """
-    if numpy.shape(u_old) != numpy.shape(u_new):
-        print "Error: Both images have to be the same size"
-    m,n,d = numpy.shape(u_old)
-    rmse = numpy.sum(numpy.sqrt(numpy.sum((u_new-u_old)**2,axis=2))) / (m*n)
-    
-    return rmse
-
-def GRMSE(grad_uold,grad_unew):
-    """
-    RMSE of two gradient images
-    """
-    gradx_uold = grad_uold['gradx']; gradx_unew = grad_unew['gradx']
-    grady_uold = grad_uold['grady']; grady_unew = grad_unew['grady'] 
-    if (numpy.shape(gradx_uold) != numpy.shape(gradx_unew)) or (numpy.shape(grady_uold) != numpy.shape(grady_unew)):
-        print "Error: Both images have to be the same size"  
-    m,n,d = numpy.shape(gradx_uold)
-    grmse = numpy.sum(numpy.sqrt(numpy.sum((gradx_unew-gradx_uold)**2,axis=2)+ \
-                                 numpy.sum((grady_unew-grady_uold)**2,axis=2))) / (2*m*n)
-    
-    return grmse
-
-def multiscaling(im,func,dict={}):
-    
-    min_size = 2**4
-    interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
-    mode = dict['mode'] if dict.has_key('mode') else 'RGB'
-    m,n,d = numpy.shape(im); size = numpy.array((m,n))
-    
-    if m <= min_size or n <= min_size:
-        im_new = func(im,dict)
-        return im_new
-    else:
-        im_small = imresize(im,(0.5*size).astype(int),interp=interp,mode=mode)/255.
-        err = im - imresize(im_small,size,interp=interp,mode=mode)/255.
-        im_small_updated = multiscaling(im_small,func,dict)
-        im_updated = err + imresize(im_small_updated,size,interp=interp,mode=mode)/255.
-        im_new = func(im_updated,dict)
-        return im_new
-
-def smoothing(im,sigma,func,dict={}):
-    
-    max_sigma = dict['max_sigma']
-    """
-    if sigma > max_sigma:
-        sigma -=2
-        print "using ", sigma
-        
-        im_blurred = gaussian_filter(im,(sigma,sigma,0))
-        im_new = func(im_blurred,dict)
-        return im_new
-    else:
-        print sigma
-        im_blurred = gaussian_filter(im,(2,2,0))
-        err = im - im_blurred
-        im_blurred_updated = smoothing(im_blurred,sigma+2,func,dict)
-        im_updated = err + im_blurred_updated
-        im_new = func(im_updated,dict)
-        return im_new
-    """
-    print sigma
-    im_blurred = gaussian_filter(im,(sigma,sigma,0))
-    dict.update({'im0': im_blurred.copy()})
-    data = dict['data'] if dict.has_key('data') else None
-    data.set_array(im_blurred); draw()
-    err = im - im_blurred
-    im_blurred_updated = func(im_blurred,dict)
-    im_updated = err+im_blurred_updated
-    im_new = im_updated
-    return im_new
