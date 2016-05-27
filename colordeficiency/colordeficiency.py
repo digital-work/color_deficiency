@@ -1578,45 +1578,25 @@ def daltonization_yoshi_gradient(im,dict):
     # Compute vectors in principal projection directions
     ed,el,ec = computeDaltonizationUnitVectors(im0_updated,im0_updated_sim,dict)
     
-    glob = 0
-    if glob:
-        print numpy.sum(numpy.isnan(ed)) #, numpy.shape(gradx0_arr)
-        k_x = numpy.dot(gradx0_arr,ed); 
-        k_y = numpy.dot(grady0_arr,ed)
-        print numpy.shape(k_x), numpy.shape(k_y)
-    else:
-        #k_x 
-        k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1))
-        k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1))
-    gradx0dot_arr = numpy.array([k_x,]*d).transpose()
-    grady0dot_arr = numpy.array([k_y,]*d).transpose()    
+    glob = dict['glob'] if dict.has_key('glob') else 1
+    if glob: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
+    else: k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1)); k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1)) # feil
+    gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()    
     
     no_chi_red = False
     if not dict.has_key('chi_red'): no_chi_red = True; dict['chi_red']=0
     if dict['chi_red']==0:
         d0 = im0_updated - im0_updated_sim; no_chi_red = True
-        if ms_first: 
-            sys.stdout.write("Computing chi_red automatically: ")
-            
-        #img_in = img_in.convert('RGB')
-        #img_array = numpy.asarray(img_in, dtype=float)/255.
-    
+        if ms_first: sys.stdout.write("Computing chi_red automatically: ")
         
-            
         if numpy.ndarray.mean(im0_updated[:,:,0]) < numpy.ndarray.mean(im0_updated[:,:,1]): 
             dict['chi_red'] = 1. 
             if ms_first: sys.stdout.write('red')
         else: 
             dict['chi_red'] = -1. 
-            if ms_first: sys.stdout.write('green ')
+            if ms_first: sys.stdout.write('green')
         if ms_first: 
-            sys.stdout.write(".\n")
-            sRGB = colour.data.Data(colour.space.srgb,im0_updated)
-            lab  = sRGB.get(colour.space.cielab)
-            #print numpy.mean(lab[:,:,0]), numpy.mean(lab[:,:,1]), numpy.mean(lab[:,:,2])
-            #print numpy.mean(d0[:,:,0]), numpy.mean(d0[:,:,1]), numpy.mean(d0[:,:,2])
-            #print numpy.mean(im0_updated[:,:,0]), numpy.mean(im0_updated[:,:,1]), numpy.mean(im0_updated[:,:,2])
-            #print numpy.mean(im0_updated_sim[:,:,0]), numpy.mean(im0_updated_sim[:,:,1]), numpy.mean(im0_updated_sim[:,:,2])
+            sys.stdout.write(". ")
      
     chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
     if chi_computations==1:
@@ -1700,7 +1680,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
             d_new = GRMSE({'gradx': gradx, 'grady': grady}, \
                           {'gradx': gradxdalt, 'grady': gradydalt})
             test = numpy.abs((d_old-d_new)/d_old) 
-            print test
+            #print test
         if (test < cutoff): cted = False 
         if data:
             if is_simulated:

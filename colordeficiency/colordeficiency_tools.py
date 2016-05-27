@@ -1348,14 +1348,14 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     ### Direction of confusion colors
     img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1
     # Kann wech. Benutz immer image PCA
-    glob = 1
+    glob = dict['glob'] if dict.has_key('glob') else 1
     if glob: 
         if img_PCA: # Use difference in image domaine 
             d0 = im - im_sim; d0_arr = d0.reshape((m*n,3)); 
             ed_PCA = PCA(d0_arr, standardize=False)
-            #if ms_first: pass#sys.stdout.write("Ed: Image PCA, ")
+            if ms_first: sys.stdout.write("Ed: Image PCA, ")
         else: # Use difference in gradient domaine
-            #if ms_first: pass#sys.stdout.write("Ed: Gradient PCA, ")
+            if ms_first: sys.stdout.write("Ed: Gradient PCA, ")
             # Get gradients of original and its simulation
             numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
             if numpy_grad:
@@ -1391,8 +1391,7 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     ### Direction of optimal daltonization
     ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
-    #print numpy.shape(ed), numpy.shape(el), numpy.shape(ec)
-    #if ms_first: sys.stdout.write('\n')
+    if ms_first: sys.stdout.write('\n')
     
     return ed,el,ec
 
@@ -1401,27 +1400,12 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
     if ms_first: sys.stdout.write("Chi computations 1. ")
     eps = .000001
-        
     mn,d =  numpy.shape(gradx0_arr)
-    print mn, numpy.shape(im0)
-   # print mn
     
-    #gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose()
-    #grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
-    
-    glob = 1
-    if glob:
-        print numpy.sum(numpy.isnan(ed)) #, numpy.shape(gradx0_arr)
-        k_x = numpy.dot(gradx0_arr,ed); 
-        k_y = numpy.dot(grady0_arr,ed)
-        print numpy.shape(k_x), numpy.shape(k_y)
-    else:
-        #k_x 
-        k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1))
-        k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1))
-    gradx0dot_arr = numpy.array([k_x,]*d).transpose()
-    grady0dot_arr = numpy.array([k_y,]*d).transpose()  
-    
+    glob = dict['glob'] if dict.has_key('glob') else 1
+    if glob: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
+    else: k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1)); k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1)) # feil
+    gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()  
       
     # Compute Chi for each pixel
     a = numpy.sum((gradx0dot_arr*ec)**2 + \
@@ -1440,25 +1424,23 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
     if chi_red == 0:
-        eps = .00001
         sRGB = colour.data.Data(colour.space.srgb,im0)
         lab  = sRGB.get(colour.space.cielab)
         chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); chroma_arr = chroma.reshape((mn,)); # print numpy.shape(chroma);
         
-        if numpy.sum(numpy.abs(chi_neg/(chroma_arr+eps))) > numpy.sum(numpy.abs(chi_pos/(chroma_arr+eps))): chi = chi_pos; print "red"
-        else: chi = chi_neg; print "green"
+        if numpy.sum(numpy.abs(chi_neg/(chroma_arr+eps))) > numpy.sum(numpy.abs(chi_pos/(chroma_arr+eps))): chi = chi_pos; sys.stdout.write("red")
+        else: chi = chi_neg; sys.stdout.write("green")
     elif chi_red == 2.:
         # All of them are either bigger or smaller
         #print "hiersimmer1" 
-        eps = .00001
         sRGB = colour.data.Data(colour.space.srgb,im0)
         lab  = sRGB.get(colour.space.cielab)
         chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); #print numpy.shape(chroma);chroma_arr = chroma.reshape((mn,))
         p=chi_pos.copy()/(chroma_arr+eps);p[chi_pos>=chi_neg]=0
         n=chi_neg.copy()/(chroma_arr+eps);n[chi_neg>chi_pos]=0
         chi=p+n
-    elif chi_red == 1.: chi = chi_pos; print "red"
-    elif chi_red ==-1.: chi = chi_neg; print "green"
+    elif chi_red == 1.: chi = chi_pos; sys.stdout.write("red")
+    elif chi_red ==-1.: chi = chi_neg; sys.stdout.write("green")
     chi[numpy.isnan(chi)] = 0.
     chi_arr = numpy.array([chi,]*d).transpose()
     
