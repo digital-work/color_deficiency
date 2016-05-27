@@ -14,6 +14,7 @@ import time
 import colour
 import random
 import numpy
+import pandas
 #from openpyxl import Workbook
 
 from openpyxl import Workbook, load_workbook
@@ -87,32 +88,20 @@ def setStatsToFilename(img_id,dalt,dalt_id,sim,sim_id,coldef_type):
     return filename+ext
 
 def daltType2Int(daltonization_type):
-    if daltonization_type=="anagnostopoulos":
-        return 1
-    elif daltonization_type == "kotera":
-        return 2
-    elif daltonization_type == "kuhn":
-        return 3 
-    elif daltonization_type == "huan":
-        return 4
-    elif daltonization_type == "dummy":
-        return 99
-    else:
-        return 0
+    if daltonization_type=="anagnostopoulos": return 1
+    elif daltonization_type == "kotera": return 2
+    elif daltonization_type == "kuhn": return 3 
+    elif daltonization_type == "huan": return 4
+    elif daltonization_type == "dummy": return 99
+    else: return 0
 
 def simType2Int(simulation_type):
-    if simulation_type=="vienot":
-        return 1
-    elif simulation_type == "vienot-adjusted":
-        return 2
-    elif simulation_type == "kotera":
-        return 3 
-    elif simulation_type == "brettel":
-        return 4
-    elif simulation_type == "dummy":
-        return 99
-    else:
-        return 0
+    if simulation_type=="vienot": return 1
+    elif simulation_type == "vienot-adjusted": return 2
+    elif simulation_type == "kotera": return 3 
+    elif simulation_type == "brettel": return 4
+    elif simulation_type == "dummy": return 99
+    else:  return 0
 
 def read_csv_file(filename, pad=-numpy.inf):
     """
@@ -161,15 +150,12 @@ def makeXLSXForExperiment(options):
     
     n_exps = 2 # Number of experiments
     
-    if options.has_key('path_in'):
-        path_in = options['path_in']
+    if options.has_key('path_in'): path_in = options['path_in']
     else:
         print "Error: No Source folder with images specified. Please call the function with the necessary location as path_in."  
         return
-    try:
-        os.stat(os.path.join(path_in,'images'))
-    except:
-        os.mkdir(os.path.join(path_in,'images')) 
+    try: os.stat(os.path.join(path_in,'images'))
+    except: os.mkdir(os.path.join(path_in,'images')) 
     
     if options.has_key('extension'):
         ext = options['extension']
@@ -1424,23 +1410,25 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
     if chi_red == 0:
-        sRGB = colour.data.Data(colour.space.srgb,im0)
-        lab  = sRGB.get(colour.space.cielab)
+        if ms_first: sys.stdout.write("Computing chi_red automatically: ")
+        sRGB = colour.data.Data(colour.space.srgb,im0); lab  = sRGB.get(colour.space.cielab)
         chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); chroma_arr = chroma.reshape((mn,)); # print numpy.shape(chroma);
         
         if numpy.sum(numpy.abs(chi_neg/(chroma_arr+eps))) > numpy.sum(numpy.abs(chi_pos/(chroma_arr+eps))): chi = chi_pos; sys.stdout.write("red")
         else: chi = chi_neg; sys.stdout.write("green")
+        if ms_first: sys.stdout.write(". ")
     elif chi_red == 2.:
+        if ms_first: sys.stdout.write("Computing chi_red individually. ")
         # All of them are either bigger or smaller
-        #print "hiersimmer1" 
-        sRGB = colour.data.Data(colour.space.srgb,im0)
-        lab  = sRGB.get(colour.space.cielab)
-        chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); #print numpy.shape(chroma);chroma_arr = chroma.reshape((mn,))
-        p=chi_pos.copy()/(chroma_arr+eps);p[chi_pos>=chi_neg]=0
-        n=chi_neg.copy()/(chroma_arr+eps);n[chi_neg>chi_pos]=0
+        p=chi_pos.copy();p[chi_pos>=chi_neg]=0
+        n=chi_neg.copy();n[chi_neg>chi_pos]=0
         chi=p+n
-    elif chi_red == 1.: chi = chi_pos; sys.stdout.write("red")
-    elif chi_red ==-1.: chi = chi_neg; sys.stdout.write("green")
+    elif chi_red == 1.:
+        if ms_first: sys.stdout.write("Chi_red. ") 
+        chi = chi_pos
+    elif chi_red ==-1.:
+        if ms_first: sys.stdout.write("Chi_green. ") 
+        chi = chi_neg
     chi[numpy.isnan(chi)] = 0.
     chi_arr = numpy.array([chi,]*d).transpose()
     

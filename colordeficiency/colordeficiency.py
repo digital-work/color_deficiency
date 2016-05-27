@@ -1585,18 +1585,7 @@ def daltonization_yoshi_gradient(im,dict):
     
     no_chi_red = False
     if not dict.has_key('chi_red'): no_chi_red = True; dict['chi_red']=0
-    if dict['chi_red']==0:
-        d0 = im0_updated - im0_updated_sim; no_chi_red = True
-        if ms_first: sys.stdout.write("Computing chi_red automatically: ")
-        
-        if numpy.ndarray.mean(im0_updated[:,:,0]) < numpy.ndarray.mean(im0_updated[:,:,1]): 
-            dict['chi_red'] = 1. 
-            if ms_first: sys.stdout.write('red')
-        else: 
-            dict['chi_red'] = -1. 
-            if ms_first: sys.stdout.write('green')
-        if ms_first: 
-            sys.stdout.write(". ")
+    if dict['chi_red']==0: d0 = im0_updated - im0_updated_sim; no_chi_red = True
      
     chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
     if chi_computations==1:
