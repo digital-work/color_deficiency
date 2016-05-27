@@ -1577,9 +1577,19 @@ def daltonization_yoshi_gradient(im,dict):
     
     # Compute vectors in principal projection directions
     ed,el,ec = computeDaltonizationUnitVectors(im0_updated,im0_updated_sim,dict)
-        
-    gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose()
-    grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()    
+    
+    glob = 0
+    if glob:
+        print numpy.sum(numpy.isnan(ed)) #, numpy.shape(gradx0_arr)
+        k_x = numpy.dot(gradx0_arr,ed); 
+        k_y = numpy.dot(grady0_arr,ed)
+        print numpy.shape(k_x), numpy.shape(k_y)
+    else:
+        #k_x 
+        k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1))
+        k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1))
+    gradx0dot_arr = numpy.array([k_x,]*d).transpose()
+    grady0dot_arr = numpy.array([k_y,]*d).transpose()    
     
     no_chi_red = False
     if not dict.has_key('chi_red'): no_chi_red = True; dict['chi_red']=0
@@ -1689,7 +1699,8 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
                           {'gradx': gradxdalt, 'grady': gradydalt})
             d_new = GRMSE({'gradx': gradx, 'grady': grady}, \
                           {'gradx': gradxdalt, 'grady': gradydalt})
-            test = (d_old-d_new)/d_old 
+            test = numpy.abs((d_old-d_new)/d_old) 
+            print test
         if (test < cutoff): cted = False 
         if data:
             if is_simulated:
