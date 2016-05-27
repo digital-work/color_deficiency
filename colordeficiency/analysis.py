@@ -286,7 +286,7 @@ def samsemPlots1thru4(samsem_data,path,dict):
         if (sim_id != 3) and (sim_id != 99):
             whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id],['coldef_type',operator.eq,coldef_type]]
         else:
-            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id]] # For the kotera and the dummy method, both protanopia and deuteranopia variants are identical. Thus, no distinction of coldef_type is necessary.
+            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id],['coldef_type',operator.eq,1]] # For the kotera and the dummy method, both protanopia and deuteranopia variants are identical. Thus, no distinction of coldef_type is necessary.
         relevant_data_tmp = organizeArray(samsem_data,whatArr_tmp)   
                
         pandas_dict.update({sim_method: relevant_data_tmp})
