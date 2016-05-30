@@ -1382,7 +1382,7 @@ def daltonize_pics(images,options):
         for daltonization_type in options['daltonization_types']:
             sys.stdout.write( "..." + daltonization_type)
             for coldef_type in options['coldef_types']:
-                sys.stdout.write("."+coldef_type)
+                sys.stdout.write("."+coldef_type+"\n")
                  
                 if (bool(dict_in['sim'])): sys.stdout.write('.Cannot daltonize already simulated images')
                 elif bool(dict_in['dalt']): sys.stdout.write('.Cannot daltonize already daltonized images')
@@ -1400,7 +1400,7 @@ def daltonize_pics(images,options):
                                                             dict_in['sim_id'],
                                                             settings.colDef2ID[coldef_type])
                     file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-                    print file_path_out_tmp
+                    #print file_path_out_tmp
                     img_dalt.save(file_path_out_tmp)
  
         sys.stdout.write("\n")
@@ -1476,7 +1476,7 @@ def daltonization_yoshi_042016(im,dict):
     
     is_numpy_array = type(im)==numpy.ndarray
     if is_numpy_array: im_array = im
-    else: im = im.convert('RGB'); im_array = numpy.asarray(im, dtype=float)/255.
+    else: print 'hiersimmer'; im = im.convert('RGB'); im_array = numpy.asarray(im, dtype=float)/255.
     
     if modus==0:
         sys.stdout.write("Simple. ")
@@ -1561,9 +1561,9 @@ def daltonization_yoshi_gradient(im,dict):
     # Compute vectors in principal projection directions
     ed,el,ec = computeDaltonizationUnitVectors(im0_updated,im0_updated_sim,dict)
     
-    glob = dict['glob'] if dict.has_key('glob') else 1
-    if glob: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
-    else: k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1)); k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1)) # feil
+    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
+    if global_unit_vectors: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
+    else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1) # feil
     gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()    
     
     no_chi_red = False

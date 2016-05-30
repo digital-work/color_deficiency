@@ -1333,14 +1333,14 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     ### Direction of confusion colors
     img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1
     # Kann wech. Benutz immer image PCA
-    glob = dict['glob'] if dict.has_key('glob') else 1
-    if glob: 
+    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
+    if global_unit_vectors: 
         if img_PCA: # Use difference in image domaine 
             d0 = im - im_sim; d0_arr = d0.reshape((m*n,3)); 
             ed_PCA = PCA(d0_arr, standardize=False)
-            if ms_first: sys.stdout.write("Ed: Image PCA, ")
+            if ms_first: sys.stdout.write("Global ed: Image PCA, ")
         else: # Use difference in gradient domaine
-            if ms_first: sys.stdout.write("Ed: Gradient PCA, ")
+            if ms_first: sys.stdout.write("Global ed: Gradient PCA, ")
             # Get gradients of original and its simulation
             numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
             if numpy_grad:
@@ -1358,6 +1358,7 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
         
         ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
     else:
+        if ms_first: sys.stdout.write("Spatial ed, ")
         d0 = im - im_sim; d0_arr = d0.reshape((m*n,3))
         d0_norm_1D = numpy.sqrt(numpy.sum(d0_arr**2, axis=1))
         d0_norm_3D = numpy.array([d0_norm_1D,]*d).transpose()
@@ -1372,10 +1373,18 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     else:
         if ms_first: sys.stdout.write("not orthogonalized. ")
         
-    if not glob: el = numpy.array([el,]*(m*n))
+    if not global_unit_vectors: el = numpy.array([el,]*(m*n))
     
     ### Direction of optimal daltonization
-    ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
+    if global_unit_vectors: ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
+    else: 
+        ec = numpy.cross(ed,el); #ec = ec/numpy.linalg.norm(ec,axis=1)
+        ec_norm_1D = [numpy.linalg.norm(ec,axis=1),]
+        ec_norm_3D = numpy.array(ec_norm_1D*d).transpose()
+        ec = ec/ec_norm_3D
+        #ec_norm_3D = numpy
+        #print numpy.shape(ec)
+        #print numpy.shape(ed), numpy.shape(el), numpy.shape(numpy.cross(ed,el)), numpy.sum(numpy.sum(el*ec,axis=1)), numpy.sum(numpy.sum(ed*ec,axis=1))
     if ms_first: sys.stdout.write('\n')
     
     return ed,el,ec
@@ -1387,9 +1396,9 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     eps = .000001
     mn,d =  numpy.shape(gradx0_arr)
     
-    glob = dict['glob'] if dict.has_key('glob') else 1
-    if glob: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
-    else: k_x = numpy.shape(numpy.sum(gradx0_arr*ed, axis=1)); k_y = numpy.shape(numpy.sum(grady0_arr*ed, axis=1)) # feil
+    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
+    if global_unit_vectors: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
+    else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1)
     gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()  
       
     # Compute Chi for each pixel
@@ -1410,10 +1419,10 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
     if chi_red == 0:
         if ms_first: sys.stdout.write("Computing chi_red automatically: ")
-        sRGB = colour.data.Data(colour.space.srgb,im0); lab  = sRGB.get(colour.space.cielab)
-        chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); chroma_arr = chroma.reshape((mn,)); # print numpy.shape(chroma);
+        #sRGB = colour.data.Data(colour.space.srgb,im0); lab  = sRGB.get(colour.space.cielab)
+        #chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); chroma_arr = chroma.reshape((mn,)); # print numpy.shape(chroma);
         
-        if numpy.sum(numpy.abs(chi_neg/(chroma_arr+eps))) > numpy.sum(numpy.abs(chi_pos/(chroma_arr+eps))): chi = chi_pos; sys.stdout.write("red")
+        if numpy.sum(numpy.abs(chi_neg)) > numpy.sum(numpy.abs(chi_pos)): chi = chi_pos; sys.stdout.write("red")
         else: chi = chi_neg; sys.stdout.write("green")
         if ms_first: sys.stdout.write(". ")
     elif chi_red == 2.:
@@ -1459,7 +1468,6 @@ def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
     if common_dot_product:          
         gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose() 
         grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
-        
     else:
         print "hiersimmer"
         gradx0dot_arr = numpy.zeros((mn,d))
@@ -1525,8 +1533,7 @@ def RMSE(u_old,u_new):
     """
     RMSe of two images
     """
-    if numpy.shape(u_old) != numpy.shape(u_new):
-        print "Error: Both images have to be the same size"
+    if numpy.shape(u_old) != numpy.shape(u_new): print "Error: Both images have to be the same size"
     m,n,d = numpy.shape(u_old)
     rmse = numpy.sum(numpy.sqrt(numpy.sum((u_new-u_old)**2,axis=2))) / (m*n)
     
