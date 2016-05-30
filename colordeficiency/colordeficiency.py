@@ -449,11 +449,8 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     c485_XYZ =  data[data[:,0]==485.][0,1:4]
     c485_LMS = numpy.dot(xyz2lms,c485_XYZ)
     
-    if is_numpy_array:
-        img_array = img_in
-    else:
-        img_in = img_in.convert('RGB')
-        img_array = numpy.asarray(img_in, dtype=float)/255.
+    if is_numpy_array: img_array = img_in
+    else: img_in = img_in.convert('RGB'); img_array = numpy.asarray(img_in, dtype=float)/255.
     m,n,dim = numpy.shape(img_array)
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
@@ -573,11 +570,8 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     # We propose this gamut clipping instead for the one proposed by vienot
     sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)
     
-    if is_numpy_array:
-        img_out = sRGBSimulated_arr
-    else:
-        img_array = numpy.uint8(sRGBSimulated_arr*255.)
-        img_out = Image.fromarray(img_array)
+    if is_numpy_array: img_out = sRGBSimulated_arr
+    else: img_array = numpy.uint8(sRGBSimulated_arr*255.); img_out = Image.fromarray(img_array)
     
     #showLMSSpace()
     
@@ -656,17 +650,13 @@ def daltonization_huan(img_in,options):
     except Exception,e:
         img_out = crossOut(img_in)
     mlab.stop()
-    return img_out
-    
-#img_out = daltonization_huan(img_in,{'coldef_type': 'p'})
-#img_out.show()   
+    return img_out 
         
 def runcvdKuhn2008ExeThread(dict):
     
     par_dir = os.path.abspath(os.path.join(settings.module_path, os.pardir))
     commando = "wine "+os.path.join(par_dir,'c++','cvdKuhn','cvdKuhn2008.exe')+" "+dict['filepath_orig_tmp']+" "+str(coldefType2Int(dict['coldef_type'])-1)+ " "+str(dict['exagerated'])+" "+str(dict['max_num_quant'])
     # -1 because Kuhn starts to count color deficiency types at 0.
-    #print commando
     os.popen(commando)
 
 def c2g_alsam(img_in):
@@ -938,7 +928,6 @@ def daltonization_anagnostopoulos(img_in,options):
     m,n,dim = numpy.shape(sRGBOriginal_arr)
     
     # This is the actual simulation
-    
     #Computing error image
     err2mod = numpy.array([[0,0,0],
                            [0.7,1,0],
@@ -952,7 +941,6 @@ def daltonization_anagnostopoulos(img_in,options):
     #print numpy.shape(sRGBError_vector)
     #sRGBErrorAdjusted_vector = numpy.dot(err2mod,sRGBError_vector.transpose())
     sRGBDaltonized_vector = sRGBOriginal_vector + sRGBErrorAdjusted_vector
-    
     
     sRGBDaltonized_array = numpy.reshape(sRGBDaltonized_vector, (m,n,3))
     sRGBDaltonized_array[sRGBDaltonized_array<0.] = 0.
@@ -970,13 +958,11 @@ def lambdaShiftKotera(fund_img, lamda):
     
     k,mn = numpy.shape(fund_img)
     lamda = lamda % k
-    #print k,mn
     
     a_first = fund_img[0:lamda+1,:]
     a_last = fund_img[lamda+1:k,:]
     
     fundShift_img = numpy.vstack([a_last, a_first])
-    #print numpy.shape(fundShift_img)
     
     return fundShift_img
 
@@ -1300,6 +1286,7 @@ def daltonize(img_in,options):
     #dict = {'img_in': img_in, 'coldef_type': coldef_type}
     
     if daltonization_type == "anagnostopoulos": img_out = daltonization_anagnostopoulos(img_in,options)
+    elif daltonization_type == "fidaner": img_out = daltonization_anagnostopoulos(img_in,options)
     elif daltonization_type == "kotera": img_out = daltonization_kotera(img_in,options)
     elif daltonization_type == "kuhn": img_out = daltonization_kuhn(img_in,options)
     elif daltonization_type == "huan": img_out = daltonization_huan(img_in,options)
@@ -1307,7 +1294,7 @@ def daltonize(img_in,options):
     elif daltonization_type == "yoshi-alsam-only": img_out = daltonization_yoshi_alsam(img_in,options)
     elif daltonization_type == "yoshi-simone": img_out = daltonization_yoshi_c2g(img_in,options)
     elif daltonization_type == "yoshi-alsam": img_out = daltonization_yoshi_alsam_extra(img_in,options)
-    elif daltonization_type == "": img_out = daltonization_yoshi_gradient(img_in, options)
+    elif daltonization_type == "yoshi-gradient": img_out = daltonization_yoshi_042016(img_in, options)
     elif daltonization_type == "dummy": img_out = convertToLuminanceImage(img_in,options)
     else:
         print 'Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(settings.daltonization_types)+'".'
@@ -1369,66 +1356,54 @@ def daltonize(img_in,options):
 # 
 #         sys.stdout.write("\n")
 
-#wech
-# def daltonize_pics(images,options):
-#     """
-#     Braumer des werklech?
-#     """
-#     
-#     
-#     if options.has_key('path_out'):
-#         path_out = options['path_out']
-#     else:
-#         path_out = ""
-#     
-#     if not options.has_key('daltonization_types'):
-#         print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.daltonization_types)
-#         options['daltonization_types'] = settings.daltonization_types
-#     
-#     if not options.has_key('coldef_types'):
-#         print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
-#         options['coldef_types'] = settings.coldef_types
-#     
-#     for img in images:
-#         path_in_tmp, basename_tmp = os.path.split(img)
-#         file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
-#         dict_in = getStatsFromFilename(file_name_in_tmp)
-#         
-#         if not path_out:
-#             path_out = path_in_tmp
-#         sys.stdout.write("Computing "+str(file_name_in_tmp))
-#         
-#         for daltonization_type in options['daltonization_types']:
-#             sys.stdout.write( "..." + daltonization_type)
-#             for coldef_type in options['coldef_types']:
-#                 sys.stdout.write("."+coldef_type)
-#                 
-#                 if (bool(dict_in['sim'])):
-#                     sys.stdout.write('.Cannot daltonize already simulated images')
-#                 
-#                 elif bool(dict_in['dalt']):
-#                     sys.stdout.write('.Cannot daltonize already daltonized images')
-#                 else:
-#                     
-#                     img_in = Image.open(img)
-#                     #img_in.thumbnail((256,256))
-#                     options_tmp = options.copy()
-#                     options_tmp['coldef_type'] = coldef_type
-#                     options_tmp['daltonization_type'] = daltonization_type
-#                     img_dalt =daltonize(img_in, options_tmp)
-#                  
-#                     file_name_out_tmp = setStatsToFilename(
-#                                                        dict_in['img_id'],
-#                                                        True,
-#                                                        settings.dalt2ID[daltonization_type],
-#                                                        dict_in['sim'],
-#                                                        dict_in['sim_id'],
-#                                                        settings.colDef2ID[coldef_type]
-#                                                        )
-#                     file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-#                     img_dalt.save(file_path_out_tmp)
-# 
-#         sys.stdout.write("\n")
+from colordeficiency_tools import getStatsFromFilename, setStatsToFilename
+def daltonize_pics(images,options):
+    """
+    Braumer des werklech?
+    """
+     
+    path_out = options['path_out'] if options.has_key('path_out') else ""
+    if not options.has_key('daltonization_types'):
+        print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.daltonization_types)
+        options['daltonization_types'] = settings.daltonization_types
+     
+    if not options.has_key('coldef_types'):
+        print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
+        options['coldef_types'] = settings.coldef_types
+     
+    for img in images:
+        path_in_tmp, basename_tmp = os.path.split(img)
+        file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
+        dict_in = getStatsFromFilename(file_name_in_tmp)
+         
+        if not path_out: path_out = path_in_tmp
+        sys.stdout.write("Computing "+str(file_name_in_tmp))
+         
+        for daltonization_type in options['daltonization_types']:
+            sys.stdout.write( "..." + daltonization_type)
+            for coldef_type in options['coldef_types']:
+                sys.stdout.write("."+coldef_type)
+                 
+                if (bool(dict_in['sim'])): sys.stdout.write('.Cannot daltonize already simulated images')
+                elif bool(dict_in['dalt']): sys.stdout.write('.Cannot daltonize already daltonized images')
+                else:
+                    img_in = Image.open(img)
+                    options_tmp = options.copy()
+                    options_tmp['coldef_type'] = coldef_type
+                    options_tmp['daltonization_type'] = daltonization_type
+                    img_dalt =daltonize(img_in, options_tmp)
+                  
+                    file_name_out_tmp = setStatsToFilename( dict_in['img_id'],
+                                                            True,
+                                                            settings.dalt2ID[daltonization_type],
+                                                            dict_in['sim'],
+                                                            dict_in['sim_id'],
+                                                            settings.colDef2ID[coldef_type])
+                    file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
+                    print file_path_out_tmp
+                    img_dalt.save(file_path_out_tmp)
+ 
+        sys.stdout.write("\n")
 
 def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5,colorspace="sRGB"):
     
@@ -1498,21 +1473,29 @@ def daltonization_yoshi_042016(im,dict):
     modus = dict['modus'] if dict.has_key('modus') else 0
     dict.update({'ms_first': 1,
                  'im0': im.copy()})
+    
+    is_numpy_array = type(im)==numpy.ndarray
+    if is_numpy_array: im_array = im
+    else: im = im.convert('RGB'); im_array = numpy.asarray(im, dtype=float)/255.
+    
     if modus==0:
         sys.stdout.write("Simple. ")
-        im_dalt = daltonization_yoshi_gradient(im,dict)
+        im_dalt = daltonization_yoshi_gradient(im_array,dict)
     elif modus==1:
         sys.stdout.write("Multi scaling. ")
-        im_dalt = multiscaling(im,daltonization_yoshi_gradient,dict)
+        im_dalt = multiscaling(im_array,daltonization_yoshi_gradient,dict)
     elif modus==2:
         sys.stdout.write("Smoothing. ")
         no_max_sigma = False
         if dict.has_key('max_sigma'): max_sigma = dict['max_sigma']
         else: max_sigma = 1; dict['max_sigma'] = max_sigma; no_max_sigma = True
-        im_dalt = smoothing(im,max_sigma,daltonization_yoshi_gradient,dict)
+        im_dalt = smoothing(im_array,max_sigma,daltonization_yoshi_gradient,dict)
         if no_max_sigma: del dict['max_sigma']
+    
+    if is_numpy_array: im_out = im_dalt
+    else: im_array = numpy.uint8(im_dalt*255.); im_out = Image.fromarray(im_array)
         
-    return im_dalt
+    return im_out
 
 def daltonization_yoshi_gradient(im,dict):
     
@@ -1525,10 +1508,10 @@ def daltonization_yoshi_gradient(im,dict):
         return
     else: im0 = dict['im0']
     
-    if not dict.has_key('simulation_type'):
+    if not dict.has_key('yg_simulation_type'):
         print "Error: The simulation type has to be defined in the dictionary. ["+name+"]"
         return crossOut(im)
-    else: simulation_type = dict['simulation_type']
+    else: simulation_type = dict['yg_simulation_type']
         
     if not dict.has_key('coldef_type'):
         print "Error: The color deficiency type has to be defined in the dictionary. ["+name+"]"
@@ -1673,7 +1656,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         if (test < cutoff): cted = False 
         if data:
             if is_simulated:
-                simulation_type = dict['simulation_type']; coldef_type = dict['coldef_type']
+                simulation_type = dict['yg_simulation_type']; coldef_type = dict['coldef_type']
                 coldef_strength = dict['coldef_strength'] if dict.has_key('coldef_strength') else 1.0
                 im_new_sim = simulate(simulation_type,im_new,coldef_type,coldef_strength)
                 data.set_array(im_new_sim)

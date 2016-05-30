@@ -465,7 +465,7 @@ def makeXLSXForExperiment(options):
         options['exp_id'] = 2
         makeXLSXForExperiment(options_adj)
 
-def getAllXXXinPath(path,ext,with_subdirs=0):
+def getAllXXXinPath(path,ext,with_subdirs=0,abs_path=0):
     """
     Returns a list with all the files that have the specified extension in the path
     """
@@ -473,15 +473,14 @@ def getAllXXXinPath(path,ext,with_subdirs=0):
         files = []
         subdirs = [x[0] for x in os.walk(path)]
         for subdir in subdirs:
-            files += [each for each in os.listdir(subdir) if each.endswith(ext)]
+            if not abs_path: files += [each for each in os.listdir(subdir) if each.endswith(ext)]
+            #else: files
             
     else:
         files = []
-        files += [each for each in os.listdir(path) if each.endswith(ext)]
-    
+        if not abs_path: files += [each for each in os.listdir(path) if each.endswith(ext)]
+        else: files += [os.path.join(path,each) for each in os.listdir(path) if each.endswith(ext)]
     return files
-
-
 
 def test16(options):
     """
@@ -1348,8 +1347,8 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
                 grads0 = numpy.gradient(im); gradx0 = grads0[0]; grady0 = grads0[1]
                 grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]  
             else:
-                gradx0 = dxp1(im); grady0 = dyp1(im); 
-                gradx0s = dxp1(im_sim); grady0s = dyp1(im_sim)
+                gradx0 = dxp1(im,dict); grady0 = dyp1(im,dict); 
+                gradx0s = dxp1(im_sim,dict); grady0s = dyp1(im_sim,dict)
                      
             # Error between the two gradients
             dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
