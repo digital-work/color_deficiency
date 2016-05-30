@@ -30,13 +30,15 @@ id2Sim = {  0: "original",
             4: "brettel",
             99: "dummy"}
 
-daltonization_types = ["anagnostopoulos", "kotera", "kuhn", "huan","yoshi-simone","yoshi-alsam","dummy"]
+daltonization_types = ["fidaner", "kotera", "kuhn", "huan","yoshi-simone","yoshi-alsam","yoshi-gradient","dummy"]
 anagnostopoulos = "anagnostopoulos"
+fidaner = "fidaner"
 kotera = "kotera"
 kuhn = "kuhn"
 huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
+yoshi_gradient = "yoshi_gradient"
 dalt2ID = {'original':          0,
            'anagnostopoulos':   1,
            'fidaner':           1,
@@ -58,7 +60,7 @@ id2Dalt = {0:   "Original",
            6:   "yoshi-alsam-only",
            7:   "yoshi-simone",
            8:   "yoshi-alsam",
-           9:   "yoshi-gradient",
+           9:   "Yoshi-Gradient",
            99:  "Dummy"}
 
 dict_dalt_ids = {'anagnastapoulos'}
@@ -91,7 +93,7 @@ colDef2ID = {'p': 1,
              't': 3}
 
 default = {'simulation_type': 'brettel',
-           'daltonization_type': 'anagnastopoulos',
+           'daltonization_type': 'fidaner',
            'coldef_type': 'p'}
 
 #os.path.abspath(os.path.join(yourpath, os.pardir))
