@@ -1411,31 +1411,31 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
                   gradx0_arr**2 - \
                   grady0_arr**2,axis=1)
        
-    chi_red = dict['chi_red'] if dict.has_key('chi_red') else 1.0 
+    chi_sign = dict['chi_sign'] if dict.has_key('chi_sign') else 1.0 
     
     under_sqrt = b**2-4*a*c
     under_sqrt[under_sqrt<0] = 0.
     chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
-    if chi_red == 0:
-        if ms_first: sys.stdout.write("Computing chi_red automatically: ")
+    if chi_sign == 0:
+        if ms_first: sys.stdout.write("Computing Chi-sign automatically: ")
         #sRGB = colour.data.Data(colour.space.srgb,im0); lab  = sRGB.get(colour.space.cielab)
         #chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); chroma_arr = chroma.reshape((mn,)); # print numpy.shape(chroma);
         
         if numpy.sum(numpy.abs(chi_neg)) > numpy.sum(numpy.abs(chi_pos)): chi = chi_pos; sys.stdout.write("red")
         else: chi = chi_neg; sys.stdout.write("green")
         if ms_first: sys.stdout.write(". ")
-    elif chi_red == 2.:
-        if ms_first: sys.stdout.write("Computing chi_red individually. ")
+    elif chi_sign == 2.:
+        if ms_first: sys.stdout.write("Computing Chi-sign individually. ")
         # All of them are either bigger or smaller
         p=chi_pos.copy();p[chi_pos>=chi_neg]=0
         n=chi_neg.copy();n[chi_neg>chi_pos]=0
         chi=p+n
-    elif chi_red == 1.:
-        if ms_first: sys.stdout.write("Chi_red. ") 
+    elif chi_sign == 1.:
+        if ms_first: sys.stdout.write("Chi-sign: red. ") 
         chi = chi_pos
-    elif chi_red ==-1.:
-        if ms_first: sys.stdout.write("Chi_green. ") 
+    elif chi_sign ==-1.:
+        if ms_first: sys.stdout.write("Chi-sign: green. ") 
         chi = chi_neg
     chi[numpy.isnan(chi)] = 0.
     chi_arr = numpy.array([chi,]*d).transpose()
@@ -1489,14 +1489,14 @@ def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
         2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ed) + \
                      grady0_arr*(grady0dot_arr*ed),axis=1))
     
-    chi_red = 1.0
-    if dict.has_key('chi_red'):
-        chi_red = 1.0 if dict['chi_red'] == 1 else -1.0
-        print chi_red
+    chi_sign = 1.0
+    if dict.has_key('chi_sign'):
+        chi_sign = 1.0 if dict['chi_sign'] == 1 else -1.0
+        print chi_sign
     
     under_sqrt = b**2-4*a*c
     under_sqrt[under_sqrt<0] = 0.
-    chi_pos = (-b+chi_red*numpy.sqrt(under_sqrt))/(2*a+eps)
+    chi_pos = (-b+chi_sign*numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_pos[numpy.isnan(chi_pos)] = 0.
     chipos_arr = numpy.array([chi_pos,]*d).transpose()
     

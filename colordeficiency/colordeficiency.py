@@ -1566,9 +1566,9 @@ def daltonization_yoshi_gradient(im,dict):
     else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1) # feil
     gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()    
     
-    no_chi_red = False
-    if not dict.has_key('chi_red'): no_chi_red = True; dict['chi_red']=0
-    if dict['chi_red']==0: d0 = im0_updated - im0_updated_sim; no_chi_red = True
+    no_chi_sign = False
+    if not dict.has_key('chi_sign'): no_chi_sign = True; dict['chi_sign']=0
+    if dict['chi_sign']==0: d0 = im0_updated - im0_updated_sim; no_chi_sign = True
      
     chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
     if chi_computations==1:
@@ -1584,7 +1584,7 @@ def daltonization_yoshi_gradient(im,dict):
         gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
         gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
         
-    if no_chi_red: del dict['chi_red']
+    if no_chi_sign: del dict['chi_sign']
     
     #######
     ## Compute the daltonized image through optimization (???)

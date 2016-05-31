@@ -333,7 +333,7 @@ while True:
 def tvdalt_colortv():
     # Same as pupsi2
     
-    im = imread('../colordeficiency-images/0010000000.png')
+    im = imread('../colordeficiency-images/0810000000.png')
     im0 = im.copy()
     figure(0)
     #imshow(im0, vmin=0, vmax=1)
@@ -358,15 +358,15 @@ def tvdalt_colortv():
         # Color TV
         
         #sim = s(sim)
-        gradx = dxp1(sim - im0)
-        grady = dyp1(sim - im0)
+        gradx = dxp1(sim - im0,dict)
+        grady = dyp1(sim - im0,dict)
         normgrad = sqrt(gradx**2 + grady**2) + eps
         tv_layer1 = numpy.sum(numpy.sqrt(gradx[:,:,0]**2)+numpy.sqrt(grady[:,:,0]**2))
         tv_layer2 = numpy.sum(numpy.sqrt(gradx[:,:,1]**2)+numpy.sqrt(grady[:,:,1]**2))
         tv_layer3 = numpy.sum(numpy.sqrt(gradx[:,:,2]**2)+numpy.sqrt(grady[:,:,2]**2))
         tv_all = numpy.sqrt(tv_layer1**2+tv_layer2**2+tv_layer3**2)
         #print layer1
-        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
+        tv = dxm1(gradx / normgrad,dict) + dym1(grady / normgrad,dict)
         tv[:,:,0] = tv_layer1/tv_all*tv[:,:,0]
         tv[:,:,1] = tv_layer2/tv_all*tv[:,:,1]
         tv[:,:,2] = tv_layer3/tv_all*tv[:,:,2]
@@ -497,11 +497,11 @@ def tvdalt_channelbychannel():
         
         #sim = s(sim)
         # Channel-by-channel
-        gradx = dxp1(sim - im0)
-        grady = dyp1(sim - im0)
+        gradx = dxp1(sim - im0,dict)
+        grady = dyp1(sim - im0,dict)
         
         normgrad = sqrt(gradx**2 + grady**2) + eps
-        tv = dxm1(gradx / normgrad) + dym1(grady / normgrad)
+        tv = dxm1(gradx / normgrad,dict) + dym1(grady / normgrad,dict)
         # tv = dxm1(dxp1(s(im) - im0)) + dym1(dyp1(s(im) - im0))
         sim[1:-1, 1:-1] = sim[1:-1, 1:-1] + dt * tv[1:-1, 1:-1]
         sim[sim < 0] = 0
@@ -772,7 +772,10 @@ def computeTestName(dict):
     if dict['modus']==1: test_name += 'multi-scaling_'
     elif dict['modus']==2: test_name += 'smoothing_'
     else: test_name += 'simple_'
-        
+    
+    if dict['global_unit_vectors']: test_name += 'glob-uv_'
+    else: test_name += 'indi-uv_'
+    
     if dict['img_PCA']: test_name += 'image-PCA_'
     else: test_name += 'gradient-PCA_'
         
@@ -782,8 +785,10 @@ def computeTestName(dict):
     if dict['chi_computations']==1: test_name += 'chi1_'
     elif dict['chi_computations']==2: test_name += 'chi2_'
         
-    if dict['chi_red']: test_name += 'chired_'
-    else: test_name += 'chigreen_'
+    if dict['chi_sign']==1.: test_name += 'chired_'
+    elif dict['chi_sign']==-1.: test_name += 'chigreen_'
+    elif dict['chi_sign']==0: test_name += 'chiauto_'
+    elif dict['chi_sign']==2.: test_name += 'chiindi_'
         
     if dict['ed_orthogonalization']: test_name += 'ed90_'
     else: test_name += 'edXX_'
@@ -792,12 +797,15 @@ def computeTestName(dict):
     elif dict['optimization']==2: test_name += 'tv-optimization_'
     elif dict['optimization']==3: test_name += 'anisotropic-optimization-'+str(dict['anisotropic'])+'_'
     
-    print dict['boundary']
+    #print dict['boundary']
     if dict['boundary']==0: test_name += 'nobound_'  
     else: test_name += str(int(dict['boundary']))+'bound_'
+    
+    if dict['numpy_grad']: test_name += 'np_'
+    else: test_name += 'no-np_'
         
-    test_name += dict['simulation_type']+'-'
-    test_name += dict['coldef_type']
+    test_name += dict['yg_simulation_type']+'-'
+    test_name += dict['yg_coldef_type']
     return test_name
 
 def tvdalt_engineeredgradient():
@@ -805,22 +813,23 @@ def tvdalt_engineeredgradient():
     images = []
     #images.append(('0340000000-mirr',{'modus':1}))
     #images.append(('0340000000',{'modus':1}))
-    #images.append(('berries2',{'modus':0}))
-    images.append(('0810000000',{'modus': 0}))
+    images.append(('0550000000',{'modus':1}))
+    #images.append(('0460000000',{'modus':1}))
+    #images.append(('0460000000',{'modus':1}))
+    #images.append(('berries2',{'modus':1}))
+    #images.append(('0790000000',{'modus': 1}))
+    #images.append(('0810000000',{'modus': 1}))
     #images.append(('0810000000-blurred',{'modus': 0}))
-    
-    #im_names.append('berries2-inverted')
+    #images.append(('berries2-inverted',{'modus':0}))
+    #images.append(('berries2',{'modus':0}))
     #im_names.append('bananas1')
-    #im_names.append('berries1')
+    #images.append(('berries1',{'modus': 0}))
     #im_names.append('0030000000')
     #im_names.append('berries2-gradient')
-    #print im_names
-    #images = [im1,im2]
     for image in images:
         
         im_name = image[0]
         print im_name
-        
         im = imread(os.path.join('../colordeficiency-images/',im_name+'.png'))
         im0 = im.copy()
         dict_list = []
@@ -832,120 +841,116 @@ def tvdalt_engineeredgradient():
         # Show different unit vectors
         # ed
         simulation_type = 'brettel'
-        coldef_type = 'p'
+        coldef_type = 'd'
+        coldef_strength = 0.5
         dict_1 = image[1]
-        dict_1.update({'constant_lightness': 1, # 1 - constant lightness, 0 - neutral gray'multi_scaling': 0,
+        dict_1.update({'constant_lightness': 1, # 1 - constant lightness, 0 - neutral gray
                        'img_PCA': 1,
                        'chi_computations': 1, 
                        'ed_orthogonalization': 0,
-                       'chi_red': 1, # 1 - change red color, 0 - change green colors
+                       'chi_sign': 0, # 1. - change red color, -1. - change green colors, 0 - automatic
                        'optimization': 1, # 1 - poisson, 2 - total variation, 3 - anisotropic
-                       'boundary': 0, # 0 - pass, 3 - mirror, 4 -
+                       'boundary': 2, # 0 - pass, 1 - gradu[0] = gradu0[0] , 2 - gradu[0] = 0, 3 - gradgradu[0] = 0
                        'interp': "cubic",
                        'data': data,
                        'dt': .20,
                        #'data2': data2,
-                       'max_sigma': 20,
+                       'max_sigma': 10,
                        'max_its': 1000,
                        'cutoff': .00005,
                        'is_simulated': 0,
-                       'simulation_type': simulation_type,
+                       'yg_simulation_type': simulation_type,
+                       'global_unit_vectors': 1, 
                        'coldef_type': coldef_type,
+                       'yg_coldef_type': coldef_type,
+                       'coldef_strength': coldef_strength,
                        'im_name': im_name,
                        'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ed'),
+                       'numpy_grad': 0,
                         #'im_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors',im_name)
                     })
-        dict_2 = dict_1.copy()
-        dict_2.update({'img_PCA': 0})
-        dict_3 = dict_1.copy()
-        dict_3.update({'ed_orthogonalization': 1})
-        dict_4 = dict_1.copy()
-        dict_4.update({'ed_orthogonalization': 0})
-        
+        dict_2 = dict_1.copy(); dict_2.update({'img_PCA': 0})
         # el
-        dict_5 = dict_1.copy()
-        dict_5.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/el')})
-        dict_6 = dict_5.copy()
-        dict_6.update({'constant_lightness': 0})
-        
+        dict_3 = dict_1.copy(); dict_3.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/el')})
+        dict_4 = dict_3.copy(); dict_4.update({'ed_orthogonalization': 1})
+        dict_5 = dict_3.copy(); dict_5.update({'constant_lightness': 0})
+        dict_6 = dict_5.copy(); dict_6.update({'ed_orthogonalization': 1})
         # ec
-        dict_7 = dict_1.copy()
-        dict_7.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ec')})
-        dict_8 = dict_7.copy()
-        dict_8.update({'chi_red': 0})
+        dict_7 = dict_1.copy(); dict_7.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ec')})
+        dict_8 = dict_7.copy(); dict_8.update({'chi_sign': -1.})
         
         # Show different chi computatins
-        dict_9 = dict_1.copy()
-        dict_9.update({'path_out': os.path.join('/Users/thomas/Desktop/chi-computations')})
-        dict_10 = dict_9.copy()
-        dict_10.update({'chi_computations': 2})
+        dict_9 = dict_1.copy(); dict_9.update({'path_out': os.path.join('/Users/thomas/Desktop/chi-computations')})
+        dict_10 = dict_9.copy(); dict_10.update({'chi_computations': 2})
         
         # Show different modi
-        dict_11 = dict_1.copy()
-        dict_11.update({'path_out': os.path.join('/Users/thomas/Desktop/multi-scaling')})
+        dict_11 = dict_1.copy(); dict_11.update({'path_out': os.path.join('/Users/thomas/Desktop/multi-scaling')})
         dict_12 = dict_11.copy()
         if dict_11['modus']: dict_12.update({'modus': 0})
         else: dict_12.update({'modus': 1})
         
         # Use different boundary computations
-        dict_13 = dict_1.copy() #
-        dict_13.update({'path_out': os.path.join('/Users/thomas/Desktop/boundaries')})
-        dict_14 = dict_13.copy() #
-        dict_14.update({'boundary': 1})
-        dict_15 = dict_13.copy() #
-        dict_15.update({'boundary': 2})
-        dict_16 = dict_13.copy() #
-        dict_16.update({'boundary': 3})
-        dict_17 = dict_13.copy() #
-        dict_17.update({'boundary': 4})
+        dict_13 = dict_1.copy(); dict_13.update({'path_out': os.path.join('/Users/thomas/Desktop/boundaries')})
+        dict_14 = dict_13.copy(); dict_14.update({'boundary': 1})
+        dict_15 = dict_13.copy(); dict_15.update({'boundary': 2})
+        dict_16 = dict_13.copy(); dict_16.update({'boundary': 3})
         
         # Use different optimization computations
-        dict_18 = dict_1.copy() #
-        dict_18.update({'path_out': os.path.join('/Users/thomas/Desktop/optimization')})
-        dict_19 = dict_18.copy() #
-        dict_19.update({'optimization': 2})
-        dict_20 = dict_1.copy() #
-        dict_20.update({'path_out': os.path.join('/Users/thomas/Desktop/anisotropic'), 
-                        'anisotropic': 0,
-                        'optimization': 3})
-        dict_21 = dict_20.copy()
-        dict_21.update({'anisotropic': 3})
+        dict_18 = dict_1.copy(); dict_18.update({'path_out': os.path.join('/Users/thomas/Desktop/optimization')})
+        dict_19 = dict_18.copy(); dict_19.update({'optimization': 2})
+        dict_20 = dict_1.copy(); dict_20.update({'path_out': os.path.join('/Users/thomas/Desktop/anisotropic'), 
+                                                 'anisotropic': 0,
+                                                 'optimization': 3})
+        dict_21 = dict_20.copy(); dict_21.update({'anisotropic': 3})
         
-        dict_22 = dict_20.copy()
-        dict_22.update({'anisotropic': 1})
-        dict_23 = dict_20.copy()
-        dict_23.update({'anisotropic': 2})
+        dict_22 = dict_20.copy(); dict_22.update({'anisotropic': 1})
+        dict_23 = dict_20.copy(); dict_23.update({'anisotropic': 2})
         
-        """
-        dict_list.append(dict_1)
-        dict_list.append(dict_2)
+        # Use global or individual unit vectors
+        dict_24 = dict_1.copy(); dict_24.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors')})
+        dict_25 = dict_24.copy(); dict_25.update({'global_unit_vectors': 1})
         
-        dict_list.append(dict_3)
-        dict_list.append(dict_4)
+        # Use different gradient computations
+        dict_26 = dict_1.copy(); dict_26.update({'path_out': os.path.join('/Users/thomas/Desktop/numpy-grad')})
+        dict_27 = dict_26.copy(); dict_27.update({'numpy_grad': 1})
         
-        dict_list.append(dict_5)
-        dict_list.append(dict_6)
+        # Use global vs individual chi-sign computation
+        dict_28 = dict_1.copy(); dict_28.update({'path_out': os.path.join('/Users/thomas/Desktop/chi-sign'),
+                                                 'global_unit_vectors': 0})
+        dict_29 = dict_28.copy(); dict_29.update({'chi_sign': 2.})
+        
+        
+        #dict_list.append(dict_1)
+        #dict_list.append(dict_2)
+        #dict_list.append(dict_3)
+        #dict_list.append(dict_4)
+        #dict_list.append(dict_5)
+        #dict_list.append(dict_6)
         dict_list.append(dict_7)
         dict_list.append(dict_8)
-        dict_list.append(dict_9)
-        dict_list.append(dict_10)
-        dict_list.append(dict_11)
-        dict_list.append(dict_12)
-        """
-        dict_list.append(dict_13)
+        #dict_list.append(dict_9)
+        #dict_list.append(dict_10)
+        #dict_list.append(dict_11)
+        #dict_list.append(dict_12)
+        
+        #dict_list.append(dict_13)
         #dict_list.append(dict_14)
         #dict_list.append(dict_15)
         #dict_list.append(dict_16)
         #dict_list.append(dict_17)
-        """
-        dict_list.append(dict_18)
-        dict_list.append(dict_19)
-        dict_list.append(dict_20)
-        dict_list.append(dict_21)
+
+        #dict_list.append(dict_18)
+        #dict_list.append(dict_19)
+        #dict_list.append(dict_20)
+        #dict_list.append(dict_21)
         
-        dict_list.append(dict_19)
-        #dict_list.append(dict_23)
-        """
+        #dict_list.append(dict_24)
+        #dict_list.append(dict_25)
+        #dict_list.append(dict_26)
+        #dict_list.append(dict_27)
+        #dict_list.append(dict_28)
+        #dict_list.append(dict_29)
+        
         for dict_i in dict_list:
             
             dict_i.update({'test_name': computeTestName(dict_i)})
@@ -966,3 +971,4 @@ def tvdalt_engineeredgradient():
     
 tvdalt_engineeredgradient()
 #tvdalt_colortv_anisotropic()
+#tvdalt_colortv()
