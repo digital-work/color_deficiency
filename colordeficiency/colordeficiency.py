@@ -1524,7 +1524,6 @@ def daltonization_yoshi_gradient(im,dict):
     interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
     modus = dict['modus'] if dict.has_key('modus') else 0
     m,n,d = numpy.shape(im)
         
@@ -1538,25 +1537,16 @@ def daltonization_yoshi_gradient(im,dict):
     im0_updated_sim = simulate(simulation_type,im0_updated,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
         
     
-    # Gradients of original image and simulated image
-    if numpy_grad:
-        grads0 = numpy.gradient(im0_updated)
-        gradx0 = grads0[0]; gradx0_arr = gradx0.reshape((m*n,3))
-        grady0 = grads0[1]; grady0_arr = grady0.reshape((m*n,3))
-    
-        grads0s = numpy.gradient(im0_updated_sim)
-        gradx0s = grads0s[0]; gradx0s_arr = gradx0s.reshape((m*n,3))
-        grady0s = grads0s[1]; grady0s_arr = grady0s.reshape((m*n,3))
-    else: 
-        gradx0 = dxp1(im0_updated,im0_updated,dict); gradx0_arr = gradx0.reshape((m*n,3))
-        grady0 = dyp1(im0_updated,im0_updated,dict); grady0_arr = grady0.reshape((m*n,3))
-        gradx0s = dxp1(im0_updated_sim,im0_updated_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
-        grady0s = dyp1(im0_updated_sim,im0_updated_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
+    # Gradients of original image and simulated image 
+    gradx0 = dxp1(im0_updated,im0_updated,dict); gradx0_arr = gradx0.reshape((m*n,3))
+    grady0 = dyp1(im0_updated,im0_updated,dict); grady0_arr = grady0.reshape((m*n,3))
+    gradx0s = dxp1(im0_updated_sim,im0_updated_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
+    grady0s = dyp1(im0_updated_sim,im0_updated_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
         
-        if modus==2:
-            sigma = dict['max_sigma']
-            gradx0 = gaussian_filter(gradx0,(sigma,sigma,0)); grady0 = gaussian_filter(grady0,(sigma,sigma,0))
-            gradx0s = gaussian_filter(gradx0s,(sigma,sigma,0)); grady0s = gaussian_filter(grady0s,(sigma,sigma,0))
+    if modus==2:
+        sigma = dict['max_sigma']
+        gradx0 = gaussian_filter(gradx0,(sigma,sigma,0)); grady0 = gaussian_filter(grady0,(sigma,sigma,0))
+        gradx0s = gaussian_filter(gradx0s,(sigma,sigma,0)); grady0s = gaussian_filter(grady0s,(sigma,sigma,0))
     
     # Compute vectors in principal projection directions
     ed,el,ec = computeDaltonizationUnitVectors(im0_updated,im0_updated_sim,dict)
@@ -1618,12 +1608,10 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     max_its = dict['max_its'] if dict.has_key('max_its') else 1000
     data = dict['data'] if dict.has_key('data') else None
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
-    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
     dt = dict['dt']if dict.has_key('dt') else .25
     boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
     
-    if numpy_grad: grads = numpy.gradient(im0); gradx0 = grads[0]; grady0 = grads[1];
-    else: gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
+    gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
     
     if optimization==3: g = anisotropicG(gradx0,grady0,dict); dict['g']=g
     
@@ -1635,8 +1623,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         if its >= max_its: cted = False; dict['too_many']=1; sys.stdout.write('X')
         if not first_RMSE: gradx_old = gradx; grady_old = grady
         
-        if numpy_grad: grads =  numpy.gradient(im_new); gradx = grads[0]; grady = grads[1]
-        else: gradx = dxp1(im_new,im0,dict); grady = dyp1(im_new,im0,dict)
+        gradx = dxp1(im_new,im0,dict); grady = dyp1(im_new,im0,dict)
         if optimization==1: opt = optimization_poisson(gradx,grady,gradxdalt,gradydalt,dict)
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
@@ -1671,14 +1658,9 @@ def optimization_poisson(gradx,grady,gradxdalt,gradydalt,dict):
     """
     Using Poisson equation to solve optimization formula in order to obtain gradxdalt and gradydalt.
     """
-    
-    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
-    if numpy_grad:
-        gradgradx = numpy.gradient(gradx)[0]; gradgrady = numpy.gradient(grady)[1]
-        gradgradxdalt = numpy.gradient(gradxdalt)[0]; gradgradydalt = numpy.gradient(gradydalt)[1]
-    else: 
-        gradgradx = dxm1(gradx,dict); gradgrady = dym1(grady,dict)
-        gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
+
+    gradgradx = dxm1(gradx,dict); gradgrady = dym1(grady,dict)
+    gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
     
     pois = gradgradx+gradgrady-(gradgradxdalt+gradgradydalt)
     
@@ -1689,16 +1671,11 @@ def optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict):
     Using total variation equation to solve optimization formula in order to obtain gradxdalt and gradydalt.
     """
     
-    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
     eps = 0.99
-    if numpy_grad:
-        fx = gradx-gradxdalt; fy = grady-gradydalt 
-        fnorm = numpy.sqrt(fx**2+fy**2)+eps   
-        gradgradx = numpy.gradient(fx/fnorm)[0]; gradgrady = numpy.gradient(fy*fnorm)[1]
-    else: 
-        fx = gradx-gradxdalt; fy = grady-gradydalt
-        norm = numpy.sqrt(fx**2+fy**2)+eps   
-        gradgradx = dxm1(fx/fnorm, dict); gradgrady = dym1(fy*fnorm, dict)
+    
+    fx = gradx-gradxdalt; fy = grady-gradydalt
+    norm = numpy.sqrt(fx**2+fy**2)+eps   
+    gradgradx = dxm1(fx/norm, dict); gradgrady = dym1(fy*norm, dict)
     
     tv = gradgradx + gradgrady
     
@@ -1710,13 +1687,8 @@ def optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict):
     """
     
     g = dict['g']
-    numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
-    if numpy_grad:
-        fx = gradx - gradxdalt; fy = grady - gradydalt
-        gradgradx = numpy.gradient(g*fx)[0]; gradgrady = numpy.gradient(g*fy)[1]
-    else: 
-        fx = gradx-gradxdalt; fy=grady-gradydalt
-        gradgradx = dxm1(g*fx, dict); gradgrady = dym1(g*fy, dict)
+    fx = gradx-gradxdalt; fy=grady-gradydalt
+    gradgradx = dxm1(g*fx, dict); gradgrady = dym1(g*fy, dict)
     
     anis = (gradgradx + gradgrady)
     

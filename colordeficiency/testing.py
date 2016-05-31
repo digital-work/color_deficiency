@@ -800,10 +800,7 @@ def computeTestName(dict):
     #print dict['boundary']
     if dict['boundary']==0: test_name += 'nobound_'  
     else: test_name += str(int(dict['boundary']))+'bound_'
-    
-    if dict['numpy_grad']: test_name += 'np_'
-    else: test_name += 'no-np_'
-        
+            
     test_name += dict['yg_simulation_type']+'-'
     test_name += dict['yg_coldef_type']
     return test_name
@@ -866,7 +863,6 @@ def tvdalt_engineeredgradient():
                        'coldef_strength': coldef_strength,
                        'im_name': im_name,
                        'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ed'),
-                       'numpy_grad': 0,
                         #'im_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors',im_name)
                     })
         dict_2 = dict_1.copy(); dict_2.update({'img_PCA': 0})
@@ -909,11 +905,7 @@ def tvdalt_engineeredgradient():
         # Use global or individual unit vectors
         dict_24 = dict_1.copy(); dict_24.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors')})
         dict_25 = dict_24.copy(); dict_25.update({'global_unit_vectors': 1})
-        
-        # Use different gradient computations
-        dict_26 = dict_1.copy(); dict_26.update({'path_out': os.path.join('/Users/thomas/Desktop/numpy-grad')})
-        dict_27 = dict_26.copy(); dict_27.update({'numpy_grad': 1})
-        
+                
         # Use global vs individual chi-sign computation
         dict_28 = dict_1.copy(); dict_28.update({'path_out': os.path.join('/Users/thomas/Desktop/chi-sign'),
                                                  'global_unit_vectors': 0})

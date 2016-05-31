@@ -1342,13 +1342,8 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
         else: # Use difference in gradient domaine
             if ms_first: sys.stdout.write("Global ed: Gradient PCA, ")
             # Get gradients of original and its simulation
-            numpy_grad = dict['numpy_grad'] if dict.has_key('numpy_grad') else 0
-            if numpy_grad:
-                grads0 = numpy.gradient(im); gradx0 = grads0[0]; grady0 = grads0[1]
-                grads0s = numpy.gradient(im_sim); gradx0s = grads0s[0]; grady0s = grads0s[1]  
-            else:
-                gradx0 = dxp1(im,dict); grady0 = dyp1(im,dict); 
-                gradx0s = dxp1(im_sim,dict); grady0s = dyp1(im_sim,dict)
+            gradx0 = dxp1(im,dict); grady0 = dyp1(im,dict); 
+            gradx0s = dxp1(im_sim,dict); grady0s = dyp1(im_sim,dict)
                      
             # Error between the two gradients
             dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
