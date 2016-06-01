@@ -1466,7 +1466,7 @@ def s(im):
     retim[..., 1] = .5 * (im[..., 0] + im[..., 1])
     return retim
 
-from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda1, computeChiAndLambda2, anisotropicG, multiscaling, smoothing, RMSE, GRMSE
+from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda, computeChiAndLambda2, anisotropicG, multiscaling, smoothing, RMSE, GRMSE
   
 def daltonization_yoshi_042016(im,dict):
 
@@ -1560,20 +1560,17 @@ def daltonization_yoshi_gradient(im,dict):
     if not dict.has_key('chi_sign'): no_chi_sign = True; dict['chi_sign']=0
     if dict['chi_sign']==0: d0 = im0_updated - im0_updated_sim; no_chi_sign = True
      
-    chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
-    if chi_computations==1:
-        chipos_arr = computeChiAndLambda1(im0_updated,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
-    elif chi_computations==2:
-        chipos_arr = computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict)
+    #chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
+    chi_arr = computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
+    #chi_arr = computeChiAndLambda2(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
     
     # Combination for the gradient 
     boost_ec = dict['boost_ec'] if dict.has_key('boost_ec') else 1.
     combination = dict['combination'] if dict.has_key('combination') else 1
     if combination==1:
         if ms_first: sys.stdout.write("Chroma only.\n")
-        gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chipos_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-        gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chipos_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
-        
+        gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chi_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+        gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
     if no_chi_sign: del dict['chi_sign']
     
     #######

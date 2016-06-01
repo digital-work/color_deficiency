@@ -1383,10 +1383,9 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     return ed,el,ec
 
-def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict={}):
+def computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict={}):
     
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    if ms_first: sys.stdout.write("Chi computations 1. ")
     eps = .000001
     mn,d =  numpy.shape(gradx0_arr)
     
@@ -1394,16 +1393,29 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     if global_unit_vectors: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
     else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1)
     gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()  
-      
-    # Compute Chi for each pixel
-    a = numpy.sum((gradx0dot_arr*ec)**2 + \
+    
+    chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
+    if chi_computations == 1:
+        if ms_first: sys.stdout.write("Chi computations 1. ")
+        a = numpy.sum((gradx0dot_arr*ec)**2 + \
+                      (grady0dot_arr*ec)**2,axis=1)
+        b = 2*(numpy.sum(gradx0dot_arr*ec*gradx0s_arr + \
+                         grady0dot_arr*ec*grady0s_arr,axis=1))
+        c = numpy.sum(gradx0s_arr**2 + \
+                      grady0s_arr**2 - \
+                      gradx0_arr**2 - \
+                      grady0_arr**2,axis=1)
+    elif chi_computations == 2:
+        if ms_first: sys.stdout.write("Chi computations 2. ")
+        a = numpy.sum((gradx0dot_arr*ec)**2 + \
                   (grady0dot_arr*ec)**2,axis=1)
-    b = 2*(numpy.sum(gradx0dot_arr*ec*gradx0s_arr + \
-                     grady0dot_arr*ec*grady0s_arr,axis=1))
-    c = numpy.sum(gradx0s_arr**2 + \
-                  grady0s_arr**2 - \
-                  gradx0_arr**2 - \
-                  grady0_arr**2,axis=1)
+        b = 2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ec)-(gradx0dot_arr*ed)*(gradx0dot_arr*ec) + \
+                         grady0_arr*(grady0dot_arr*ec)-(grady0dot_arr*ed)*(grady0dot_arr*ec),axis=1))
+        c = numpy.sum((gradx0dot_arr*ed)**2 + \
+                      (grady0dot_arr*ed)**2,axis=1)- \
+                      2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ed) + \
+                                   grady0_arr*(grady0dot_arr*ed),axis=1))
+        
        
     chi_sign = dict['chi_sign'] if dict.has_key('chi_sign') else 1.0 
     
@@ -1445,66 +1457,6 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
         print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
 
     return chi_arr#, lambdneg_arr
-
-def computeChiAndLambda2(gradx0_arr,grady0_arr,ed,el,ec,dict):
-    """
-    Does this make sense even?
-    """
-    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    if ms_first: sys.stdout.write("Chi computations 2. ")
-    eps = .000001
-    
-    common_dot_product = 1
-    mn,d =  numpy.shape(gradx0_arr)
-    
-    if common_dot_product:          
-        gradx0dot_arr = numpy.array([numpy.dot(gradx0_arr,ed),]*d).transpose() 
-        grady0dot_arr = numpy.array([numpy.dot(grady0_arr,ed),]*d).transpose()
-    else:
-        print "hiersimmer"
-        gradx0dot_arr = numpy.zeros((mn,d))
-        grady0dot_arr = numpy.zeros((mn,d))
-        for i in range(0,(mn)):
-            a_tmp = numpy.dot(gradx0_arr[i,:],ed[i,:])
-            b_tmp = numpy.dot(grady0_arr[i,:],ed[i,:])
-            for j in range(0,d):
-                gradx0dot_arr[i,j] = a_tmp
-                grady0dot_arr[i,j] = b_tmp
-      
-    # Compute Chi for each pixel
-    a = numpy.sum((gradx0dot_arr*ec)**2 + \
-                  (grady0dot_arr*ec)**2,axis=1)
-    b = 2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ec)-(gradx0dot_arr*ed)*(gradx0dot_arr*ec) + \
-                     grady0_arr*(grady0dot_arr*ec)-(grady0dot_arr*ed)*(grady0dot_arr*ec),axis=1))
-    c = numpy.sum((gradx0dot_arr*ed)**2 + \
-                  (grady0dot_arr*ed)**2,axis=1)- \
-        2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ed) + \
-                     grady0_arr*(grady0dot_arr*ed),axis=1))
-    
-    chi_sign = 1.0
-    if dict.has_key('chi_sign'):
-        chi_sign = 1.0 if dict['chi_sign'] == 1 else -1.0
-        print chi_sign
-    
-    under_sqrt = b**2-4*a*c
-    under_sqrt[under_sqrt<0] = 0.
-    chi_pos = (-b+chi_sign*numpy.sqrt(under_sqrt))/(2*a+eps)
-    chi_pos[numpy.isnan(chi_pos)] = 0.
-    chipos_arr = numpy.array([chi_pos,]*d).transpose()
-    
-    # Check if computations have been correct
-    correction = 0
-    if correction:
-        print "a: ", numpy.max(a), numpy.min(a), numpy.mean(a)
-        print "b: ", numpy.max(b), numpy.min(b), numpy.mean(b)
-        print "c: ", numpy.max(c), numpy.min(c), numpy.mean(c)
-        check = numpy.sum((gradx0_arr)**2 + \
-                          (grady0_arr)**2,axis=1) - \
-                (numpy.sum((gradx0_arr-gradx0dot_arr*ed+chipos_arr*gradx0dot_arr*ec)**2 +\
-                           (grady0_arr-grady0dot_arr*ed+chipos_arr*grady0dot_arr*ec)**2,axis=1))
-        print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
-        
-    return chipos_arr#,lambdneg_arr  
 
 def anisotropicG(gradx0,grady0,dict):
     
