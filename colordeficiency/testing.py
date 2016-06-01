@@ -775,10 +775,7 @@ def computeTestName(dict):
     
     if dict['global_unit_vectors']: test_name += 'glob-uv_'
     else: test_name += 'indi-uv_'
-    
-    if dict['img_PCA']: test_name += 'image-PCA_'
-    else: test_name += 'gradient-PCA_'
-        
+            
     if dict['constant_lightness']: test_name += 'constant-lightness_'
     else: test_name += 'neutral-gray_'
     
@@ -842,7 +839,6 @@ def tvdalt_engineeredgradient():
         coldef_strength = 0.5
         dict_1 = image[1]
         dict_1.update({'constant_lightness': 1, # 1 - constant lightness, 0 - neutral gray
-                       'img_PCA': 1,
                        'chi_computations': 1, 
                        'ed_orthogonalization': 0,
                        'chi_sign': 0, # 1. - change red color, -1. - change green colors, 0 - automatic
@@ -857,7 +853,7 @@ def tvdalt_engineeredgradient():
                        'cutoff': .00005,
                        'is_simulated': 0,
                        'yg_simulation_type': simulation_type,
-                       'global_unit_vectors': 1, 
+                       'global_unit_vectors': 0, 
                        'coldef_type': coldef_type,
                        'yg_coldef_type': coldef_type,
                        'coldef_strength': coldef_strength,
@@ -865,7 +861,6 @@ def tvdalt_engineeredgradient():
                        'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ed'),
                         #'im_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors',im_name)
                     })
-        dict_2 = dict_1.copy(); dict_2.update({'img_PCA': 0})
         # el
         dict_3 = dict_1.copy(); dict_3.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/el')})
         dict_4 = dict_3.copy(); dict_4.update({'ed_orthogonalization': 1})
@@ -903,7 +898,8 @@ def tvdalt_engineeredgradient():
         dict_23 = dict_20.copy(); dict_23.update({'anisotropic': 2})
         
         # Use global or individual unit vectors
-        dict_24 = dict_1.copy(); dict_24.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors')})
+        dict_24 = dict_1.copy(); dict_24.update({'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors'),
+                                                 'global_unit_vectors': 0})
         dict_25 = dict_24.copy(); dict_25.update({'global_unit_vectors': 1})
                 
         # Use global vs individual chi-sign computation
@@ -912,14 +908,14 @@ def tvdalt_engineeredgradient():
         dict_29 = dict_28.copy(); dict_29.update({'chi_sign': 2.})
         
         
-        #dict_list.append(dict_1)
+        dict_list.append(dict_1)
         #dict_list.append(dict_2)
         #dict_list.append(dict_3)
         #dict_list.append(dict_4)
         #dict_list.append(dict_5)
         #dict_list.append(dict_6)
-        dict_list.append(dict_7)
-        dict_list.append(dict_8)
+        #dict_list.append(dict_7)
+        #dict_list.append(dict_8)
         #dict_list.append(dict_9)
         #dict_list.append(dict_10)
         #dict_list.append(dict_11)

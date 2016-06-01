@@ -1319,7 +1319,6 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     m,n,d = numpy.shape(im)
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1 # Kann wech. Benutz immer image PCA
     global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1 
     # For global unit vectors, all unit vectors have a size of 1x3. For individual unit vectors, all unit vectors have a size of m*nx2
     constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
@@ -1336,23 +1335,11 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     if not global_unit_vectors: el = numpy.array([el,]*(m*n))
     
     ### Direction of confusion colors
-    if global_unit_vectors: 
-        if img_PCA: # Use difference in image domaine 
-            d0 = im - im_sim; d0_arr = d0.reshape((m*n,3)); 
-            ed_PCA = PCA(d0_arr, standardize=False)
-            if ms_first: sys.stdout.write("Global ed: Image PCA, ")
-        else: # Use difference in gradient domaine
-            if ms_first: sys.stdout.write("Global ed: Gradient PCA, ")
-            # Get gradients of original and its simulation
-            gradx0 = dxp1(im,dict); grady0 = dyp1(im,dict); 
-            gradx0s = dxp1(im_sim,dict); grady0s = dyp1(im_sim,dict)
-                     
-            # Error between the two gradients
-            dx0 = gradx0-gradx0s; dx0_arr = dx0.reshape((m*n,3))    
-            dy0 = grady0-grady0s; dy0_arr = dy0.reshape((m*n,3))
-              
-            ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
-        
+    if global_unit_vectors:  
+        # Use difference in image domaine 
+        d0 = im - im_sim; d0_arr = d0.reshape((m*n,3)); 
+        ed_PCA = PCA(d0_arr, standardize=False)
+        if ms_first: sys.stdout.write("Global ed: Image PCA, ")
         ed = ed_PCA.Wt[0]; ed = ed / numpy.sqrt(numpy.sum(ed**2))
         
         if ed_orthogonalization:
@@ -1385,8 +1372,6 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
             if ms_first: sys.stdout.write("not orthogonalized. ")
             pass
 
-    
-    
     ### Direction of optimal daltonization
     if global_unit_vectors: ec = numpy.cross(ed,el); ec = ec / numpy.sqrt(numpy.sum(ec**2))
     else: 
