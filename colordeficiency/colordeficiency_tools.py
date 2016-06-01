@@ -1319,21 +1319,23 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     m,n,d = numpy.shape(im)
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1 # Kann wech. Benutz immer image PCA
+    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1 
+    # For global unit vectors, all unit vectors have a size of 1x3. For individual unit vectors, all unit vectors have a size of m*nx2
+    constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
+    ed_orthogonalization = dict['ed_orthogonalization'] if dict.has_key('ed_orthogonalization') else 0
     
     ### Direction of lightness
-    constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
     if constant_lightness:
         if ms_first: sys.stdout.write("El: Constant lightness. ")
         el = numpy.array([0.2126,0.7152,0.0722]) 
     else: 
         if ms_first: sys.stdout.write("El: Neutral gray lightness. ")
         el = numpy.array([1.,1.,1.])
-    el = el / numpy.linalg.norm(el)
+    el = el / numpy.sqrt(numpy.sum(el**2))
+    if not global_unit_vectors: el = numpy.array([el,]*(m*n))
     
     ### Direction of confusion colors
-    img_PCA = dict['img_PCA'] if dict.has_key('img_PCA') else 1
-    # Kann wech. Benutz immer image PCA
-    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
     if global_unit_vectors: 
         if img_PCA: # Use difference in image domaine 
             d0 = im - im_sim; d0_arr = d0.reshape((m*n,3)); 
@@ -1351,35 +1353,47 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
               
             ed_PCA = PCA(numpy.concatenate((dx0_arr,dy0_arr)), standardize=False)
         
-        ed = ed_PCA.Wt[0]; ed = ed / numpy.linalg.norm(ed)
+        ed = ed_PCA.Wt[0]; ed = ed / numpy.sqrt(numpy.sum(ed**2))
+        
+        if ed_orthogonalization:
+            if ms_first: sys.stdout.write("orthogonalized. ")
+            ed = ed - numpy.dot(ed,el)/numpy.dot(el,el)*el # Gram-Schmidt orthogonalization
+            ed = ed / numpy.sqrt(numpy.sum(ed**2))
+        else:
+            if ms_first: sys.stdout.write("not orthogonalized. ")
+            pass
     else:
         if ms_first: sys.stdout.write("Spatial ed, ")
         d0 = im - im_sim; d0_arr = d0.reshape((m*n,3))
         d0_norm_1D = numpy.sqrt(numpy.sum(d0_arr**2, axis=1))
         d0_norm_3D = numpy.array([d0_norm_1D,]*d).transpose()
         ed = d0_arr / d0_norm_3D
-         
-    
-    ed_orthogonalization = dict['ed_orthogonalization'] if dict.has_key('ed_orthogonalization') else 0
-    if ed_orthogonalization:
-        if ms_first: sys.stdout.write("orthogonalized. ")
-        ed = ed - numpy.dot(ed,el)/numpy.dot(el,el)*el # Gram-Schmidt orthogonalization
-        ed = ed / numpy.linalg.norm(ed)
-    else:
-        if ms_first: sys.stdout.write("not orthogonalized. ")
         
-    if not global_unit_vectors: el = numpy.array([el,]*(m*n))
+        if ed_orthogonalization:
+            if ms_first: sys.stdout.write("orthogonalized. ")
+            edel_dot_1D = numpy.sum(ed*el,axis=1)
+            edel_dot_3D = numpy.array([edel_dot_1D,]*d).transpose()
+            eded_dot_1D = numpy.sum(ed*ed,axis=1)
+            eded_dot_3D = numpy.array([eded_dot_1D,]*d).transpose()
+            ed = ed - edel_dot_3D/eded_dot_3D*el # Gram-Schmidt orthogonalization
+            
+            ed_norm_1D = numpy.sqrt(numpy.sum(ed**2, axis=1))
+            ed_norm_3D = numpy.array([ed_norm_1D,]*d).transpose()
+            
+            ed = ed / ed_norm_3D
+        else:
+            if ms_first: sys.stdout.write("not orthogonalized. ")
+            pass
+
+    
     
     ### Direction of optimal daltonization
-    if global_unit_vectors: ec = numpy.cross(ed,el); ec = ec / numpy.linalg.norm(ec)
+    if global_unit_vectors: ec = numpy.cross(ed,el); ec = ec / numpy.sqrt(numpy.sum(ec**2))
     else: 
-        ec = numpy.cross(ed,el); #ec = ec/numpy.linalg.norm(ec,axis=1)
-        ec_norm_1D = [numpy.linalg.norm(ec,axis=1),]
-        ec_norm_3D = numpy.array(ec_norm_1D*d).transpose()
+        ec = numpy.cross(ed,el)
+        ec_norm_1D = numpy.sqrt(numpy.sum(ec**2, axis=1))
+        ec_norm_3D = numpy.array([ec_norm_1D,]*d).transpose()
         ec = ec/ec_norm_3D
-        #ec_norm_3D = numpy
-        #print numpy.shape(ec)
-        #print numpy.shape(ed), numpy.shape(el), numpy.shape(numpy.cross(ed,el)), numpy.sum(numpy.sum(el*ec,axis=1)), numpy.sum(numpy.sum(ed*ec,axis=1))
     if ms_first: sys.stdout.write('\n')
     
     return ed,el,ec
@@ -1412,26 +1426,24 @@ def computeChiAndLambda1(im0,gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el
     under_sqrt[under_sqrt<0] = 0.
     chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
+    if chi_sign == -1:
+        if ms_first: sys.stdout.write("Chi-sign: green. ") 
+        chi = chi_neg
     if chi_sign == 0:
-        if ms_first: sys.stdout.write("Computing Chi-sign automatically: ")
-        #sRGB = colour.data.Data(colour.space.srgb,im0); lab  = sRGB.get(colour.space.cielab)
-        #chroma=numpy.sqrt(lab[:,:,0]**2+lab[:,:,1]); chroma_arr = chroma.reshape((mn,)); # print numpy.shape(chroma);
-        
+        if ms_first: sys.stdout.write("Computing Chi-sign automatically: ")        
         if numpy.sum(numpy.abs(chi_neg)) > numpy.sum(numpy.abs(chi_pos)): chi = chi_pos; sys.stdout.write("red")
         else: chi = chi_neg; sys.stdout.write("green")
         if ms_first: sys.stdout.write(". ")
-    elif chi_sign == 2.:
+    elif chi_sign == 1:
+        if ms_first: sys.stdout.write("Chi-sign: red. ") 
+        chi = chi_pos
+    elif chi_sign == 2:
         if ms_first: sys.stdout.write("Computing Chi-sign individually. ")
         # All of them are either bigger or smaller
         p=chi_pos.copy();p[chi_pos>=chi_neg]=0
         n=chi_neg.copy();n[chi_neg>chi_pos]=0
         chi=p+n
-    elif chi_sign == 1.:
-        if ms_first: sys.stdout.write("Chi-sign: red. ") 
-        chi = chi_pos
-    elif chi_sign ==-1.:
-        if ms_first: sys.stdout.write("Chi-sign: green. ") 
-        chi = chi_neg
+        
     chi[numpy.isnan(chi)] = 0.
     chi_arr = numpy.array([chi,]*d).transpose()
     
