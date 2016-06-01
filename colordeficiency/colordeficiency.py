@@ -1476,7 +1476,7 @@ def daltonization_yoshi_042016(im,dict):
     
     is_numpy_array = type(im)==numpy.ndarray
     if is_numpy_array: im_array = im
-    else: print 'hiersimmer'; im = im.convert('RGB'); im_array = numpy.asarray(im, dtype=float)/255.
+    else: im = im.convert('RGB'); im_array = numpy.asarray(im, dtype=float)/255.
     
     if modus==0:
         sys.stdout.write("Simple. ")
@@ -1484,13 +1484,13 @@ def daltonization_yoshi_042016(im,dict):
     elif modus==1:
         sys.stdout.write("Multi scaling. ")
         im_dalt = multiscaling(im_array,daltonization_yoshi_gradient,dict)
-    elif modus==2:
-        sys.stdout.write("Smoothing. ")
-        no_max_sigma = False
-        if dict.has_key('max_sigma'): max_sigma = dict['max_sigma']
-        else: max_sigma = 1; dict['max_sigma'] = max_sigma; no_max_sigma = True
-        im_dalt = smoothing(im_array,max_sigma,daltonization_yoshi_gradient,dict)
-        if no_max_sigma: del dict['max_sigma']
+    #elif modus==2:
+    #    sys.stdout.write("Smoothing. ")
+    #    no_max_sigma = False
+    #    if dict.has_key('max_sigma'): max_sigma = dict['max_sigma']
+    #    else: max_sigma = 1; dict['max_sigma'] = max_sigma; no_max_sigma = True
+    #    im_dalt = smoothing(im_array,max_sigma,daltonization_yoshi_gradient,dict)
+    #    if no_max_sigma: del dict['max_sigma']
     
     if is_numpy_array: im_out = im_dalt
     else: im_array = numpy.uint8(im_dalt*255.); im_out = Image.fromarray(im_array)
@@ -1525,6 +1525,7 @@ def daltonization_yoshi_gradient(im,dict):
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
     modus = dict['modus'] if dict.has_key('modus') else 0
+    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
     m,n,d = numpy.shape(im)
         
     #######
@@ -1532,7 +1533,7 @@ def daltonization_yoshi_gradient(im,dict):
     #######
     
     if modus==1: im0_updated = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
-    elif modus==2: sigma = dict['max_sigma']; im0_updated = gaussian_filter(im0,(sigma,sigma,0))
+    #elif modus==2: sigma = dict['max_sigma']; im0_updated = gaussian_filter(im0,(sigma,sigma,0))
     else: im0_updated=im0.copy()
     im0_updated_sim = simulate(simulation_type,im0_updated,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
         
@@ -1543,15 +1544,14 @@ def daltonization_yoshi_gradient(im,dict):
     gradx0s = dxp1(im0_updated_sim,im0_updated_sim,dict); gradx0s_arr = gradx0s.reshape((m*n,3))
     grady0s = dyp1(im0_updated_sim,im0_updated_sim,dict); grady0s_arr = grady0s.reshape((m*n,3))
         
-    if modus==2:
-        sigma = dict['max_sigma']
-        gradx0 = gaussian_filter(gradx0,(sigma,sigma,0)); grady0 = gaussian_filter(grady0,(sigma,sigma,0))
-        gradx0s = gaussian_filter(gradx0s,(sigma,sigma,0)); grady0s = gaussian_filter(grady0s,(sigma,sigma,0))
+    #if modus==2:
+    #    sigma = dict['max_sigma']
+    #    gradx0 = gaussian_filter(gradx0,(sigma,sigma,0)); grady0 = gaussian_filter(grady0,(sigma,sigma,0))
+    #    gradx0s = gaussian_filter(gradx0s,(sigma,sigma,0)); grady0s = gaussian_filter(grady0s,(sigma,sigma,0))
     
     # Compute vectors in principal projection directions
     ed,el,ec = computeDaltonizationUnitVectors(im0_updated,im0_updated_sim,dict)
     
-    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
     if global_unit_vectors: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
     else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1) # feil
     gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()    
