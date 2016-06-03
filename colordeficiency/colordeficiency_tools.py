@@ -1415,8 +1415,7 @@ def computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,d
                       (grady0dot_arr*ed)**2,axis=1)- \
                       2*(numpy.sum(gradx0_arr*(gradx0dot_arr*ed) + \
                                    grady0_arr*(grady0dot_arr*ed),axis=1))
-        
-       
+
     chi_sign = dict['chi_sign'] if dict.has_key('chi_sign') else 1.0 
     
     under_sqrt = b**2-4*a*c
@@ -1428,8 +1427,12 @@ def computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,d
         chi = chi_neg
     if chi_sign == 0:
         if ms_first: sys.stdout.write("Computing Chi-sign automatically: ")        
-        if numpy.sum(numpy.abs(chi_neg)) > numpy.sum(numpy.abs(chi_pos)): chi = chi_pos; sys.stdout.write("red")
-        else: chi = chi_neg; sys.stdout.write("green")
+        if numpy.sum(numpy.abs(chi_neg)) > numpy.sum(numpy.abs(chi_pos)): 
+            chi = chi_pos; 
+            sys.stdout.write("red") if ms_first else sys.stdout.write("r")
+        else: 
+            chi = chi_neg; 
+            sys.stdout.write("green") if ms_first else sys.stdout.write("g")
         if ms_first: sys.stdout.write(". ")
     elif chi_sign == 1:
         if ms_first: sys.stdout.write("Chi-sign: red. ") 

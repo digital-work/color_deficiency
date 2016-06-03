@@ -1466,7 +1466,7 @@ def s(im):
     retim[..., 1] = .5 * (im[..., 0] + im[..., 1])
     return retim
 
-from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda, computeChiAndLambda2, anisotropicG, multiscaling, smoothing, RMSE, GRMSE
+from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda, anisotropicG, multiscaling, smoothing, RMSE, GRMSE
   
 def daltonization_yoshi_042016(im,dict):
 
@@ -1560,9 +1560,7 @@ def daltonization_yoshi_gradient(im,dict):
     if not dict.has_key('chi_sign'): no_chi_sign = True; dict['chi_sign']=0
     if dict['chi_sign']==0: d0 = im0_updated - im0_updated_sim; no_chi_sign = True
      
-    #chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
     chi_arr = computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
-    #chi_arr = computeChiAndLambda2(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
     
     # Combination for the gradient 
     boost_ec = dict['boost_ec'] if dict.has_key('boost_ec') else 1.
@@ -1592,13 +1590,15 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
     if optimization==1: # Use Poisson optimization
         name = "Poisson optimization"
-        if ms_first: sys.stdout.write("Poisson optimization: ")
+        if ms_first: sys.stdout.write("Poisson optimization, ")
     elif optimization==2: # Use total variation optimization
         name = "total variation optimization"
-        if ms_first: sys.stdout.write("Total variation optimization: ")
+        if ms_first: sys.stdout.write("Total variation optimization, ")
     elif optimization==3: # Use anisotropic optimization
         name = "anisotropic optimization"
-        if ms_first: sys.stdout.write("Anisotropic optimization: ")
+        if ms_first: sys.stdout.write("Anisotropic optimization, ")
+    
+    m,n,d = numpy.shape(im0)
     
     # Optional parameters
     cutoff = dict['cutoff'] if dict.has_key('cutoff') else .1
@@ -1609,6 +1609,19 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
     
     gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
+    data_attachment = dict['data_attachment'] if dict.has_key('data_attachment') else 1
+    if data_attachment:
+        sigma = dict['sigma'] if dict.has_key('sigma') else 25./100
+        if ms_first: sys.stdout.write('with data attachment,  '+str(sigma)+': ')
+        l = 1.
+        # Compute weighting function for data attachment based on chroma
+        sRGB = colour.data.Data(colour.space.srgb,im0) 
+        lab  = sRGB.get(colour.space.cielab)
+        chroma = numpy.sqrt(lab[...,1]**2+lab[...,2]**2)/100.
+        gaussian_1D = numpy.e**(-((chroma-0.5*sigma)**2)/(2*sigma**2))
+        gaussian_3D = numpy.array([gaussian_1D.transpose(),]*d).transpose()
+    else:
+        if ms_first: sys.stdout.write('without data attachment: ')
     
     if optimization==3: g = anisotropicG(gradx0,grady0,dict); dict['g']=g
     
@@ -1625,8 +1638,12 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
         
-        if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] # Keep boundary values constant
-        else: im_new = im_new + dt*opt
+        if data_attachment:
+            if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] - dt*(l*gaussian_3D)*(im_new-im0)[1:-1, 1:-1]# Keep boundary values constant
+            else: im_new = im_new + dt*opt - dt*(l*gaussian_3D)*(im_new-im0)
+        else:
+            if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] # Keep boundary values constant
+            else: im_new = im_new + dt*opt
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1. # Gamut clipping
         
         if first_RMSE: first_RMSE = False; test = numpy.inf
@@ -1636,7 +1653,6 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
             d_new = GRMSE({'gradx': gradx, 'grady': grady}, \
                           {'gradx': gradxdalt, 'grady': gradydalt})
             test = numpy.abs((d_old-d_new)/d_old) 
-            #print test
         if (test < cutoff): cted = False 
         if data:
             if is_simulated:
@@ -1668,12 +1684,10 @@ def optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict):
     Using total variation equation to solve optimization formula in order to obtain gradxdalt and gradydalt.
     """
     
-    eps = 0.99
-    
+    eps = 0.99 # Has influence on dt: Watch out for computational instabilities. Should be much less than 1. 
     fx = gradx-gradxdalt; fy = grady-gradydalt
     norm = numpy.sqrt(fx**2+fy**2)+eps   
     gradgradx = dxm1(fx/norm, dict); gradgrady = dym1(fy*norm, dict)
-    
     tv = gradgradx + gradgrady
     
     return tv
@@ -1686,7 +1700,6 @@ def optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict):
     g = dict['g']
     fx = gradx-gradxdalt; fy=grady-gradydalt
     gradgradx = dxm1(g*fx, dict); gradgrady = dym1(g*fy, dict)
-    
     anis = (gradgradx + gradgrady)
     
     return anis
