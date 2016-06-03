@@ -775,6 +775,9 @@ def computeTestName(dict):
     
     if dict['global_unit_vectors']: test_name += 'glob-uv_'
     else: test_name += 'indi-uv_'
+    
+    if dict['data_attachment']: test_name += 'da'+str(dict['sigma'])+'_'
+    else: test_name += 'non-da_'
             
     if dict['constant_lightness']: test_name += 'constant-lightness_'
     else: test_name += 'neutral-gray_'
@@ -828,9 +831,9 @@ def tvdalt_engineeredgradient():
         im0 = im.copy()
         dict_list = []
         
-        figure(0); ion()
+        figure(0); ion(); show()
         data = imshow(im0, vmin=0, vmax=1)
-        title("Daltonised"); show(); draw()
+        title("Daltonised"); draw()
         
         # Show different unit vectors
         # ed
@@ -847,13 +850,15 @@ def tvdalt_engineeredgradient():
                        'interp': "cubic",
                        'data': data,
                        'dt': .20,
+                       'data_attachment': 0,
+                       'sigma': 1/100.,
                        #'data2': data2,
-                       'max_sigma': 10,
+                       #'max_sigma': 10,
                        'max_its': 1000,
                        'cutoff': .00005,
                        'is_simulated': 0,
                        'yg_simulation_type': simulation_type,
-                       'global_unit_vectors': 0, 
+                       'global_unit_vectors': 1, 
                        'coldef_type': coldef_type,
                        'yg_coldef_type': coldef_type,
                        'coldef_strength': coldef_strength,
@@ -904,9 +909,18 @@ def tvdalt_engineeredgradient():
                 
         # Use global vs individual chi-sign computation
         dict_28 = dict_1.copy(); dict_28.update({'path_out': os.path.join('/Users/thomas/Desktop/chi-sign'),
-                                                 'global_unit_vectors': 0})
-        dict_29 = dict_28.copy(); dict_29.update({'chi_sign': 2.})
+                                                 'global_unit_vectors': 1,
+                                                 'chi_sign': 0})
+        dict_29 = dict_28.copy(); dict_29.update({'chi_sign': 2})
         
+        # Use w/ or /wo data attachment
+        dict_30 = dict_1.copy(); dict_30.update({'path_out': os.path.join('/Users/thomas/Desktop/data-attachment')})
+        dict_31 = dict_30.copy(); dict_31.update({'data_attachment': 1,
+                                                  'sigma': .01})
+        dict_32 = dict_31.copy(); dict_32.update({'sigma': .5})
+        dict_33 = dict_31.copy(); dict_33.update({'sigma': .25})
+        dict_34 = dict_31.copy(); dict_34.update({'sigma': .5})
+        dict_35 = dict_31.copy(); dict_35.update({'sigma': .75})
         
         dict_list.append(dict_1)
         #dict_list.append(dict_2)
@@ -936,8 +950,15 @@ def tvdalt_engineeredgradient():
         #dict_list.append(dict_25)
         #dict_list.append(dict_26)
         #dict_list.append(dict_27)
-        #dict_list.append(dict_28)
+        dict_list.append(dict_28)
         #dict_list.append(dict_29)
+        #dict_list.append(dict_30)
+        #dict_list.append(dict_31)
+        #dict_list.append(dict_32)
+        #dict_list.append(dict_33)
+        #dict_list.append(dict_34)
+        #dict_list.append(dict_35)
+        
         
         for dict_i in dict_list:
             
@@ -950,8 +971,8 @@ def tvdalt_engineeredgradient():
             
             if 1:
                 print "Saving '"+dict_i['im_name']+"' image: "+dict_i['test_name']
-                imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_orig'+'.png'), im)
-                imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_orig-sim'+'.png'), simulate(simulation_type,im,coldef_type))
+                imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+'_orig'+'.png'), im)
+                imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+'_orig-sim'+'.png'), simulate(simulation_type,im,coldef_type))
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_dalt'+'.png'), im_dalt.copy())
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_dalt-sim'+'.png'), simulate(simulation_type,im_dalt.copy(),coldef_type))  
         
