@@ -68,10 +68,33 @@ def getStatsFromFilename(filename):
         return dict
 
 
-def getSetFromScene(sce_id):
-    visualsearch_ids = "../colordeficiency-data/visualsearch_ids.xlsx"
+def getSetFromScene(scene_id):
+    
+    visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
     vs_ids_sheet = pandas.read_excel(visualsearch_ids)
-    set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==sce_id].set_id.values[0]) 
+    set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==scene_id].set_id.values[0])
+    
+    return set_id
+
+def getSetFromImage(image_id):
+    
+    #print os.path.dirname(os.path.abspath(__file__))
+    visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    #visualsearch_ids = "../color_deficiency/colordeficiency-data/visualsearch_ids.xlsx"
+    vs_ids_sheet = pandas.read_excel(visualsearch_ids)
+    set_id = int(vs_ids_sheet[vs_ids_sheet.image_id==image_id].set_id.values[0])
+    
+    return set_id
+
+def getVariantFromImage(image_id):
+    
+    #print os.path.dirname(os.path.abspath(__file__))
+    visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    #visualsearch_ids = "../color_deficiency/colordeficiency-data/visualsearch_ids.xlsx"
+    vs_ids_sheet = pandas.read_excel(visualsearch_ids)
+    set_id = int(vs_ids_sheet[vs_ids_sheet.image_id==image_id].variant_id.values[0])
+    
+    return set_id
     
         
 def setStatsToFilename(img_id,dalt,dalt_id,sim,sim_id,coldef_type):
@@ -413,8 +436,8 @@ def makeXLSXForExperiment(options):
                         corr_answerB_tmp = 'left' if corr_answerB_tmp else 'right'
 
                         path_orig = os.path.join(rel_path_tmp,file) # Has to be relative
-                        array_set_xlsx_a = numpy.vstack((array_set_xlsx_a,[path_orig,corr_answerA_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDef[dict_stats['coldef_type']]]))
-                        array_set_xlsx_b = numpy.vstack((array_set_xlsx_b,[path_orig,corr_answerB_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDef[dict_stats['coldef_type']]]))
+                        array_set_xlsx_a = numpy.vstack((array_set_xlsx_a,[path_orig,corr_answerA_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
+                        array_set_xlsx_b = numpy.vstack((array_set_xlsx_b,[path_orig,corr_answerB_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
                         
                         if j in rand_files:
                             if dict_stats['dalt_id']==99:
@@ -423,11 +446,11 @@ def makeXLSXForExperiment(options):
                             else:
                                 corr_answerTestA_tmp = bool(answersTestA_tmp[answersTestA_tmp[:,0]==int(dict_stats['img_id']),1][0])
                                 corr_answerTestA_tmp = 'left' if corr_answerTestA_tmp else 'right'
-                                array_set_xlsx_test_a = numpy.vstack((array_set_xlsx_test_a,[path_orig,corr_answerTestA_tmp,settings.id2Sim[dict_stats['dalt_id']],settings.id2ColDef[dict_stats['coldef_type']]]))
+                                array_set_xlsx_test_a = numpy.vstack((array_set_xlsx_test_a,[path_orig,corr_answerTestA_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
                                 
                                 corr_answerTestB_tmp = bool(answersTestB_tmp[answersTestB_tmp[:,0]==int(dict_stats['img_id']),1][0])
                                 corr_answerTestB_tmp = 'left' if corr_answerTestB_tmp else 'right'
-                                array_set_xlsx_test_b = numpy.vstack((array_set_xlsx_test_b,[path_orig,corr_answerTestB_tmp,settings.id2Sim[dict_stats['dalt_id']],settings.id2ColDef[dict_stats['coldef_type']]]))
+                                array_set_xlsx_test_b = numpy.vstack((array_set_xlsx_test_b,[path_orig,corr_answerTestB_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
                                 
                         
                         sys.stdout.write(" . OK\n")
@@ -459,10 +482,10 @@ def makeXLSXForExperiment(options):
         
         options_adj = options.copy()
         
-        options['exp_id'] = 1
+        options_adj['exp_id'] = 1
         makeXLSXForExperiment(options_adj)
         
-        options['exp_id'] = 2
+        options_adj['exp_id'] = 2
         makeXLSXForExperiment(options_adj)
 
 def getAllXXXinPath(path,ext,with_subdirs=0,abs_path=0):
@@ -474,8 +497,7 @@ def getAllXXXinPath(path,ext,with_subdirs=0,abs_path=0):
         subdirs = [x[0] for x in os.walk(path)]
         for subdir in subdirs:
             if not abs_path: files += [each for each in os.listdir(subdir) if each.endswith(ext)]
-            #else: files
-            
+            else: files += [os.path.join(subdir,each) for each in os.listdir(subdir) if each.endswith(ext)]    
     else:
         files = []
         if not abs_path: files += [each for each in os.listdir(path) if each.endswith(ext)]

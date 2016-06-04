@@ -1357,6 +1357,7 @@ def daltonize(img_in,options):
 #         sys.stdout.write("\n")
 
 from colordeficiency_tools import getStatsFromFilename, setStatsToFilename
+
 def daltonize_pics(images,options):
     """
     Braumer des werklech?
@@ -1375,10 +1376,14 @@ def daltonize_pics(images,options):
         path_in_tmp, basename_tmp = os.path.split(img)
         file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
         dict_in = getStatsFromFilename(file_name_in_tmp)
+        img_in = Image.open(img)
          
         if not path_out: path_out = path_in_tmp
         sys.stdout.write("Computing "+str(file_name_in_tmp))
-         
+        
+        file_path_out_tmp = os.path.join(path_out,file_name_in_tmp+file_ext)
+        img_in.save(file_path_out_tmp)
+        
         for daltonization_type in options['daltonization_types']:
             sys.stdout.write( "..." + daltonization_type)
             for coldef_type in options['coldef_types']:
@@ -1387,7 +1392,6 @@ def daltonize_pics(images,options):
                 if (bool(dict_in['sim'])): sys.stdout.write('.Cannot daltonize already simulated images')
                 elif bool(dict_in['dalt']): sys.stdout.write('.Cannot daltonize already daltonized images')
                 else:
-                    img_in = Image.open(img)
                     options_tmp = options.copy()
                     options_tmp['coldef_type'] = coldef_type
                     options_tmp['daltonization_type'] = daltonization_type
@@ -1400,9 +1404,8 @@ def daltonize_pics(images,options):
                                                             dict_in['sim_id'],
                                                             settings.colDef2ID[coldef_type])
                     file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-                    #print file_path_out_tmp
                     img_dalt.save(file_path_out_tmp)
- 
+                    
         sys.stdout.write("\n")
 
 def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5,colorspace="sRGB"):
@@ -1618,7 +1621,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         sRGB = colour.data.Data(colour.space.srgb,im0) 
         lab  = sRGB.get(colour.space.cielab)
         chroma = numpy.sqrt(lab[...,1]**2+lab[...,2]**2)/100.
-        gaussian_1D = numpy.e**(-((chroma-0.5*sigma)**2)/(2*sigma**2))
+        gaussian_1D = numpy.e**(-(chroma**2)/(2*sigma**2))
         gaussian_3D = numpy.array([gaussian_1D.transpose(),]*d).transpose()
     else:
         if ms_first: sys.stdout.write('without data attachment: ')

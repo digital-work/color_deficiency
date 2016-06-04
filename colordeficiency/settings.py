@@ -39,7 +39,7 @@ huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
 yoshi_gradient = "yoshi_gradient"
-dalt2ID = {'original':          0,
+dalt2ID = {'Original':          0,
            'anagnostopoulos':   1,
            'fidaner':           1,
            'kotera':            2,
@@ -49,19 +49,19 @@ dalt2ID = {'original':          0,
            'yoshi-alsam-only':  6,
            'yoshi-simone':      7,
            'yoshi-alsam':       8,
-           'yoshi-gradient':    9,
+           'Yoshi-Gradient':    9,
            'dummy':             99}
-id2Dalt = {0:   "Original",
-           1:   "Fidaner",
-           2:   "Kotera",
-           3:   "Kuhn",
-           4:   "Huang",
+id2Dalt = {0:   "original",
+           1:   "fidaner",
+           2:   "kotera",
+           3:   "kuhn",
+           4:   "huang",
            5:   "yoshi-simone-only",
            6:   "yoshi-alsam-only",
            7:   "yoshi-simone",
            8:   "yoshi-alsam",
-           9:   "Yoshi-Gradient",
-           99:  "Dummy"}
+           9:   "yoshi-gradient",
+           99:  "dummy"}
 
 dict_dalt_ids = {'anagnastapoulos'}
 

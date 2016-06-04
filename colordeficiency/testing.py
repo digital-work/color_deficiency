@@ -776,7 +776,7 @@ def computeTestName(dict):
     if dict['global_unit_vectors']: test_name += 'glob-uv_'
     else: test_name += 'indi-uv_'
     
-    if dict['data_attachment']: test_name += 'da'+str(dict['sigma'])+'_'
+    if dict['data_attachment']: test_name += 'da'+str('{0:.2f}'.format(dict['sigma']))+'_'
     else: test_name += 'non-da_'
             
     if dict['constant_lightness']: test_name += 'constant-lightness_'
@@ -809,8 +809,8 @@ def tvdalt_engineeredgradient():
     
     images = []
     #images.append(('0340000000-mirr',{'modus':1}))
-    #images.append(('0340000000',{'modus':1}))
-    images.append(('0550000000',{'modus':1}))
+    images.append(('0340000000',{'modus':1}))
+    #images.append(('0550000000',{'modus':1}))
     #images.append(('0460000000',{'modus':1}))
     #images.append(('0460000000',{'modus':1}))
     #images.append(('berries2',{'modus':1}))
@@ -917,12 +917,12 @@ def tvdalt_engineeredgradient():
         dict_30 = dict_1.copy(); dict_30.update({'path_out': os.path.join('/Users/thomas/Desktop/data-attachment')})
         dict_31 = dict_30.copy(); dict_31.update({'data_attachment': 1,
                                                   'sigma': .01})
-        dict_32 = dict_31.copy(); dict_32.update({'sigma': .5})
+        dict_32 = dict_31.copy(); dict_32.update({'sigma': .05})
         dict_33 = dict_31.copy(); dict_33.update({'sigma': .25})
         dict_34 = dict_31.copy(); dict_34.update({'sigma': .5})
         dict_35 = dict_31.copy(); dict_35.update({'sigma': .75})
         
-        dict_list.append(dict_1)
+        #dict_list.append(dict_1)
         #dict_list.append(dict_2)
         #dict_list.append(dict_3)
         #dict_list.append(dict_4)
@@ -950,14 +950,14 @@ def tvdalt_engineeredgradient():
         #dict_list.append(dict_25)
         #dict_list.append(dict_26)
         #dict_list.append(dict_27)
-        dict_list.append(dict_28)
+        #dict_list.append(dict_28)
         #dict_list.append(dict_29)
-        #dict_list.append(dict_30)
-        #dict_list.append(dict_31)
-        #dict_list.append(dict_32)
-        #dict_list.append(dict_33)
-        #dict_list.append(dict_34)
-        #dict_list.append(dict_35)
+        dict_list.append(dict_30)
+        dict_list.append(dict_31)
+        dict_list.append(dict_32)
+        dict_list.append(dict_33)
+        dict_list.append(dict_34)
+        dict_list.append(dict_35)
         
         
         for dict_i in dict_list:
@@ -971,6 +971,7 @@ def tvdalt_engineeredgradient():
             
             if 1:
                 print "Saving '"+dict_i['im_name']+"' image: "+dict_i['test_name']
+                print dict_i['path_out']
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+'_orig'+'.png'), im)
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+'_orig-sim'+'.png'), simulate(simulation_type,im,coldef_type))
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_dalt'+'.png'), im_dalt.copy())
