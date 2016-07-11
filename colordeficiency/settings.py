@@ -39,7 +39,7 @@ huan = "huan"
 yoshi_c2g = "yoshi_c2g"
 yoshi_c2g_only = "yoshi_c2g_only"
 yoshi_gradient = "yoshi_gradient"
-dalt2ID = {'Original':          0,
+dalt2ID = {'original':          0,
            'anagnostopoulos':   1,
            'fidaner':           1,
            'kotera':            2,
@@ -49,7 +49,7 @@ dalt2ID = {'Original':          0,
            'yoshi-alsam-only':  6,
            'yoshi-simone':      7,
            'yoshi-alsam':       8,
-           'Yoshi-Gradient':    9,
+           'yoshi-gradient':    9,
            'dummy':             99}
 id2Dalt = {0:   "original",
            1:   "fidaner",
