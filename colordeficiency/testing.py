@@ -776,8 +776,11 @@ def computeTestName(dict):
     if dict['global_unit_vectors']: test_name += 'glob-uv_'
     else: test_name += 'indi-uv_'
     
-    if dict['data_attachment']: test_name += 'da'+str('{0:.2f}'.format(dict['sigma']))+'_'
-    else: test_name += 'non-da_'
+    if dict['chroma_data_attachment']: test_name += '-chroma-da'+str('{0:.2f}'.format(dict['sigma_chroma']))+'_'
+    else: test_name += 'non-chroma-da_'
+    
+    if dict['skin_data_attachment']: test_name += '-skin-da'+str('{0:.2f}'.format(dict['sigma_skin']))+'_'
+    else: test_name += 'non-skin-da_'
             
     if dict['constant_lightness']: test_name += 'constant-lightness_'
     else: test_name += 'neutral-gray_'
@@ -802,15 +805,18 @@ def computeTestName(dict):
     else: test_name += str(int(dict['boundary']))+'bound_'
             
     test_name += dict['yg_simulation_type']+'-'
-    test_name += dict['yg_coldef_type']
+    test_name += dict['coldef_type']
     return test_name
 
 def tvdalt_engineeredgradient():
     
     images = []
     #images.append(('0340000000-mirr',{'modus':1}))
-    images.append(('0340000000',{'modus':1}))
+    #images.append(('0370000000',{'modus':1}))
+    images.append(('0890000000',{'modus':1}))
+    #images.append(('0340000000',{'modus':1}))
     #images.append(('0550000000',{'modus':1}))
+    #images.append(('0520000000',{'modus':1}))
     #images.append(('0460000000',{'modus':1}))
     #images.append(('0460000000',{'modus':1}))
     #images.append(('berries2',{'modus':1}))
@@ -828,6 +834,7 @@ def tvdalt_engineeredgradient():
         im_name = image[0]
         print im_name
         im = imread(os.path.join('../colordeficiency-images/',im_name+'.png'))
+        im = im[...,0:3]
         im0 = im.copy()
         dict_list = []
         
@@ -838,7 +845,7 @@ def tvdalt_engineeredgradient():
         # Show different unit vectors
         # ed
         simulation_type = 'brettel'
-        coldef_type = 'd'
+        coldef_type = 'p'
         coldef_strength = 0.5
         dict_1 = image[1]
         dict_1.update({'constant_lightness': 1, # 1 - constant lightness, 0 - neutral gray
@@ -850,17 +857,18 @@ def tvdalt_engineeredgradient():
                        'interp': "cubic",
                        'data': data,
                        'dt': .20,
-                       'data_attachment': 0,
-                       'sigma': 1/100.,
+                       'chroma_data_attachment': 1,
+                       'skin_data_attachment': 0,
+                       'sigma_chroma': .05,
+                       'sigma_skin': 1.0,
                        #'data2': data2,
                        #'max_sigma': 10,
                        'max_its': 1000,
                        'cutoff': .00005,
                        'is_simulated': 0,
                        'yg_simulation_type': simulation_type,
-                       'global_unit_vectors': 1, 
+                       'global_unit_vectors': 0, 
                        'coldef_type': coldef_type,
-                       'yg_coldef_type': coldef_type,
                        'coldef_strength': coldef_strength,
                        'im_name': im_name,
                        'path_out': os.path.join('/Users/thomas/Desktop/different-unit-vectors/ed'),
@@ -911,17 +919,22 @@ def tvdalt_engineeredgradient():
         dict_28 = dict_1.copy(); dict_28.update({'path_out': os.path.join('/Users/thomas/Desktop/chi-sign'),
                                                  'global_unit_vectors': 1,
                                                  'chi_sign': 0})
-        dict_29 = dict_28.copy(); dict_29.update({'chi_sign': 2})
+        dict_29 = dict_28.copy(); dict_29.update({'global_unit_vectors': 0,
+                                                  'chi_sign': 0})
         
-        # Use w/ or /wo data attachment
+        # Use w/ or /wo chroma data attachment
         dict_30 = dict_1.copy(); dict_30.update({'path_out': os.path.join('/Users/thomas/Desktop/data-attachment')})
-        dict_31 = dict_30.copy(); dict_31.update({'data_attachment': 1,
+        dict_31 = dict_30.copy(); dict_31.update({'chroma_data_attachment': 1,
                                                   'sigma': .01})
         dict_32 = dict_31.copy(); dict_32.update({'sigma': .05})
         dict_33 = dict_31.copy(); dict_33.update({'sigma': .25})
         dict_34 = dict_31.copy(); dict_34.update({'sigma': .5})
         dict_35 = dict_31.copy(); dict_35.update({'sigma': .75})
         
+        # Use skin data attachment
+        dict_36 = dict_1.copy(); dict_36.update({'path_out': os.path.join('/Users/thomas/Desktop/skin-data-attachment')})
+        dict_37 = dict_36.copy(); dict_37.update({'skin_data_attachment': 1,
+                                                  'sigma_skin': 1.})
         #dict_list.append(dict_1)
         #dict_list.append(dict_2)
         #dict_list.append(dict_3)
@@ -950,14 +963,16 @@ def tvdalt_engineeredgradient():
         #dict_list.append(dict_25)
         #dict_list.append(dict_26)
         #dict_list.append(dict_27)
-        #dict_list.append(dict_28)
-        #dict_list.append(dict_29)
-        dict_list.append(dict_30)
-        dict_list.append(dict_31)
-        dict_list.append(dict_32)
-        dict_list.append(dict_33)
-        dict_list.append(dict_34)
-        dict_list.append(dict_35)
+        dict_list.append(dict_28)
+        dict_list.append(dict_29)
+        #dict_list.append(dict_30)
+        #dict_list.append(dict_31)
+        #dict_list.append(dict_32)
+        #dict_list.append(dict_33)
+        #dict_list.append(dict_34)
+        #dict_list.append(dict_35)
+        #dict_list.append(dict_36)
+        #dict_list.append(dict_37)
         
         
         for dict_i in dict_list:
