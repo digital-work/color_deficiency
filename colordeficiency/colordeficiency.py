@@ -16,6 +16,9 @@ import settings
 import threading
 import socket
 import time
+from colordeficiency_tools import getVariantFromImage, getStatsFromFilename, setStatsToFilename
+from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda, anisotropicG, multiscaling, GRMSE, makeGaussianChromaMap, makeGaussianSkinMap
+
 
 try:
     from pymatbridge import Matlab
@@ -1033,7 +1036,7 @@ def daltonization_kotera(img_in, options):
     xyz_vector = numpy.reshape(xyz_arr,(m*n,3))
     
     #Read xyz color matching functions
-    data = numpy.genfromtxt(os.path.join(settings.module_path,'colordeficiency-data','ciexyz31.csv'), delimiter=',')
+    data = numpy.genfromtxt(os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','ciexyz31.csv'), delimiter=',')
     xyzMatchFuncs = data[:,1:4]
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
                            [-.15514, .45684, .03286],
@@ -1155,7 +1158,7 @@ def daltonization_yoshi_c2g_only(img_in, options):
     if not ":/usr/local/bin" in os.environ['PATH']:
         os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
         print os.environ['PATH']
-    os.system(os.path.join(settings.module_path,'colordeficiency-data','code','simone','stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+    os.system(os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','code','simone','stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
     img_gray = Image.open(name_out_tmp)
     os.remove(name_in_tmp)
@@ -1230,7 +1233,7 @@ def daltonization_yoshi_c2g(img_in,options):
         if not ":/usr/local/bin" in os.environ['PATH']:
             os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
             print os.environ['PATH']
-        os.system(os.path.join(settings.module_path,'colordeficiency-data','code','simone','stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
+        os.system(os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','code','simone','stress')+" -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
         img_gray = Image.open(name_out_tmp)
         os.remove(name_in_tmp)
@@ -1301,62 +1304,60 @@ def daltonize(img_in,options):
         return img_in
     return img_out
 
-#wech
-# def simulate_pics(images,options):
-#     """
-#     Same as in tools_out.py, is not actually called up.
-#     """
-#     if options.has_key('path_out'):
-#         path_out = options['path_out']
-#     else:
-#         path_out = ""
-#     
-#     if not options.has_key('simulation_types'):
-#         print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.simulation_types)
-#         options['simulation_types'] = settings.simulation_types
-#     
-#     if not options.has_key('coldef_types'):
-#         print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
-#         options['coldef_types'] = settings.coldef_types
-#     
-#     for img in images:
-#         path_in_tmp, basename_tmp = os.path.split(img)
-#         file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
-#         dict_in = getStatsFromFilename(file_name_in_tmp)
-#         
-#         if not path_out:
-#             path_out = path_in_tmp
-#         sys.stdout.write("Computing "+str(file_name_in_tmp))
-#         
-#         for simulation_type in options['simulation_types']:
-#             sys.stdout.write( "..." + simulation_type)
-#             for coldef_type in options['coldef_types']:
-#                 sys.stdout.write("."+coldef_type)
-#                 
-#                 if (bool(dict_in['sim'])):
-#                     sys.stdout.write('.Cannot simulate already simulated images')
-#                 
-#                 elif (bool(dict_in['dalt']) and not (int(dict_in['coldef_type'])) == settings.colDef2ID[coldef_type]):
-#                     sys.stdout.write('.Color deficiency type of daltonization and simulation has to be the same')
-#                 else:
-#                     
-#                     img_in = Image.open(img)
-#                     img_sim =simulate(simulation_type, img_in, coldef_type)
-#                  
-#                     file_name_out_tmp = setStatsToFilename(
-#                                                        dict_in['img_id'],
-#                                                        dict_in['dalt'],
-#                                                        dict_in['dalt_id'],
-#                                                        True,
-#                                                        simType2Int(simulation_type),
-#                                                        settings.colDef2ID[coldef_type]
-#                                                        )
-#                     file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-#                     img_sim.save(file_path_out_tmp)
-# 
-#         sys.stdout.write("\n")
 
-from colordeficiency_tools import getStatsFromFilename, setStatsToFilename
+def simulate_pics(images,options):
+    """
+    Same as in tools_out.py, is not actually called up.
+    """
+    if options.has_key('path_out'):
+        path_out = options['path_out']
+    else:
+        path_out = ""
+     
+    if not options.has_key('simulation_types'):
+        print "Caution: No daltonization_type chosen. Default value will be chosen: " + ", ".join(settings.simulation_types)
+        options['simulation_types'] = settings.simulation_types
+     
+    if not options.has_key('coldef_types'):
+        print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
+        options['coldef_types'] = settings.coldef_types
+     
+    for img in images:
+        path_in_tmp, basename_tmp = os.path.split(img)
+        file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
+        dict_in = getStatsFromFilename(file_name_in_tmp)
+         
+        if not path_out:
+            path_out = path_in_tmp
+        sys.stdout.write("Computing "+str(file_name_in_tmp))
+         
+        for simulation_type in options['simulation_types']:
+            sys.stdout.write( "..." + simulation_type)
+            for coldef_type in options['coldef_types']:
+                sys.stdout.write("."+coldef_type)
+                 
+                if (bool(dict_in['sim'])):
+                    sys.stdout.write('.Cannot simulate already simulated images')
+                 
+                elif (bool(dict_in['dalt']) and not (int(dict_in['coldef_type'])) == settings.colDef2ID[coldef_type]):
+                    sys.stdout.write('.Color deficiency type of daltonization and simulation has to be the same')
+                else:
+                     
+                    img_in = Image.open(img)
+                    img_sim =simulate(simulation_type, img_in, coldef_type)
+                  
+                    file_name_out_tmp = setStatsToFilename(
+                                                       dict_in['img_id'],
+                                                       dict_in['dalt'],
+                                                       dict_in['dalt_id'],
+                                                       True,
+                                                       settings.sim2ID[simulation_type],
+                                                       settings.colDef2ID[coldef_type]
+                                                       )
+                    file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
+                    img_sim.save(file_path_out_tmp)
+ 
+        sys.stdout.write("\n")
 
 def daltonize_pics(images,options):
     """
@@ -1371,42 +1372,58 @@ def daltonize_pics(images,options):
     if not options.has_key('coldef_types'):
         print 'Caution: No coldef_type chosen. Default value will be chosen: '+", ".join(settings.coldef_types)
         options['coldef_types'] = settings.coldef_types
+        
+    round = options['vs_round']
      
     for img in images:
         path_in_tmp, basename_tmp = os.path.split(img)
         file_name_in_tmp,file_ext = os.path.splitext(basename_tmp)
         dict_in = getStatsFromFilename(file_name_in_tmp)
         img_in = Image.open(img)
-         
-        if not path_out: path_out = path_in_tmp
-        sys.stdout.write("Computing "+str(file_name_in_tmp))
         
-        file_path_out_tmp = os.path.join(path_out,file_name_in_tmp+file_ext)
-        img_in.save(file_path_out_tmp)
-        
-        for daltonization_type in options['daltonization_types']:
-            sys.stdout.write( "..." + daltonization_type)
-            for coldef_type in options['coldef_types']:
-                sys.stdout.write("."+coldef_type+"\n")
-                 
-                if (bool(dict_in['sim'])): sys.stdout.write('.Cannot daltonize already simulated images')
-                elif bool(dict_in['dalt']): sys.stdout.write('.Cannot daltonize already daltonized images')
-                else:
-                    options_tmp = options.copy()
-                    options_tmp['coldef_type'] = coldef_type
-                    options_tmp['daltonization_type'] = daltonization_type
-                    img_dalt =daltonize(img_in, options_tmp)
-                  
-                    file_name_out_tmp = setStatsToFilename( dict_in['img_id'],
-                                                            True,
-                                                            settings.dalt2ID[daltonization_type],
-                                                            dict_in['sim'],
-                                                            dict_in['sim_id'],
-                                                            settings.colDef2ID[coldef_type])
-                    file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
-                    img_dalt.save(file_path_out_tmp)
-                    
-        sys.stdout.write("\n")
+        img_id = dict_in['img_id']
+        variant_id = getVariantFromImage(img_id,round)
+        print variant_id
+        if not variant_id == 0:
+             
+            if not path_out: path_out = path_in_tmp
+            sys.stdout.write("Computing "+str(file_name_in_tmp))
+            
+            file_path_out_tmp = os.path.join(path_out,file_name_in_tmp+file_ext)
+            img_in.save(file_path_out_tmp)
+            
+            for daltonization_type in options['daltonization_types']:
+                sys.stdout.write( "..." + daltonization_type)
+                for coldef_type in options['coldef_types']:
+                    sys.stdout.write("."+coldef_type)
+                     
+                    if (bool(dict_in['sim'])): sys.stdout.write('.Cannot daltonize already simulated images')
+                    elif bool(dict_in['dalt']): sys.stdout.write('.Cannot daltonize already daltonized images')
+                    else:
+                        options_tmp = options.copy()
+                        options_tmp['coldef_type'] = coldef_type
+                        options_tmp['daltonization_type'] = daltonization_type
+                      
+                        file_name_out_tmp = setStatsToFilename( dict_in['img_id'],
+                                                                True,
+                                                                settings.dalt2ID[daltonization_type],
+                                                                dict_in['sim'],
+                                                                dict_in['sim_id'],
+                                                                settings.colDef2ID[coldef_type])
+                        file_path_out_tmp = os.path.join(path_out,file_name_out_tmp)
+                        if not os.path.exists(file_path_out_tmp):
+                            img_dalt =daltonize(img_in, options_tmp)
+                            img_dalt.save(file_path_out_tmp)
+                        else:
+                            sys.stdout.write(": file already exists ")
+            sys.stdout.write("\n")
+        else:
+            if not path_out: path_out = path_in_tmp
+            sys.stdout.write("Computing "+str(file_name_in_tmp))
+            
+            file_path_out_tmp = os.path.join(path_out,file_name_in_tmp+file_ext)
+            img_in.save(file_path_out_tmp)
+            sys.stdout.write("\n")
 
 def makeSimulationLookupTable(simulation_type, coldef_type,accuracy=5,colorspace="sRGB"):
     
@@ -1468,8 +1485,6 @@ def s(im):
     retim[..., 0] = .5 * (im[..., 0] + im[..., 1])
     retim[..., 1] = .5 * (im[..., 0] + im[..., 1])
     return retim
-
-from colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda, anisotropicG, multiscaling, smoothing, RMSE, GRMSE
   
 def daltonization_yoshi_042016(im,dict):
 
@@ -1478,7 +1493,7 @@ def daltonization_yoshi_042016(im,dict):
                  'im0': im.copy()})
     
     is_numpy_array = type(im)==numpy.ndarray
-    if is_numpy_array: im_array = im
+    if is_numpy_array: im_array = im[...,0:3]
     else: im = im.convert('RGB'); im_array = numpy.asarray(im, dtype=float)/255.
     
     if modus==0:
@@ -1499,6 +1514,7 @@ def daltonization_yoshi_042016(im,dict):
     else: im_array = numpy.uint8(im_dalt*255.); im_out = Image.fromarray(im_array)
         
     return im_out
+   
 
 def daltonization_yoshi_gradient(im,dict):
     
@@ -1519,7 +1535,7 @@ def daltonization_yoshi_gradient(im,dict):
     if not dict.has_key('coldef_type'):
         print "Error: The color deficiency type has to be defined in the dictionary. ["+name+"]"
         return crossOut(im)
-    else: coldef_type = dict['coldef_type']
+    else: coldef_type = dict['coldef_type']; sys.stdout.write(coldef_type)
 
     # Optional variables for simulate
     coldef_strength = dict['coldef_strength'] if dict.has_key('coldef_strength') else 1.0
@@ -1612,19 +1628,25 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
     
     gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
-    data_attachment = dict['data_attachment'] if dict.has_key('data_attachment') else 1
-    if data_attachment:
-        sigma = dict['sigma'] if dict.has_key('sigma') else 25./100
-        if ms_first: sys.stdout.write('with data attachment,  '+str(sigma)+': ')
-        l = 1.
+    chroma_data_attachment = dict['chroma_data_attachment'] if dict.has_key('chroma_data_attachment') else 0
+    skin_data_attachment = dict['skin_data_attachment'] if dict.has_key('skin_data_attachment') else 0
+    
+    l = 1.
+    gauss_chroma = numpy.zeros((m,n,d))
+    gauss_skin = numpy.zeros((m,n,d))
+    if chroma_data_attachment:
+        sigma_chroma = dict['sigma_chroma'] if dict.has_key('sigma_chroma') else 25./100
+        if ms_first: sys.stdout.write('with chroma data attachment,  '+str(sigma_chroma)+': ')
         # Compute weighting function for data attachment based on chroma
-        sRGB = colour.data.Data(colour.space.srgb,im0) 
-        lab  = sRGB.get(colour.space.cielab)
-        chroma = numpy.sqrt(lab[...,1]**2+lab[...,2]**2)/100.
-        gaussian_1D = numpy.e**(-(chroma**2)/(2*sigma**2))
-        gaussian_3D = numpy.array([gaussian_1D.transpose(),]*d).transpose()
-    else:
-        if ms_first: sys.stdout.write('without data attachment: ')
+        gauss_chroma = makeGaussianChromaMap(im0,sigma_chroma)     
+    if skin_data_attachment:
+        sigma_skin = dict['sigma_skin'] if dict.has_key('sigma_skin') else 1.
+        if ms_first: sys.stdout.write('with skin data attachment '+str(sigma_skin)+': ')
+        gauss_skin = makeGaussianSkinMap(im0,sigma_skin)
+    
+    if not (chroma_data_attachment or skin_data_attachment): 
+        if ms_first: sys.stdout.write('without data attachment ') 
+    gauss = gauss_chroma+gauss_skin
     
     if optimization==3: g = anisotropicG(gradx0,grady0,dict); dict['g']=g
     
@@ -1641,12 +1663,9 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
         
-        if data_attachment:
-            if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] - dt*(l*gaussian_3D)*(im_new-im0)[1:-1, 1:-1]# Keep boundary values constant
-            else: im_new = im_new + dt*opt - dt*(l*gaussian_3D)*(im_new-im0)
-        else:
-            if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] # Keep boundary values constant
-            else: im_new = im_new + dt*opt
+        if boundary==0: im_new[1:-1, 1:-1] = im_new[1:-1, 1:-1] + dt * opt[1:-1, 1:-1] - dt*(l*gauss)*(im_new-im0)[1:-1, 1:-1]# Keep boundary values constant
+        else: im_new = im_new + dt*opt - dt*(l*gauss)*(im_new-im0)
+        
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1. # Gamut clipping
         
         if first_RMSE: first_RMSE = False; test = numpy.inf

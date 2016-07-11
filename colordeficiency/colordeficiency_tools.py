@@ -68,33 +68,43 @@ def getStatsFromFilename(filename):
         return dict
 
 
-def getSetFromScene(scene_id):
+def getSetFromScene(scene_id,round):
     
-    visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    if round == 1:
+        visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    elif round == 2:
+        visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids_2.xlsx')
+    
     vs_ids_sheet = pandas.read_excel(visualsearch_ids)
     set_id = int(vs_ids_sheet[vs_ids_sheet.scene_id==scene_id].set_id.values[0])
     
     return set_id
 
-def getSetFromImage(image_id):
+def getSetFromImage(image_id,round):
     
     #print os.path.dirname(os.path.abspath(__file__))
-    visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    if round == 1:
+        visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    elif round == 2:
+        visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids_2.xlsx')
     #visualsearch_ids = "../color_deficiency/colordeficiency-data/visualsearch_ids.xlsx"
     vs_ids_sheet = pandas.read_excel(visualsearch_ids)
     set_id = int(vs_ids_sheet[vs_ids_sheet.image_id==image_id].set_id.values[0])
     
     return set_id
 
-def getVariantFromImage(image_id):
+def getVariantFromImage(image_id,round):
     
     #print os.path.dirname(os.path.abspath(__file__))
-    visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    if round == 1:
+        visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids.xlsx')
+    elif round == 2:
+        visualsearch_ids = os.path.join(os.path.abspath(os.path.join(settings.module_path, os.pardir)),'colordeficiency-data','visualsearch_ids_2.xlsx')
     #visualsearch_ids = "../color_deficiency/colordeficiency-data/visualsearch_ids.xlsx"
     vs_ids_sheet = pandas.read_excel(visualsearch_ids)
-    set_id = int(vs_ids_sheet[vs_ids_sheet.image_id==image_id].variant_id.values[0])
+    variant_id = int(vs_ids_sheet[vs_ids_sheet.image_id==image_id].variant_id.values[0])
     
-    return set_id
+    return variant_id
     
         
 def setStatsToFilename(img_id,dalt,dalt_id,sim,sim_id,coldef_type):
@@ -436,7 +446,11 @@ def makeXLSXForExperiment(options):
                         corr_answerB_tmp = 'left' if corr_answerB_tmp else 'right'
 
                         path_orig = os.path.join(rel_path_tmp,file) # Has to be relative
+                        # Double number of observations by doubeling them
                         array_set_xlsx_a = numpy.vstack((array_set_xlsx_a,[path_orig,corr_answerA_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
+                        array_set_xlsx_a = numpy.vstack((array_set_xlsx_a,[path_orig,corr_answerA_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
+                        
+                        array_set_xlsx_b = numpy.vstack((array_set_xlsx_b,[path_orig,corr_answerB_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
                         array_set_xlsx_b = numpy.vstack((array_set_xlsx_b,[path_orig,corr_answerB_tmp,settings.id2Dalt[dict_stats['dalt_id']],settings.id2ColDefLong[dict_stats['coldef_type']]]))
                         
                         if j in rand_files:
@@ -1528,6 +1542,7 @@ def multiscaling(im,func,dict={}):
     interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
     mode = dict['mode'] if dict.has_key('mode') else 'RGB'
     m,n,d = numpy.shape(im); size = numpy.array((m,n))
+    #print m,n,d
     
     if m <= min_size or n <= min_size:
         im_new = func(im,dict)
@@ -1571,3 +1586,139 @@ def smoothing(im,sigma,func,dict={}):
     im_new = func(im_updated,dict)
     
     return im_new
+
+
+def ycc(im): # in (0,255) range
+    im = im * 255
+    m,n,d = numpy.shape(im)
+    im_ycbcr = numpy.zeros((m,n,d))
+    im_ycbcr[...,0] =        .299    *im[...,0] +    .587    *im[...,1] + .114   *im[...,2]
+    im_ycbcr[...,1] = 128 -  .168736 *im[...,0] -    .331364 *im[...,1] + .5     *im[...,2]
+    im_ycbcr[...,2] = 128 +  .5      *im[...,0] -    .418688 *im[...,1] - .081312*im[...,2]
+    return im_ycbcr
+
+wcb_ = 46.97; wlcb = 23; whcb = 14; wcr_ = 38.76; wlcr = 20; whcr = 10;
+kl = 125; kh = 188; ymin = 16; ymax = 235; 
+
+
+def c1b(cb,y):
+    c1b_out = cb.copy()
+    indices = (y<kl)|(kh<y)
+    c1b_out[indices] = (cb[indices]-cb_center(y[indices]))*wcb_/(wcb(y[indices]))+108
+    return c1b_out
+
+def c1r(cr,y):
+    c1r_out = cr.copy()
+    indices = (y<kl)|(kh<y)
+    c1r_out[indices] = (cr[indices]-cr_center(y[indices]))*wcr_/(wcr(y[indices]))+108
+    return c1r_out
+
+def wcb(y):
+    y_out = y.copy()
+    y_out[y<kl] = wlcb + (y[y<kl]-ymin)*(wcb_*wlcb)/(kl-ymin)
+    y_out[kh<y] = whcb + (ymax-y[kh<y])*(wcb_*whcb)/(ymax-kh)
+    return y_out
+    
+def wcr(y):
+    y_out = y.copy()
+    y_out[y<kl] = wlcr + (y[y<kl]-ymin)*(wcr_*wlcr)/(kl-ymin)
+    y_out[kh<y] = whcr + (ymax-y[kh<y])*(wcr_*whcr)/(ymax-kh)
+    return y_out
+    
+
+def cb_center(y):
+    center = y.copy()
+    center[:] = 108
+    center[y<kl] = 108 + (kl-y[y<kl])*(118-108)/(kl-ymin)
+    center[kh<y] = 108 + (y[kh<y]-kh)*(118-108)/(ymax-kh)
+    return center 
+
+def cr_center(y):
+    center = y.copy()
+    center[:] = 108
+    center[y<kl] = 154 - (kl-y[y<kl])*(154-144)/(kl-ymin)
+    center[kh<y] = 154 + (y[kh<y]-kh)*(154-132)/(ymax-kh)
+    return center
+ 
+def skin_map(im):
+    
+    phi = 2.53; cx = 109.38; cy = 152.02; ecx = 1.60; ecy = 2.41; a = 25.39; b = 14.03 
+    im_ycc = ycc(im) 
+    cb_prime = c1b(im_ycc[...,1],im_ycc[...,0])
+    cr_prime = c1r(im_ycc[...,2],im_ycc[...,0])
+    m,n = numpy.shape(cb_prime)
+    cb_prime_arr = cb_prime.reshape((m*n))
+    cr_prime_arr = cr_prime.reshape((m*n))
+    
+    rot = numpy.array([[numpy.cos(phi), numpy.sin(phi)],
+                       [-numpy.sin(phi),numpy.cos(phi)]])
+    vec = numpy.array([ cb_prime_arr-cx,
+                        cr_prime_arr-cy])
+    xy = numpy.dot(rot,vec).transpose()
+    
+    skin_arr = (xy[...,0]-ecx)**2/a**2+(xy[...,1-ecy])**2/b**2
+    skin = skin_arr.reshape((m,n))
+    return skin
+
+def makeGaussianSkinMap(im,sigma):
+    
+    m,n,d = numpy.shape(im)
+    map = skin_map(im)
+    gaussian_1D = numpy.e**(-(map**2)/(2*sigma**2))
+    gaussian_3D = numpy.array([gaussian_1D.transpose(),]*d).transpose()
+    
+    return gaussian_3D
+
+def showSkinMap(im,sigma):
+    
+    gauss = makeGaussianSkinMap(im,sigma) 
+    
+    figure(0), ion()
+    imshow(gauss[...,0],cmap='gray')
+    show(); draw()
+    
+def skin_map_2(im):
+    
+    map = (im[...,0]-im[...,1])/im[...,0]+im[...,1] + im[...,2]/(im[...,0]+im[...,1])
+    
+    return map
+
+def skin_gaussian_2(im,sigma):
+    
+    m,n,d = numpy.shape(im)
+    map = skin_map_2(im)
+    gaussian_1D = numpy.e**(-(map**2)/(2*sigma**2))
+    gaussian_3D = numpy.array([gaussian_1D.transpose(),]*d).transpose()
+    
+    return gaussian_3D
+
+def showSkinMap2(im,sigma):
+    
+    gauss = skin_gaussian_2(im,sigma) 
+    
+    figure(0), ion()
+    imshow(gauss[...,0],cmap='gray')
+    show(); draw()
+#im = imread('0550000000.png')
+#figure(0); ion()
+#data = imshow(im)
+#show(); draw()    
+#skin_map(im)
+
+def rgb(im):
+    m,n,d = numpy.shape(im)
+    im_rgb = numpy.zeros(m,n,d)
+    im_rgb[...,0] = im[...,0]                           +1.402      *(im[...,2]-128)
+    im_rgb[...,1] = im[...,0] - 0.34414 *(im[...,1]-128)-0.71414    *(im[...,2]-128)
+    im_rgb[...,2] = im[...,0] + 1.772   *(im[...,1]-128)
+    return im_rgb
+
+def makeGaussianChromaMap(im,sigma):
+    m,n,d = numpy.shape(im)
+    sRGB = colour.data.Data(colour.space.srgb,im) 
+    lab  = sRGB.get(colour.space.cielab)
+    chroma = numpy.sqrt(lab[...,1]**2+lab[...,2]**2)/100.
+    gaussian_1D = numpy.e**(-(chroma**2)/(2*sigma**2))
+    gaussian_3D = numpy.array([gaussian_1D.transpose(),]*d).transpose()
+    
+    return gaussian_3D
