@@ -138,10 +138,19 @@ def analyzeViSDEMData(dict):
         print "Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default)
         path_out = path_out_default
     
+    if dict.has_key('round'):
+        round = dict['round']
+    else:
+        print "Error: You have to chose a round first."
+    
     path = os.path.join(os.path.dirname(os.path.abspath(os.path.join(__file__,os.pardir))),'colordeficiency-data')
         
     # 0. Step: Get all the relevant information, i.e. motive_ids, obs_col_defs etc.
-    visualsearch_ids = os.path.join(path,"visualsearch_ids.csv")
+    if round == 1:
+        visualsearch_ids = os.path.join(path,"visualsearch_ids.csv")
+    elif round == 2:
+        visualsearch_ids = os.path.join(path,"visualsearch_ids_2.csv")
+        
     vs_ids_sheet = pandas.read_csv(visualsearch_ids,sep=";")
     
     # Get all the relevant information about the observers, i.e. obs_col_defs etc.
@@ -286,7 +295,7 @@ def samsemPlots1thru4(samsem_data,path,dict):
         if (sim_id != 3) and (sim_id != 99):
             whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id],['coldef_type',operator.eq,coldef_type]]
         else:
-            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id],['coldef_type',operator.eq,1]] # For the kotera and the dummy method, both protanopia and deuteranopia variants are identical. Thus, no distinction of coldef_type is necessary.
+            whatArr_tmp = [dict['obs_operator'],['sim_id',operator.eq,sim_id]] # For the kotera and the dummy method, both protanopia and deuteranopia variants are identical. Thus, no distinction of coldef_type is necessary.
         relevant_data_tmp = organizeArray(samsem_data,whatArr_tmp)   
                
         pandas_dict.update({sim_method: relevant_data_tmp})
@@ -1078,6 +1087,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
     #print sorted(set(visdem_data_adj.set_id.values))
     
     dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    #print dalt_method_ids
     
     pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
     for dalt_method_id in dalt_method_ids:
@@ -1099,6 +1109,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
     # Make Accuracy plots
     c = 1.96; type = 'wilson-score';
     accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type,dict)
+    #print pandas_dict
     plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
     
     # Make median test
@@ -1118,17 +1129,19 @@ def visdemPlots53thru60(visdem_data,path,dict):
     makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
     
     # 7. Make normality plots
-    for i in range(numpy.shape(boxes)[0]):
-        distribution_tmp = boxes[i]
-        if distribution_tmp.size:
-            label_tmp = labels[i]
-            dict.update({'filename': filename_orig+'-RT-'+label_tmp})
-            plotQQPlot(distribution_tmp, path_res, dict)
-            
-            distribution_log_tmp = numpy.log(distribution_tmp)
-            distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
-            dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
-            plotQQPlot(distribution_log_tmp, path_res, dict)
+    qq_plots = dict['qq_plots'] if dict.has_key('qq_plots') else 0
+    if qq_plots:
+        for i in range(numpy.shape(boxes)[0]):
+            distribution_tmp = boxes[i]
+            if distribution_tmp.size:
+                label_tmp = labels[i]
+                dict.update({'filename': filename_orig+'-RT-'+label_tmp})
+                plotQQPlot(distribution_tmp, path_res, dict)
+                
+                distribution_log_tmp = numpy.log(distribution_tmp)
+                distribution_log_tmp = distribution_log_tmp[~numpy.isnan(distribution_log_tmp)]
+                dict.update({'filename': filename_orig+'-RT-'+label_tmp+'-log'})
+                plotQQPlot(distribution_log_tmp, path_res, dict)
 
 
 def visdemPlots53thru60Paired(visdem_data,path,dict):

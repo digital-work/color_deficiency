@@ -361,7 +361,7 @@ def getAccuracy(data,c,type):
     
     else:
         return [float('NaN'),float('NaN'),float('NaN')], [num_correct, num_incorrect]
-    
+
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
@@ -431,6 +431,73 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     a.to_csv(os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.csv"),sep=';')
     
     writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
+
+def plotZScoreGraphs(zsData,path,dict,order=[]):
+        
+    multiple_graphs = dict['multiple_graphs'] if dict.has_key('multiple_graphs') else 0
+    figsize = dict['figsize'] if dict.has_key('figsize') else [8., 6.]
+    
+    xlabel = dict['xlabel'] if dict.has_key('xlabel') else ''
+    ylabel = dict['ylabel'] if dict.has_key('ylabel') else 'ZScores'
+    y_lim = dict['y_lim_ZS'] if dict.has_key('y_lim_ZS') else [-1.,1.]
+    fmt = dict['fmt'] if dict.has_key('fmt') else 'or'
+    color = dict['color'] if dict.has_key('color') else 'red'
+    fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
+      
+    if not multiple_graphs: 
+        plt.figure() 
+        
+    fig = plt.gcf()
+    plt.ylim(y_lim)
+    plt.xlim([0,len(zsData)+1]) 
+    plt.grid(axis='y')
+     
+    zs_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[]; howMany=[]; counter=1
+    if not order:
+        for key,value in zs_data.iteritems():
+            zs_plots.append(value[0])
+            lower_bound.append(value[1])
+            upper_bound.append(value[2])
+            labels_tmp.append(value[3])
+            howMany.append(counter);counter+=1
+    else:
+        end = len(order);
+        while counter <= end:
+            key = order[counter-1]
+            value = zsData[key]
+            zs_plots.append(value[0])
+            lower_bound.append(value[1])
+            upper_bound.append(value[2])
+            labels_tmp.append(key)
+            howMany.append(counter);counter+=1
+            
+    zs_plots = numpy.array(zs_plots)
+    bounds = numpy.array([lower_bound,upper_bound])
+    
+    plt.errorbar(howMany,zs_plots,bounds,fmt=fmt, color=color)
+    plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
+    title_default = ''
+    if dict.has_key('obs_title'):
+        if dict['obs_title']:        
+            title = dict['obs_title']
+        else:
+            title = title_default
+    else:
+        title = title_default 
+    plt.title(title)
+    plt.ylabel(ylabel,fontsize=fontsize);
+    plt.xlabel(xlabel,fontsize=fontsize)
+    fig.set_size_inches(figsize)
+    plt.savefig(os.path.join(path,dict['filename']+"-ZS.pdf")); 
+    
+    if not multiple_graphs:
+        plt.close()
+        
+    #data = {'l-bounds': zs_plots-lower_bound,'acc': zs_plots, 'u-bounds': acc_plots+upper_bound}
+    #a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','acc', 'u-bounds'])
+    #a.to_csv(os.path.join(path,dict['filename']+"-ACC-bounds.csv"),sep=';')
+    
+    #writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
 
 
 ##########
