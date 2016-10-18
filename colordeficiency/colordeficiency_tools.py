@@ -5,6 +5,7 @@ Created on 24. feb. 2014
 '''
 
 from colordeficiency import *
+from matplotlib.mlab import PCA
 #from tools import makeComparisonFig, makeSubplots, convertToLuminanceImage, mean_confidence_interval
 import os
 import sys
@@ -135,6 +136,17 @@ def simType2Int(simulation_type):
     elif simulation_type == "brettel": return 4
     elif simulation_type == "dummy": return 99
     else:  return 0
+
+def getColDefTypeForObserver(observer_id):
+    
+    path = os.path.join(os.path.dirname(os.path.abspath(os.path.join(__file__,os.pardir))),'colordeficiency-data')
+    observer_ids = os.path.join(path,"observer_ids.csv")
+    obs_ids_sheet = pandas.read_csv(observer_ids,sep=";")
+    
+    dict = obs_ids_sheet.loc[obs_ids_sheet['observer_id']==observer_id,['observer_coldef_type']]
+    obs_coldef_type = int(dict['observer_coldef_type'])
+    
+    return obs_coldef_type
 
 def read_csv_file(filename, pad=-numpy.inf):
     """

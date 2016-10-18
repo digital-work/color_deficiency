@@ -4,7 +4,6 @@
 
 from PIL import Image, ImageDraw, ImageEnhance
 import numpy
-from matplotlib.mlab import PCA
 from scipy.misc import imresize
 import colour
 from pylab import *

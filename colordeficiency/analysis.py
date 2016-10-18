@@ -9,7 +9,7 @@ import copy, json, matplotlib.pyplot as plt, numpy, operator, os, pandas, sys
 from scipy import stats
 
 from colordeficiency import settings
-from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename, getSetFromScene, keys2values
+from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename, getSetFromScene, keys2values, getColDefTypeForObserver
 from analysis_tools import writeMetaDataOfExperiments, extractExperimentData, writePandastoLatex, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
 from analysis_tools import preparePandas4AccuracyPlots, preparePandas4Chi2, preparePandas4RTPlots
 from analysis_tools import makeMedianTest, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, makePairwiseStudentTTest
@@ -1068,13 +1068,8 @@ def visdemPlots53thru60(visdem_data,path,dict):
         if not os.path.exists(path_res): os.makedirs(path_res)
     filename_orig = dict['filename']
     
-    coldef_type = dict['coldef_type']
     dict.update({'investigated-item': 'daltonization method'})
-    
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
+    set_ids = dict['sets'] if dict.has_key('sets') else sorted(set(visdem_data['set_id'].values.astype(int))) 
         
     #Retrieving data    
     visdem_data_adj = pandas.DataFrame()
@@ -1084,19 +1079,22 @@ def visdemPlots53thru60(visdem_data,path,dict):
         rel_data_tmp =  organizeArray(visdem_data,whatArr_tmp)
         visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
     visdem_data_adj.reset_index()
-    #print sorted(set(visdem_data_adj.set_id.values))
     
     dalt_method_ids = sorted(set(visdem_data['dalt_id'].values.astype(int)))
-    #print dalt_method_ids
     
-    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []
+    pandas_dict = {}; i = 0; order_dict = {}; dalt_names = []; 
     for dalt_method_id in dalt_method_ids:
-        
         dalt_method = settings.id2Dalt[dalt_method_id]
-        whatArray = [['dalt_id', operator.eq, dalt_method_id],['variant_id',operator.eq,1],dict['obs_operator']]
-        if (dalt_method_id != 0)  and (dalt_method_id != 99):
-            whatArray.append(['coldef_type',operator.eq,coldef_type])
-        relevant_data_tmp = organizeArray(visdem_data_adj, whatArray)
+        obs_groups = dict['obs_groups']
+        relevant_data_tmp = pandas.DataFrame()
+        for obs_group, coldef_type in obs_groups.iteritems():
+            
+            whatArray = [['dalt_id', operator.eq, dalt_method_id],['variant_id',operator.eq,1],['observer_coldef_type',operator.eq,obs_group]]
+            if (dalt_method_id != 0)  and (dalt_method_id != 99):
+                whatArray.append(['coldef_type',operator.eq,coldef_type])
+            relevant_data_group_tmp = organizeArray(visdem_data_adj, whatArray)
+            relevant_data_tmp = pandas.concat([relevant_data_group_tmp,relevant_data_tmp])
+        relevant_data_tmp.reset_index()
         
         pandas_dict.update({dalt_method: relevant_data_tmp})
         order_dict.update({i: dalt_method}); i += 1
@@ -1109,7 +1107,6 @@ def visdemPlots53thru60(visdem_data,path,dict):
     # Make Accuracy plots
     c = 1.96; type = 'wilson-score';
     accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type,dict)
-    #print pandas_dict
     plotAccuracyGraphs(accuracies, path_res, dict, order_dict)
     
     # Make median test
@@ -1119,10 +1116,9 @@ def visdemPlots53thru60(visdem_data,path,dict):
     # Make Chi2 contingency test
     obs_array, obs_pandas = preparePandas4Chi2(pandas_dict, order_dict)
     
-    start = 1; end = 5
-    res = [start,end]
+    start = 1; end = 5; res = [start,end]
     dict.update({'filename': filename_orig+'-ACC'})
-    
+    #print obs_array
     makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, res)
     
     # Make Chi2 contingency test matrix
@@ -1156,14 +1152,9 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
     filename_orig = dict['filename']
-    
-    coldef_type = dict['coldef_type']
-    
-    if dict.has_key('sets'):
-        set_ids = dict['sets']
-    else:
-        set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
-        
+
+    set_ids = dict['sets'] if dict.has_key('sets') else sorted(set(visdem_data['set_id'].values.astype(int)))
+
     visdem_data_adj = pandas.DataFrame()
     for set_id in set_ids:
         # Getting data from all variants for all normal sighted observers
@@ -1172,15 +1163,12 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
         visdem_data_adj = pandas.concat([rel_data_tmp, visdem_data_adj])
     visdem_data_adj.reset_index()
     
-    if compute_paired_data:
-        makePairedDataForViSDEM(visdem_data_adj, dict['path_data'], dict)
+    if compute_paired_data: makePairedDataForViSDEM(visdem_data_adj, dict['path_data'], dict)
     
     visdem_data_RT_paired_path = os.path.join(dict['path_data'],filename_orig+'_visdem-data-RT-paired.csv')
     visdem_data_RT_paired = pandas.read_csv(visdem_data_RT_paired_path,index_col=False,sep=';')  
     
-    f = open(os.path.join(dict['path_data'],filename_orig+'_visdem-data-paired_meta-data.txt'), 'r')
-    b = json.load(f)
-    f.close()
+    f = open(os.path.join(dict['path_data'],filename_orig+'_visdem-data-paired_meta-data.txt'), 'r'); b = json.load(f); f.close()
     
     visdem_data_RT_paired_array, labels = makePairedRTDataArray(visdem_data_RT_paired, b, 'dalt_id')
     labels =  keys2values(labels, settings.id2Dalt)
@@ -1192,15 +1180,9 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     visdem_data_ACC_paired_path = os.path.join(dict['path_data'],filename_orig+'_visdem-data-ACC-paired.csv')
     visdem_data_ACC_paired = pandas.read_csv(visdem_data_ACC_paired_path,index_col=False,sep=';')  
     
-    f = open(os.path.join(dict['path_data'],filename_orig+'_visdem-data-paired_meta-data.txt'), 'r')
-    b = json.load(f)
-    f.close()
+    f = open(os.path.join(dict['path_data'],filename_orig+'_visdem-data-paired_meta-data.txt'), 'r'); b = json.load(f); f.close()
     
-    orig_col = visdem_data_ACC_paired['dalt_id_00'].values
-    comp_dict = {}
-    boxes = []
-    labels = []
-    #import math
+    orig_col = visdem_data_ACC_paired['dalt_id_00'].values; comp_dict = {}; boxes = []; labels = []
     for i in b:
         #res_str = "orig-to-"+settings.id2Dalt[i]
         curr_col_name = "dalt_id_"+str(i).zfill(2)
@@ -1208,8 +1190,7 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
         curr_col = visdem_data_ACC_paired[curr_col_name].values
         #curr_comp = numpy.greater(orig_col,curr_col)*(-1.0) + numpy.less(orig_col,curr_col)*(1.0)
             
-        boxes.append(curr_col)
-        labels.append(curr_dalt_name)
+        boxes.append(curr_col);labels.append(curr_dalt_name)
     
     dict.update({'filename': filename_orig+"-ACC", 'ACC_difference': 1})
     makePairwiseStudentTTest(boxes, path_res, labels, dict)
@@ -1821,9 +1802,8 @@ def makePairedDataForSaMSEM(samsem_data,path,dict):
         col_tmp = "sim_id_"+str(sim_id).zfill(2)
         columns.append(col_tmp)
         
-    samsem_data_template = pandas.DataFrame(columns=columns)
-    samsem_data_RT_paired = samsem_data_template.copy()
-    samsem_data_ACC_paired = samsem_data_template.copy()
+    samsem_data_template = pandas.DataFrame(columns=columns) 
+    samsem_data_RT_paired = samsem_data_template.copy(); samsem_data_ACC_paired = samsem_data_template.copy()
     index = 0
     
     for observer_id in observer_ids:
@@ -1872,8 +1852,7 @@ def makePairedDataForSaMSEM(samsem_data,path,dict):
     samsem_data_ACC_paired.to_csv(os.path.join(path,dict['filename']+'_samsem-data-ACC-paired.csv'),sep=";")
     
     f = open(os.path.join(path,dict['filename']+'_samsem-data-paired_meta-data.txt'), 'w')
-    json.dump(sim_ids, f)
-    f.close()
+    json.dump(sim_ids, f); f.close()
 
 
 def makePairedDataForViSDEM(visdem_data,path,dict):
@@ -1887,11 +1866,22 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     #print dict
     #print visdem_data
     # 1. Restrict data to only one type of observer color deficiency
-    coldef_type = dict['coldef_type']
+    obs_groups = dict['obs_groups']
+    #print
+    #coldef_type = dict['coldef_type']
     #print coldef_type
-    observer_coldef_type = dict['observer_coldef_type']
-    whatArr_tmp = [dict['obs_operator'],['variant_id',operator.eq,1]]
-    visdem_data_restr = organizeArray(visdem_data,whatArr_tmp)
+    #observer_coldef_type = dict['observer_coldef_type']
+    
+    
+    #print obs_ids_sheet
+    
+    
+    visdem_data_restr = pandas.DataFrame()
+    for group_coldef_type, value in obs_groups.iteritems():
+        whatArr_tmp = [['observer_coldef_type',operator.eq,group_coldef_type],['variant_id',operator.eq,1]]
+        visdem_data_restr_tmp = organizeArray(visdem_data,whatArr_tmp)
+        visdem_data_restr = pandas.concat([visdem_data_restr_tmp,visdem_data_restr])
+    visdem_data_restr.reset_index()
 
     dalt_ids = sorted(set(visdem_data_restr['dalt_id'].values.astype(int)))
     observer_ids = sorted(set(visdem_data_restr['observer_id'].values.astype(int)))
@@ -1908,11 +1898,14 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     visdem_data_RT_paired = visdem_data_template.copy()
     visdem_data_ACC_paired = visdem_data_template.copy()
     index = 0
-    
-    
+
     for observer_id in observer_ids:
         whatArray_tmp = [['observer_id',operator.eq,observer_id]]
         visdem_data_restr_obs = organizeArray(visdem_data_restr, whatArray_tmp)
+        
+        obs_coldef_type = getColDefTypeForObserver(observer_id)
+        ass_coldef_type = obs_groups[obs_coldef_type] # assigned coldef tyoe for particular observer group
+        #print observer_id, obs_coldef_type, ass_coldef_type
         
         set_ids = sorted(set(visdem_data_restr_obs['set_id'].values.astype(int)))
         
@@ -1927,25 +1920,23 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
                 visdem_data_restr_motive =organizeArray(visdem_data_restr_set, whatArray_tmp)
                 
                 pandas_tmp = pandas.DataFrame({'observer_id': observer_id,
-                                                  'observer_coldef_type': observer_coldef_type,
-                                                  'coldef_type': coldef_type,
+                                                  'observer_coldef_type': obs_coldef_type,
+                                                  'coldef_type': ass_coldef_type,
                                                   'set_id': set_id,
                                                   'motive_id': motive_id,
                                                   'image_id': 'nix',
                                                   'variant_id': 'nix',
                                                   'dalt_id': 'nix'
                                                   },[index])
-                pandas_RT_tmp = pandas_tmp.copy()
-                pandas_ACC_tmp = pandas_tmp.copy()
+                pandas_RT_tmp = pandas_tmp.copy(); pandas_ACC_tmp = pandas_tmp.copy()
                 
-                tmp_cdt = 'a'
-                tmp_var = 'v'
+                tmp_cdt = 'a'; tmp_var = 'v'
                 for dalt_id in dalt_ids:
-                    if dalt_id not in [0,99]:
-                        whatArray_tmp = [['dalt_id',operator.eq,dalt_id],['coldef_type',operator.eq,coldef_type]]
-                    else: 
-                        whatArray_tmp = [['dalt_id',operator.eq,dalt_id]]
+                    if dalt_id not in [0,99]: whatArray_tmp = [['dalt_id',operator.eq,dalt_id],['coldef_type',operator.eq,ass_coldef_type]]
+                    else: whatArray_tmp = [['dalt_id',operator.eq,dalt_id]]
+                    
                     field = organizeArray(visdem_data_restr_motive, whatArray_tmp).reset_index().loc[0]
+                    
                     if not field.empty:
                         RT_tmp = field['resp_time']*1000 if bool(field['is_correct']) else float('NaN')
                         ACC_tmp = field['is_correct']
@@ -1953,15 +1944,11 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
                         image_id = field['image_id']; pandas_RT_tmp['image_id'] = image_id; pandas_ACC_tmp['image_id'] = image_id
                         tmp_var += str(field['variant_id'])
                         tmp_cdt += str(field['coldef_type'])
-                    else:
-                        RT_tmp = float('NaN')
-                        ACC_tmp = float('NaN')
+                    else: RT_tmp = float('NaN'); ACC_tmp = float('NaN')
                     
-                    pandas_tmp['coldef_type'] = str(tmp_cdt)
-                    pandas_tmp['variant_id'] = str(tmp_var)
+                    pandas_tmp['coldef_type'] = str(tmp_cdt); pandas_tmp['variant_id'] = str(tmp_var)
                         
                     pandas_RT_tmp["dalt_id_"+str(dalt_id).zfill(2)]= float(RT_tmp)
-                    
                     pandas_ACC_tmp["dalt_id_"+str(dalt_id).zfill(2)]= ACC_tmp
                     
                     
@@ -1990,5 +1977,4 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     visdem_data_ACC_paired.to_csv(os.path.join(path,dict['filename']+'_visdem-data-ACC-paired.csv'),sep=";")
     
     f = open(os.path.join(path,dict['filename']+'_visdem-data-paired_meta-data.txt'), 'w')
-    json.dump(dalt_ids, f)
-    f.close()
+    json.dump(dalt_ids, f); f.close()

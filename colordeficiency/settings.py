@@ -30,7 +30,7 @@ id2Sim = {  0: "original",
             4: "brettel",
             99: "dummy"}
 
-daltonization_types = ["fidaner", "kotera", "kuhn", "huan","yoshi-simone","yoshi-alsam","yoshi-gradient","dummy"]
+daltonization_types = ["fidaner", "kotera", "kuhn", "huan","yoshi-simone","yoshi-alsam","yoshi-ii","dummy"]
 anagnostopoulos = "anagnostopoulos"
 fidaner = "fidaner"
 kotera = "kotera"
@@ -49,7 +49,7 @@ dalt2ID = {'original':          0,
            'yoshi-alsam-only':  6,
            'yoshi-simone':      7,
            'yoshi-alsam':       8,
-           'yoshi-gradient':    9,
+           'yoshi-ii':          9,
            'dummy':             99}
 id2Dalt = {0:   "original",
            1:   "fidaner",
@@ -60,7 +60,7 @@ id2Dalt = {0:   "original",
            6:   "yoshi-alsam-only",
            7:   "yoshi-simone",
            8:   "yoshi-alsam",
-           9:   "yoshi-gradient",
+           9:   "yoshi-ii",
            99:  "dummy"}
 
 dict_dalt_ids = {'anagnastapoulos'}

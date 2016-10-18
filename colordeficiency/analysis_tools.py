@@ -432,7 +432,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     
     writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
 
-def plotZScoreGraphs(zsData,path,dict,order=[]):
+def plotZScoreGraphs(zs_data,path,dict,order=[]):
         
     multiple_graphs = dict['multiple_graphs'] if dict.has_key('multiple_graphs') else 0
     figsize = dict['figsize'] if dict.has_key('figsize') else [8., 6.]
@@ -444,12 +444,11 @@ def plotZScoreGraphs(zsData,path,dict,order=[]):
     color = dict['color'] if dict.has_key('color') else 'red'
     fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
       
-    if not multiple_graphs: 
-        plt.figure() 
+    if not multiple_graphs: plt.figure() 
         
     fig = plt.gcf()
     plt.ylim(y_lim)
-    plt.xlim([0,len(zsData)+1]) 
+    plt.xlim([0,len(zs_data)+1]) 
     plt.grid(axis='y')
      
     zs_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[]; howMany=[]; counter=1
@@ -464,7 +463,7 @@ def plotZScoreGraphs(zsData,path,dict,order=[]):
         end = len(order);
         while counter <= end:
             key = order[counter-1]
-            value = zsData[key]
+            value = zs_data[key]
             zs_plots.append(value[0])
             lower_bound.append(value[1])
             upper_bound.append(value[2])
@@ -478,12 +477,9 @@ def plotZScoreGraphs(zsData,path,dict,order=[]):
     plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
     title_default = ''
     if dict.has_key('obs_title'):
-        if dict['obs_title']:        
-            title = dict['obs_title']
-        else:
-            title = title_default
-    else:
-        title = title_default 
+        if dict['obs_title']: title = dict['obs_title']
+        else: title = title_default
+    else: title = title_default 
     plt.title(title)
     plt.ylabel(ylabel,fontsize=fontsize);
     plt.xlabel(xlabel,fontsize=fontsize)
@@ -492,12 +488,11 @@ def plotZScoreGraphs(zsData,path,dict,order=[]):
     
     if not multiple_graphs:
         plt.close()
-        
-    #data = {'l-bounds': zs_plots-lower_bound,'acc': zs_plots, 'u-bounds': acc_plots+upper_bound}
-    #a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','acc', 'u-bounds'])
-    #a.to_csv(os.path.join(path,dict['filename']+"-ACC-bounds.csv"),sep=';')
-    
-    #writePandastoLatex(a, os.path.join(path,str(result_id),dict['filename']+"-ACC-bounds.tex"))
+    print zs_plots    
+    data = {'l-bounds': zs_plots-lower_bound,'zs': zs_plots, 'u-bounds': zs_plots+upper_bound}
+    a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','zs', 'u-bounds'])
+    a.to_csv(os.path.join(path,dict['filename']+"-ZS-bounds.csv"),sep=';')
+    writePandastoLatex(a, os.path.join(path,dict['filename']+"-ACC-bounds.tex"))
 
 
 ##########
@@ -540,7 +535,7 @@ def makePearsonChi2Contingency(obs_array, obs_pandas, labels, path_res, dict, re
     if res:
         res_str = res_str + "\n\n"+dict['investigated-item'].capitalize()+" included in test:\n" + str(labels[res[0]:res[1]])
     res_str = res_str + "\n\nChi2: %f, p-value: %E, dof: %i, expect: " % (chi2, p, dof) + "\n"+str(ex)
-    text_file = open(os.path.join(path_res,dict['filename']+"-pearson-chi2.txt"), "w+")
+    text_file = open(os.path.join(path_res,dict['filename']+"-chi2-contigency.txt"), "w+")
     text_file.write(res_str)
     text_file.close()
     
@@ -564,11 +559,11 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"-pairwise-pearson-chi2.csv"
-        filename_tex = dict['filename']+"-pairwise-pearson-chi2.tex"
+        filename_csv = dict['filename']+"-chi2.csv"
+        filename_tex = dict['filename']+"-chi2.tex"
     else:
-        filename_csv = "pairwise-pearson-chi2.csv"
-        filename_tex = "pairwise-pearson-chi2.tex"
+        filename_csv = "-chi2.csv"
+        filename_tex = "-chi2.tex"
     
     numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
     textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
@@ -591,6 +586,7 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
             for to_method in method_counter: # Get current to_values
                 to_values = data[:,to_method]
                 curr_distr = numpy.array([values,to_values])
+                #print curr_distr
                 try:
                     chi2, p, dof, ex = stats.chi2_contingency(curr_distr,correction=False,lambda_="pearson") # Compare only two methods
                 except Exception,e:
@@ -628,7 +624,6 @@ def preparePandas4RTPlots(pandas_dict,order_dict,dict={}):
         
     if telleoevelse: print "RT boxplots "+dict['filename']+": "+str([numpy.shape(i) for i in boxes])    
     return boxes, labels
-
 
 def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
@@ -827,10 +822,10 @@ def makeMedianTest(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"-pairwise-median.csv"
-        filename_latex = dict['filename']+"-pairwise-median.tex"
+        filename_csv = dict['filename']+"-median.csv"
+        filename_latex = dict['filename']+"-median.tex"
     else:
-        filename_csv = "_pairwise-median.csv"
+        filename_csv = "-median.csv"
     
     numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
     textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
@@ -907,11 +902,11 @@ def makePairwiseStudentTTest(data,path,methods,dict):
         return
     
     if dict.has_key('filename'):
-        filename_csv = dict['filename']+"-pairwise-student-t.csv"
-        filename_latex = dict['filename']+"-pairwise-student-t.tex"
+        filename_csv = dict['filename']+"-student-t.csv"
+        filename_latex = dict['filename']+"-student-t.tex"
     else:
-        filename_csv = "-pairwise-student-t.csv"
-        filename_latex = "-pairwise-student-t.tex"
+        filename_csv = "-student-t.csv"
+        filename_latex = "-student-t.tex"
     
     numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
     textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
