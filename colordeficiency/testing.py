@@ -349,6 +349,7 @@ def tvdalt_colortv():
     data = imshow(s(im), vmin=0, vmax=1)
     #title('Daltonised, simulated')
     show()
+    #print "dupsi"
     draw()
     dict = {}
     sim = s(im)
@@ -994,6 +995,6 @@ def tvdalt_engineeredgradient():
         
     print "Ferdig"
     
-tvdalt_engineeredgradient()
+#tvdalt_engineeredgradient()
 #tvdalt_colortv_anisotropic()
-#tvdalt_colortv()
+tvdalt_colortv()

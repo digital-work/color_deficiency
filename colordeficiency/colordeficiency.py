@@ -1275,7 +1275,8 @@ def daltonize(img_in,options):
     Output: img_out -             Simulated PIL image
     """
     
-    img_in = img_in.convert('RGB')
+    # Check this!!!
+    #img_in = img_in.convert('RGB')
     
     if not options.has_key('daltonization_type'):
         print "Caution: No daltonization_type chosen. Default value will be chosen: " + settings.default['daltonization_type']
@@ -1296,7 +1297,7 @@ def daltonize(img_in,options):
     elif daltonization_type == "yoshi-alsam-only": img_out = daltonization_yoshi_alsam(img_in,options)
     elif daltonization_type == "yoshi-simone": img_out = daltonization_yoshi_c2g(img_in,options)
     elif daltonization_type == "yoshi-alsam": img_out = daltonization_yoshi_alsam_extra(img_in,options)
-    elif daltonization_type == "yoshi-gradient": img_out = daltonization_yoshi_042016(img_in, options)
+    elif daltonization_type == "yoshi-ii": img_out = daltonization_yoshi_042016(img_in, options)
     elif daltonization_type == "dummy": img_out = convertToLuminanceImage(img_in,options)
     else:
         print 'Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(settings.daltonization_types)+'".'
@@ -1515,11 +1516,105 @@ def daltonization_yoshi_042016(im,dict):
     return im_out
    
 
+from matplotlib.mlab import PCA
+
+def daltonization_yoshi_iii(im,dict):
+    
+    name = "daltonization_yoshi-iii"
+    # Required variables
+    if not dict.has_key('yg_simulation_type'):
+        print "Error: The simulation type has to be defined in the dictionary. ["+name+"]"
+        return crossOut(im)
+    else: simulation_type = dict['yg_simulation_type']
+        
+    if not dict.has_key('coldef_type'):
+        print "Error: The color deficiency type has to be defined in the dictionary. ["+name+"]"
+        return crossOut(im)
+    else: coldef_type = dict['coldef_type']; #sys.stdout.write(coldef_type)
+    
+    # Optional variables for simulate
+    coldef_strength = dict['coldef_strength'] if dict.has_key('coldef_strength') else 1.0
+    sigma = dict['sigma'] if dict.has_key('sigma') else 3
+    
+    m,n,d = numpy.shape(im)
+    im_arr = im.reshape((m*n,3))
+    
+    im_sim = simulate(simulation_type,im,coldef_type,coldef_strength); #im_sim_arr = im_sim.reshape((m*n,3))
+    im_err = im - im_sim; im_err_arr = im_err.reshape((m*n,3))
+    im_edg = gaussian_filter(im_err,(1,1,0)) - gaussian_filter(im_err,(sigma,sigma,0)); im_edg_arr = im_edg.reshape((m*n,3))
+    im_woedg = im - im_edg; im_woedg_arr = im_woedg.reshape((m*n,3))
+    
+    constant_lightness = 0; ms_first = 0; global_unit_vectors = 1
+    ### Direction of lightness
+    if constant_lightness:
+        if ms_first: sys.stdout.write("El: Constant lightness. ")
+        el = numpy.array([0.2126,0.7152,0.0722]) 
+    else: 
+        if ms_first: sys.stdout.write("El: Neutral gray lightness. ")
+        el = numpy.array([1.,1.,1.])
+    el = el / numpy.sqrt(numpy.sum(el**2))
+    if not global_unit_vectors: el = numpy.array([el,]*(m*n))
+    
+    ### Direction of confusion colors
+    if global_unit_vectors:  
+        # Use difference in image domaine 
+        #d0 = im - im_sim; 
+        #d0_arr = im.reshape((m*n,3)); 
+        ed_PCA = PCA(im_err_arr, standardize=False)
+        if ms_first: sys.stdout.write("Global ed: Image PCA, ")
+        ed = ed_PCA.Wt[0]; ed = ed / numpy.sqrt(numpy.sum(ed**2))
+        
+        if ms_first: sys.stdout.write("not orthogonalized. ")
+        
+    else:
+        if ms_first: sys.stdout.write("Spatial ed, ")
+        d0 = im - im_sim; d0_arr = d0.reshape((m*n,3))
+        d0_norm_1D = numpy.sqrt(numpy.sum(d0_arr**2, axis=1))
+        d0_norm_3D = numpy.array([d0_norm_1D,]*d).transpose()
+        ed = d0_arr / d0_norm_3D
+        
+        if ms_first: sys.stdout.write("not orthogonalized. ")
+    
+    ### Direction of optimal daltonization
+    if global_unit_vectors: ec = numpy.cross(ed,el); ec = ec / numpy.sqrt(numpy.sum(ec**2))
+    else: 
+        ec = numpy.cross(ed,el)
+        ec_norm_1D = numpy.sqrt(numpy.sum(ec**2, axis=1))
+        ec_norm_3D = numpy.array([ec_norm_1D,]*d).transpose()
+        ec = ec/ec_norm_3D
+    if ms_first: sys.stdout.write('\n')
+    
+    if global_unit_vectors: k = numpy.dot(im_edg_arr,ed)# k_y = numpy.dot(grady0_arr,ed)
+    else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1) # feil
+    imdot_arr = numpy.array([k,]*d).transpose()#; grady0dot_arr = numpy.array([k_y,]*d).transpose()   
+    
+    chi_arr = 1.
+    boost_ec = dict['boost_ec'] if dict.has_key('boost_ec') else 1.
+    combination = dict['combination'] if dict.has_key('combination') else 1
+    if combination==1:
+        if ms_first: sys.stdout.write("Chroma only.\n")
+        print numpy.shape(imdot_arr), numpy.shape(im_arr)
+        im_rot_arr = imdot_arr*boost_ec*chi_arr*el; im_rot = im_rot_arr.reshape((m,n,3)) 
+        im_dalt_arr = im_arr-imdot_arr+im_rot_arr; im_dalt = im_dalt_arr.reshape((m,n,3)) 
+        #gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
+    #im_dalt = im.copy()+im_edg
+    # PIL edges
+    
+    #im_ = 
+    
+    im_dalt[im_dalt>1.0] = .5
+    im_dalt[im_dalt<0.0] = 0.5
+    
+    #img_out = im_err.copy()
+    img_out = im_dalt
+    print numpy.min(im_rot), numpy.max(im_rot), numpy.mean(im_rot)
+    
+    return img_out
+    
+
 def daltonization_yoshi_gradient(im,dict):
     
     name = "daltonization_yoshi_gradient"
-    #print 'starting'
-
     # Required variables
     if not dict.has_key('im0'):
         print "Error: The original image has to be defined in the dictionary. ["+name+"]"
@@ -1651,6 +1746,7 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; gradx = numpy.array([]); grady = numpy.array([])
     sys.stdout.write('|')
+    cted = False # wech
     while cted:
         its += 1
         if (its // 100. == its / 100.): sys.stdout.write('.')
@@ -1685,6 +1781,11 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
             draw()
             
     if optimization==3: del dict['g']
+    
+    im_new =    numpy.sqrt(gradxdalt[:,:,0]**2+gradxdalt[:,:,1]**2+gradxdalt[:,:,2]**2) \
+                + numpy.sqrt(gradydalt[:,:,0]**2+gradydalt[:,:,1]**2+gradydalt[:,:,2]**2) /2.
+            
+    print numpy.shape(im_new)
     
     return im_new 
 
