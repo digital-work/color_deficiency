@@ -1648,16 +1648,17 @@ def daltonization_yoshi_gradient(im,dict):
     
     if modus==2:
         d0 = im0-im0_updated_sim;
-        sigma = 0.
+        sigma = 1
         d0_blurred = gaussian_filter(d0,(sigma,sigma,0)) 
         #from scipy.ndimage.filters import gaussian_filter
         gradx0d = dxp1(d0_blurred,d0,dict); grady0d = dyp1(d0_blurred,d0,dict)
         mask = numpy.sqrt(gradx0d[:,:,0]**2+gradx0d[:,:,1]**2+gradx0d[:,:,2]**2 +\
                           grady0d[:,:,0]**2+grady0d[:,:,1]**2+grady0d[:,:,2]**2)
         mask = mask/numpy.max(mask)
-        
         edge_threshold = dict['edge_threshold']
         mask[mask<edge_threshold]=.0; mask[mask>=edge_threshold]=1.0
+        from scipy.ndimage.morphology import binary_dilation
+        mask = binary_dilation(mask)
         mask_3D = numpy.array([mask.transpose(),]*d).transpose()
         
         dict['mask'] = mask_3D
@@ -1679,19 +1680,16 @@ def daltonization_yoshi_gradient(im,dict):
     no_chi_sign = False
     if not dict.has_key('chi_sign'): no_chi_sign = True; dict['chi_sign']=0
     chi_sign = dict['chi_sign'] if dict.has_key('chi_sign') else 1.0
-    if dict['chi_sign']==0: d0 = im0_updated - im0_updated_sim; #no_chi_sign = True
+    #if dict['chi_sign']==0: d0 = im0_updated - im0_updated_sim; #no_chi_sign = True
      
     chi_pos, chi_neg = computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict)
     
-    if modus==3:
-        p=numpy.copy(chi_pos);p[chi_pos>=chi_neg]=0
-        n=numpy.copy(chi_neg);n[chi_neg>chi_pos]=0
-        chi=p+n
-        print numpy.shape(p), numpy.shape(n)
-        chi[numpy.isnan(chi)] = 0.
-        chi_arr = numpy.array([chi,]*d).transpose()
-        #print numpy.shape(chi_arr)
-    else:
+    # Combination for the gradient 
+    boost_ec = dict['boost_ec'] if dict.has_key('boost_ec') else 1.
+    boost_el = dict['boost_el'] if dict.has_key('boost_el') else 1.
+    combination = dict['combination'] if dict.has_key('combination') else 1
+    if combination==1:
+        if ms_first: sys.stdout.write("Chroma only.\n")
         if chi_sign == -1:
             if ms_first: sys.stdout.write("Chi-sign: green. ") 
             chi = chi_neg
@@ -1716,19 +1714,17 @@ def daltonization_yoshi_gradient(im,dict):
             
         chi[numpy.isnan(chi)] = 0.
         chi_arr = numpy.array([chi,]*d).transpose() 
-    
-    # Combination for the gradient 
-    boost_ec = dict['boost_ec'] if dict.has_key('boost_ec') else 1.
-    combination = dict['combination'] if dict.has_key('combination') else 1
-    if combination==1:
-        if ms_first: sys.stdout.write("Chroma only.\n")
-        #print numpy.shape(gradx0_arr),numpy.shape(gradx0dot_arr), numpy.shape(boost_ec), numpy.shape(chi_arr), numpy.shape(ec)
+        
         gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chi_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-        gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))  
-    if no_chi_sign: del dict['chi_sign']
+        gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
+    elif combination==0:    
+        if ms_first: sys.stdout.write("Lightness only.\n")
+        gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_el*chi_arr*el); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+        gradydalt_arr = grady0_arr+(grady0dot_arr*boost_el*chi_arr*el); gradydalt = gradydalt_arr.reshape((m,n,3))
+    if no_chi_sign and modus!=1: del dict['chi_sign'] # keep the chi_sign for all steps in multiscaling
     
     #######
-    ## Compute the daltonized image through optimization (???)
+    ## Compute the daltonized image through gradient descent
     #######  
     
     im_dalt = optimization(im,im0_updated,gradxdalt,gradydalt,dict)
@@ -1737,13 +1733,6 @@ def daltonization_yoshi_gradient(im,dict):
         too_many = dict['too_many'] if dict.has_key('too_many') else 0
         if too_many: sys.stdout.write("\nX: Too many iterations. Breaking off.")
         sys.stdout.write('\n')
-    
-    #chi_pos = chi_pos.reshape((m,n)); chi_neg = chi_neg.reshape((m,n))
-    #im_dalt = chi_pos, chi_neg
-    #print im_dalt
-    #print numpy.shape(im_dalt)
-    
-    #im_dalt = mask_3D
     
     return im_dalt
 
@@ -1799,36 +1788,25 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     if optimization==3: g = anisotropicG(gradx0,grady0,dict); dict['g']=g
     
     if modus==2:
+        mask_3D = dict['mask']; del dict['mask']
+        mask = mask_3D[:,:,0]
+        indices = mask.astype(bool)
         edge_option = dict['edge']
-        if edge_option==0:
-            #mask = numpy.sqrt(gradxdalt[:,:,0]**2+gradxdalt[:,:,1]**2+gradxdalt[:,:,2]**2) \
-            #   + numpy.sqrt(gradydalt[:,:,0]**2+gradydalt[:,:,1]**2+gradydalt[:,:,2]**2) /2.
-            #mask = mask/numpy.max(mask)
-            
-            #edge_threshold = dict['edge_threshold']
-            #mask[mask<edge_threshold]=.0; mask[mask>=edge_threshold]=1.0
-            #mask_3D = numpy.array([mask.transpose(),]*d).transpose()
-            mask_3D = dict['mask']; del dict['mask']
-            
-            gradxdalt = mask_3D*gradxdalt
-            gradydalt = mask_3D*gradydalt
-    
+        if edge_option==0: gradxdalt = mask_3D*gradxdalt; gradydalt = mask_3D*gradydalt
+
+    #cted = False # wech
+    if optimization==1: gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; gradx = numpy.array([]); grady = numpy.array([])
     sys.stdout.write('|')
-    #cted = False # wech
-    #if modus==2:
-    #    im_new = mask_3D*im_new
-    
     while cted:
         its += 1
         if (its // 100. == its / 100.): sys.stdout.write('.')
         if its >= max_its: cted = False; dict['too_many']=1; sys.stdout.write('X')
-        if not first_RMSE: gradx_old = gradx; grady_old = grady
         
         gradx = dxp1(im_new,im0,dict); grady = dyp1(im_new,im0,dict)
         if modus==2: 
             if edge_option==0: gradx = mask_3D*gradx; grady = mask_3D*grady
-        if optimization==1: opt = optimization_poisson(gradx,grady,gradxdalt,gradydalt,dict) # mask_3d wech
+        if optimization==1: opt = optimization_poisson(gradx,grady,gradgradxdalt,gradgradydalt,dict) # mask_3d wech
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
         
@@ -1841,17 +1819,23 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1. # Gamut clipping
         
-        if first_RMSE: first_RMSE = False; test = numpy.inf
-        else: 
-            if modus==2:
-                d_old = GRMSE({'gradx': gradx_old, 'grady': grady_old}, \
-                              {'gradx': gradxdalt, 'grady': gradydalt})
+        if modus==2:
+            if first_RMSE: 
+                first_RMSE = False; test = numpy.inf
+                d_new = GRMSE({'gradx': gradx[indices], 'grady': grady[indices]}, \
+                              {'gradx': gradxdalt[indices], 'grady': gradydalt[indices]})
+            else: 
+                d_old = d_new
+                d_new = GRMSE({'gradx': gradx[indices], 'grady': grady[indices]}, \
+                              {'gradx': gradxdalt[indices], 'grady': gradydalt[indices]})
+                test = numpy.abs((d_old-d_new)/d_old) 
+        else:
+            if first_RMSE: 
+                first_RMSE = False; test = numpy.inf
                 d_new = GRMSE({'gradx': gradx, 'grady': grady}, \
                               {'gradx': gradxdalt, 'grady': gradydalt})
-                test = numpy.abs((d_old-d_new)/d_old) 
-            else:
-                d_old = GRMSE({'gradx': gradx_old, 'grady': grady_old}, \
-                              {'gradx': gradxdalt, 'grady': gradydalt})
+            else: 
+                d_old = d_new
                 d_new = GRMSE({'gradx': gradx, 'grady': grady}, \
                               {'gradx': gradxdalt, 'grady': gradydalt})
                 test = numpy.abs((d_old-d_new)/d_old) 
@@ -1863,30 +1847,28 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
                 im_new_sim = simulate(simulation_type,im_new,coldef_type,coldef_strength)
                 data.set_array(im_new_sim)
             else: data.set_array(im_new)
-            plt.draw()
-            plt.show()
-            #print 'hiersimmer'
-    if modus==3:
-        mask = mask_3D[:,:,0]
+            plt.draw(); plt.show()
+    if modus==2:
+        #mask = mask_3D[:,:,0]
+        #indices = mask.astype(bool)
         b = im.copy()
-        b[mask.astype(bool)] = im_new[mask.astype(bool)]
+        b[indices] = im_new[indices]
+        print numpy.shape(b[indices]), numpy.shape(b[~indices])
         im_new = b
                 
     if optimization==3: del dict['g']
     
-    #print numpy.shape(im_new)
-    #im_new = mask_3D*im_new
-    #print numpy.shape(im_new)
+    #im_new = gradxdalt
+    #im_new[gradxdalt==0]=.5
     
     return im_new 
 
-def optimization_poisson(gradx,grady,gradxdalt,gradydalt,dict):
+def optimization_poisson(gradx,grady,gradgradxdalt,gradgradydalt,dict):
     """
     Using Poisson equation to solve optimization formula in order to obtain gradxdalt and gradydalt.
     """
 
     gradgradx = dxm1(gradx,dict); gradgrady = dym1(grady,dict)
-    gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
     
     pois = gradgradx+gradgrady-(gradgradxdalt+gradgradydalt)
     

@@ -1449,10 +1449,8 @@ def computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,d
                       (grady0dot_arr*ec)**2,axis=1)
         b = 2*(numpy.sum(gradx0dot_arr*ec*gradx0s_arr + \
                          grady0dot_arr*ec*grady0s_arr,axis=1))
-        c = numpy.sum(gradx0s_arr**2 + \
-                      grady0s_arr**2 - \
-                      gradx0_arr**2 - \
-                      grady0_arr**2,axis=1)
+        c = numpy.sum(gradx0s_arr**2 + grady0s_arr**2 - \
+                      gradx0_arr**2 - grady0_arr**2,axis=1)
     elif chi_computations == 2:
         if ms_first: sys.stdout.write("Chi computations 2. ")
         a = numpy.sum((gradx0dot_arr*ec)**2 + \
@@ -1467,18 +1465,6 @@ def computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,d
     under_sqrt = b**2-4*a*c; under_sqrt[under_sqrt<0] = 0.
     chi_pos = (-b+numpy.sqrt(under_sqrt))/(2*a+eps)
     chi_neg = (-b-numpy.sqrt(under_sqrt))/(2*a+eps)
-    
-    # Check if computations have been correct
-    correction = 0
-    if correction:
-        print "a: ", numpy.max(a), numpy.min(a), numpy.mean(a)
-        print "b: ", numpy.max(b), numpy.min(b), numpy.mean(b)
-        print "c: ", numpy.max(c), numpy.min(c), numpy.mean(c)
-        check = numpy.sum((gradx0_arr)**2 + \
-                          (grady0_arr)**2,axis=1)- \
-                          (numpy.sum((gradx0s_arr+chi_arr*gradx0dot_arr*ec)**2 +\
-                                     (grady0s_arr+chi_arr*grady0dot_arr*ec)**2,axis=1))
-        print   "Correction check: ",numpy.min(check),numpy.max(check),numpy.mean(check) 
 
     return chi_pos, chi_neg#, lambdneg_arr
 
@@ -1515,9 +1501,17 @@ def GRMSE(grad_uold,grad_unew):
     grady_uold = grad_uold['grady']; grady_unew = grad_unew['grady'] 
     if (numpy.shape(gradx_uold) != numpy.shape(gradx_unew)) or (numpy.shape(grady_uold) != numpy.shape(grady_unew)):
         print "Error: Both images have to be the same size"  
-    m,n,d = numpy.shape(gradx_uold)
-    grmse = numpy.sum(numpy.sqrt(numpy.sum((gradx_unew-gradx_uold)**2,axis=2)+ \
-                                 numpy.sum((grady_unew-grady_uold)**2,axis=2))) / (2*m*n)
+    #m,n,d = numpy.shape(gradx_uold)
+    #print m*n, numpy.size(gradx_uold)/3
+    mn = numpy.size(gradx_uold)/3
+    xdiff = (gradx_unew-gradx_uold)**2; ydiff = (grady_unew-grady_uold)**2
+    a = numpy.sqrt(xdiff[...,0]+xdiff[...,1]+xdiff[...,2]+\
+                   ydiff[...,0]+ydiff[...,1]+ydiff[...,2])
+    #a = numpy.sqrt(numpy.sum((gradx_unew-gradx_uold)**2,axis=2)+ \
+    #               numpy.sum((grady_unew-grady_uold)**2,axis=2))
+    grmse = numpy.sum(a) / (2*mn)
+    
+    #print grmse
     
     return grmse
 
