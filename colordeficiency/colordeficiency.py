@@ -1727,7 +1727,31 @@ def daltonization_yoshi_gradient(im,dict):
     ## Compute the daltonized image through gradient descent
     #######  
     
-    im_dalt = optimization(im,im0_updated,gradxdalt,gradydalt,dict)
+    if modus==3:
+        
+        chi_pos[numpy.isnan(chi_pos)] = 0.
+        chi_pos = numpy.array([chi_pos,]*d).transpose() 
+        gradxdalt_r_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chi_pos*ec); gradxdalt_r = gradxdalt_r_arr.reshape((m,n,3)) 
+        gradydalt_r_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_pos*ec); gradydalt_r = gradydalt_r_arr.reshape((m,n,3))
+        im_r_dalt = optimization(im,im0_updated,gradxdalt_r,gradydalt_r,dict)
+        
+        chi_neg[numpy.isnan(chi_neg)] = 0.
+        chi_neg = numpy.array([chi_neg,]*d).transpose() 
+        gradxdalt_g_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chi_neg*ec); gradxdalt_g = gradxdalt_g_arr.reshape((m,n,3)) 
+        gradydalt_g_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_neg*ec); gradydalt_g = gradydalt_g_arr.reshape((m,n,3))
+        im_g_dalt = optimization(im,im0_updated,gradxdalt_g,gradydalt_g,dict)
+        
+        
+        mask = mask_3D[:,:,0]
+        indices = mask_3D.astype(bool) 
+        indices_2 = (im_r_dalt-im) > (im_g_dalt-im)
+        
+        im_dalt = im.copy()
+        im_dalt[indices_2] = im_r_dalt[indices_2]
+        im_dalt[~indices_2] = im_g_dalt[~indices_2]
+        
+    else:
+        im_dalt = optimization(im,im0_updated,gradxdalt,gradydalt,dict)
     if ms_first: dict['ms_first'] = 0 # Only for first iteration
     if numpy.shape(im) == numpy.shape(im0): # Only for last iteration
         too_many = dict['too_many'] if dict.has_key('too_many') else 0
@@ -1788,16 +1812,18 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
     if optimization==3: g = anisotropicG(gradx0,grady0,dict); dict['g']=g
     
     if modus==2:
-        mask_3D = dict['mask']; del dict['mask']
+        mask_3D = dict['mask']; #del dict['mask']
         mask = mask_3D[:,:,0]
-        indices = mask.astype(bool)
+        indices = mask_3D.astype(bool)
         edge_option = dict['edge']
         if edge_option==0: gradxdalt = mask_3D*gradxdalt; gradydalt = mask_3D*gradydalt
 
-    #cted = False # wech
     if optimization==1: gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; gradx = numpy.array([]); grady = numpy.array([])
     sys.stdout.write('|')
+    #cted = False # wech
+    
+    print numpy.shape(im[indices]), numpy.shape(im[~indices])
     while cted:
         its += 1
         if (its // 100. == its / 100.): sys.stdout.write('.')
@@ -1853,12 +1879,11 @@ def optimization(im,im0,gradxdalt,gradydalt,dict):
         #indices = mask.astype(bool)
         b = im.copy()
         b[indices] = im_new[indices]
-        print numpy.shape(b[indices]), numpy.shape(b[~indices])
         im_new = b
                 
     if optimization==3: del dict['g']
     
-    #im_new = gradxdalt
+    #im_new = mask_3D
     #im_new[gradxdalt==0]=.5
     
     return im_new 
