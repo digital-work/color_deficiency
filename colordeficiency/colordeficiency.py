@@ -1562,8 +1562,8 @@ def daltonization_yoshi_gradient(im,dict):
     im0_updated_sim = simulate(simulation_type,im0_updated,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
     
     if edge:
-        im_sim = simulate(simulation_type,im,coldef_type,coldef_strength)
-        d0 = im-im_sim;
+        #im_sim = simulate(simulation_type,im,coldef_type,coldef_strength)
+        d0 = im0_updated-im0_updated_sim;
         sigma = 1
         d0_blurred = gaussian_filter(d0,(sigma,sigma,0)) 
         #from scipy.ndimage.filters import gaussian_filter
@@ -1575,7 +1575,8 @@ def daltonization_yoshi_gradient(im,dict):
         mask[mask<edge_threshold]=.0; mask[mask>=edge_threshold]=1.0
         from scipy.ndimage.morphology import binary_dilation
         mask = binary_dilation(mask)
-        mask_3D = numpy.array([mask.transpose(),]*d).transpose()
+        #mask = binary_dilation(mask)
+        mask_3D = numpy.array([mask.transpose(),]*d).transpose(); mask_3D_arr = mask_3D.reshape((m*n,3))
         
         dict['mask'] = mask_3D
         
@@ -1679,8 +1680,8 @@ def daltonization_yoshi_gradient(im,dict):
             chi[numpy.isnan(chi)] = 0.
             chi_arr = numpy.array([chi,]*d).transpose() 
             
-            gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_ec*chi_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
-            gradydalt_arr = grady0_arr+(grady0dot_arr*boost_ec*chi_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
+            gradxdalt_arr = gradx0_arr+mask_3D_arr*(gradx0dot_arr*boost_ec*chi_arr*ec); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
+            gradydalt_arr = grady0_arr+mask_3D_arr*(grady0dot_arr*boost_ec*chi_arr*ec); gradydalt = gradydalt_arr.reshape((m,n,3))
         elif combination==0:    
             if ms_first: sys.stdout.write("Lightness only.\n")
             gradxdalt_arr = gradx0_arr+(gradx0dot_arr*boost_el*chi_arr*el); gradxdalt = gradxdalt_arr.reshape((m,n,3)) 
@@ -1720,38 +1721,40 @@ def optimization(im,im0,gradxdalt,gradydalt,gauss,dict):
     m,n,d = numpy.shape(im0)
     
     # Optional parameters
-    #modus = dict['modus'] if dict.has_key('modus') else 0
     edge = dict['edge'] if dict.has_key('edge') else 0
     # Optimization parameters
     cutoff = dict['cutoff'] if dict.has_key('cutoff') else .1
     max_its = dict['max_its'] if dict.has_key('max_its') else 1000
+    dt = dict['dt']if dict.has_key('dt') else .25
+    boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
+    # Visualization parameters
     data = dict['data'] if dict.has_key('data') else None
     fig = dict['fig'] if dict.has_key('fig') else None
     is_simulated = dict['is_simulated'] if dict.has_key('is_simulated') else False
-    dt = dict['dt']if dict.has_key('dt') else .25
-    boundary = int(dict['boundary']) if dict.has_key('boundary') else 0
-    
-    gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
-    
+        
     if edge:
-        mask_3D = dict['mask']; mask = mask_3D[:,:,0] 
+        mask_3D = dict['mask']; #mask = mask_3D[:,:,0] 
         indices = mask_3D.astype(bool)
-        #gradxdalt = mask_3D*gradxdalt; gradydalt = mask_3D*gradydalt
+        gradxdalt = mask_3D*gradxdalt; gradydalt = mask_3D*gradydalt
+        a = plt.figure(); plt.imshow(mask_3D*im); a.canvas.draw()
     else: indices = numpy.ones((m,n)); indices = indices.astype(bool)
         
     if optimization==1: gradgradxdalt = dxm1(gradxdalt,dict); gradgradydalt = dym1(gradydalt,dict)
-    elif optimization==3: g = anisotropicG(gradx0,grady0,dict); dict['g']=g
+    elif optimization==3: 
+        gradx0 = dxp1(im0,im0,dict); grady0 = dyp1(im0,im0,dict)
+        g = anisotropicG(gradx0,grady0,dict); dict['g']=g
     im_new = im.copy(); cted = True; first_RMSE = True; its = 0; gradx = numpy.array([]); grady = numpy.array([])
     sys.stdout.write('|')
     #cted = False # wech
     
+    if edge: im_tmp = im.copy()
     while cted:
         its += 1
         if (its // 100. == its / 100.): sys.stdout.write('.')
         if its >= max_its: cted = False; dict['too_many']=1; sys.stdout.write('X')
         
         gradx = dxp1(im_new,im0,dict); grady = dyp1(im_new,im0,dict)
-        #if edge: gradx = mask_3D*gradx; grady = mask_3D*grady
+        if edge: gradx = mask_3D*gradx; grady = mask_3D*grady
         if optimization==1: opt = optimization_poisson(gradx,grady,gradgradxdalt,gradgradydalt,dict) # mask_3d wech
         elif optimization==2: opt = optimization_total_variation(gradx,grady,gradxdalt,gradydalt,dict) 
         elif optimization==3: opt = optimization_anisotropic(gradx,grady,gradxdalt,gradydalt,dict)
@@ -1764,7 +1767,7 @@ def optimization(im,im0,gradxdalt,gradydalt,gauss,dict):
             im_new = im_new + a
         
         im_new[im_new < 0.] = 0.; im_new[im_new > 1.] = 1. # Gamut clipping
-        
+        #if edge: im_tmp[indices] = im_new[indices]; im_new = im_tmp
         
         d_tmp = GRMSE({'gradx': gradx[indices], 'grady': grady[indices]}, \
                       {'gradx': gradxdalt[indices], 'grady': gradydalt[indices]})
@@ -1782,11 +1785,11 @@ def optimization(im,im0,gradxdalt,gradydalt,gauss,dict):
             else: data.set_array(im_new)
             fig.canvas.draw()
             
-    if edge:
+    if 0:
         # Only change pixels within the edge mask
-        b = im.copy()
-        b[indices] = im_new[indices]
-        im_new = b
+        im_tmp = im.copy()
+        im_tmp[indices] = im_new[indices]
+        im_new = im_tmp
                 
     if optimization==3: del dict['g']
         
