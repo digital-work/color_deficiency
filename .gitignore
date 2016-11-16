@@ -65,3 +65,4 @@ colordeficiency-images/tmp/*
 
 total_variation/*
 colordeficiency/total_variation.py
+/bugfix.py
