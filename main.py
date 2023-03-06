@@ -8,6 +8,8 @@ import test_wech
 import sys, getopt
 from settings import test_functions
 
+## This is the original main function.
+
 def main(argv):
    s = 0
    inputfile = ""
