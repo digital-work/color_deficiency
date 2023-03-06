@@ -12,12 +12,32 @@
 
 
 import argparse
+import os
+
+from PIL import Image
+
+from colordeficiency.colordeficiency import simulate
+
 
 def colordeficiency():
    
    parser = argparse.ArgumentParser("A command line script to simulate color deficiency or daltonize images.")
  
+   parser.add_argument('-i', '--img', help="Url to image file to be enhanced.")
+ 
    args = parser.parse_args()
+   
+   # Retrieve original image
+   
+   img = args.img
+   if not img:
+      print("No image has been chosen.")
+   elif not os.path.exists(img):
+      print("The chosen image ({}) does not exist.".format(img))
+   else:
+      
+      im = Image.open(img)
+      im.show()
 
 if __name__=='__main__':
   colordeficiency()
