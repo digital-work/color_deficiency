@@ -5,7 +5,8 @@ Created on 24. feb. 2014
 '''
 
 from .colordeficiency import *
-from matplotlib.mlab import PCA
+#from matplotlib.mlab import PCA
+from sklearn.decomposition import PCA
 #from tools import makeComparisonFig, makeSubplots, convertToLuminanceImage, mean_confidence_interval
 import os
 import sys

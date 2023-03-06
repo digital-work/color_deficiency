@@ -4,7 +4,7 @@
 
 from PIL import Image, ImageDraw, ImageEnhance
 import numpy
-from scipy.misc import imresize
+#from scipy.misc import imresize
 import colour
 from pylab import *
 from scipy.interpolate import griddata
@@ -15,7 +15,7 @@ from . import settings
 import threading
 import socket
 import time
-from .colordeficiency_tools import getVariantFromImage, getStatsFromFilename, setStatsToFilename
+#from .colordeficiency_tools import getVariantFromImage, getStatsFromFilename, setStatsToFilename
 from .colordeficiency_tools import dxp1, dxm1, dyp1, dym1, computeDaltonizationUnitVectors, computeChiAndLambda, anisotropicG, multiscaling, GRMSE, makeGaussianChromaMap, makeGaussianSkinMap
 
 
@@ -1512,7 +1512,8 @@ def daltonization_yoshi_042016(im,dict):
         
     return im_out
    
-from matplotlib.mlab import PCA
+#from matplotlib.mlab import PCA
+from sklearn.decomposition import PCA
 
 def daltonization_yoshi_gradient(im,dict):
     
@@ -1556,7 +1557,8 @@ def daltonization_yoshi_gradient(im,dict):
     ## Design the improved gradient
     #######
     
-    if modus==1: im0_updated = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
+    #if modus==1: im0_updated = imresize(im0,(m,n),interp,mode=mode)/255.; #im0_small_arr = im0_small.reshape(m*n,3)
+    if modus==1: im0_updated = Image.fromarray(im0).resize(size=(m,n))
     #elif modus==2: sigma = dict['max_sigma']; im0_updated = gaussian_filter(im0,(sigma,sigma,0))
     else: im0_updated=im0.copy()
     im0_updated_sim = simulate(simulation_type,im0_updated,coldef_type,coldef_strength); #im0_small_sim_arr = im0_small_sim.reshape(m*n,3)
