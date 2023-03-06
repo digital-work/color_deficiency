@@ -4,13 +4,13 @@ Created on 24. feb. 2014
 @author: joschua
 '''
 
-from colordeficiency import *
+from .colordeficiency import *
 from matplotlib.mlab import PCA
 #from tools import makeComparisonFig, makeSubplots, convertToLuminanceImage, mean_confidence_interval
 import os
 import sys
 import subprocess
-import settings
+from . import settings
 import time
 import colour
 import random
@@ -23,7 +23,7 @@ from openpyxl import Workbook, load_workbook
 def keys2values(keyArray, valueDict):
     valueArray = []
     for key in keyArray:
-        if valueDict.has_key(key):
+        if key in valueDict:
             valueArray.append(valueDict[key])
         else:
             valueArray.append(float('NaN'))
@@ -57,7 +57,7 @@ def getStatsFromFilename(filename):
     dict = {}
     
     if (len(filename)!=10) or (filename.isdigit()!=True):
-        print "Error: The filename is incorrect. It has to be 10-digits number."
+        print("Error: The filename is incorrect. It has to be 10-digits number.")
         return dict
     else:
         dict["img_id"] = int(filename[0:3])
@@ -195,27 +195,27 @@ def makeXLSXForExperiment(options):
     
     n_exps = 2 # Number of experiments
     
-    if options.has_key('path_in'): path_in = options['path_in']
+    if 'path_in' in options: path_in = options['path_in']
     else:
-        print "Error: No Source folder with images specified. Please call the function with the necessary location as path_in."  
+        print("Error: No Source folder with images specified. Please call the function with the necessary location as path_in.")  
         return
     try: os.stat(os.path.join(path_in,'images'))
     except: os.mkdir(os.path.join(path_in,'images')) 
     
-    if options.has_key('extension'):
+    if 'extension' in options:
         ext = options['extension']
     else:
-        print "Caution: No extension specified for the files in the source folder. Taking the default extension png"
+        print("Caution: No extension specified for the files in the source folder. Taking the default extension png")
         ext = '.png'
         
-    if options.has_key('exp_id'):
+    if 'exp_id' in options:
         exp_id = options['exp_id']
     else:
-        print "Caution: No experiment ID chosen. We will compute the XLSX for all experiments together."
+        print("Caution: No experiment ID chosen. We will compute the XLSX for all experiments together.")
         exp_id = 0
 
     if exp_id == 1:
-        print "Making XlSX files for color deficiency simulation verification experiment"
+        print("Making XlSX files for color deficiency simulation verification experiment")
         
         filename_xlsx_a = "mainTrialsA.xlsx"
         path_xlsx_a = os.path.join(path_in,filename_xlsx_a)
@@ -235,7 +235,7 @@ def makeXLSXForExperiment(options):
         
         n_simulations = len(settings.simulation_types)
         
-        print "Including "+str(n_files)+" entries in the XLSX file ..."
+        print("Including "+str(n_files)+" entries in the XLSX file ...")
         i = 0 # Counter for all files together
         j = 0 # Counter for all each simulated version of the color deficiency files
         k = 0 # Counter for test trials
@@ -362,10 +362,10 @@ def makeXLSXForExperiment(options):
         #writeArrayToXLSX(dict_xlsx_b,path_xlsx_b)
         writeArrayToXLSX(dict_xlsx_test,path_xlsx_test)
         
-        print "... finishing the computation of the XLSX files for the images."
+        print("... finishing the computation of the XLSX files for the images.")
     
     elif exp_id == 2:
-        print "Making XLSX files for color deficiency daltonization visual search experiments"
+        print("Making XLSX files for color deficiency daltonization visual search experiments")
         
         filename_main_xlsx_a = 'mainTrialsA.xlsx'
         path_main_xlsx_a = os.path.join(path_in,filename_main_xlsx_a) # Path where XLSX file should be store. Supposed to be absolute path.
@@ -390,7 +390,7 @@ def makeXLSXForExperiment(options):
         # Get all subdirectories of the image path
         subdirs = [x[0] for x in os.walk(path_images)] 
         
-        print "Computing XLSX file(s) for "+str(n_files)+" image(s) ..."
+        print("Computing XLSX file(s) for "+str(n_files)+" image(s) ...")
         i = 0 # Counter for the images
         
         first = 1
@@ -501,10 +501,10 @@ def makeXLSXForExperiment(options):
         dict_main_xlsx_test_b = {'mainTrials.csv': array_main_xlsx_test_b}
         writeArrayToXLSX(dict_main_xlsx_test_b,path_main_xlsx_test_b)
         
-        print "... finishing the computation of the XLSX file(s) for images."
+        print("... finishing the computation of the XLSX file(s) for images.")
         
     else:
-        print "Caution: We will compute the XLSX for all experiments together."
+        print("Caution: We will compute the XLSX for all experiments together.")
         
         options_adj = options.copy()
         
@@ -541,38 +541,38 @@ def test16(options):
         * colordeficiency_types:   Types of color deficiency for which the images should be simulated.
     """
     
-    if options.has_key('path_in'):
+    if 'path_in' in options:
         path_in = options['path_in'] # Should be specified as absolute path
     else:
-        print "Error: No Source folder with images specified. Please call the function with the necessary location as path_in."  
+        print("Error: No Source folder with images specified. Please call the function with the necessary location as path_in.")  
         return
     
-    if options.has_key('extension'):
+    if 'extension' in options:
         ext = options['extension']
     else:
-        print "Caution: No extension specified for the files in the source folder. Taking the default extension png"
+        print("Caution: No extension specified for the files in the source folder. Taking the default extension png")
         ext = '.png'
     
-    if options.has_key('path_out'):
+    if 'path_out' in options:
         path_out = options['path_out']
     else:
-        print "Caution: No destination folder specified. Taking the same directory as the source folder: "+ path_in
+        print("Caution: No destination folder specified. Taking the same directory as the source folder: "+ path_in)
         path_out = path_in
     try:
         os.stat(os.path.join(path_out,'images'))
     except:
         os.mkdir(os.path.join(path_out,'images')) 
     
-    if options.has_key('daltonization_types'):
+    if 'daltonization_types' in options:
         daltonization_types = options['daltonization_types']
     else:
-        print "Caution: No daltonization types chosen. Choosing default daltonization types instead: "+str(settings.daltonization_types)
+        print("Caution: No daltonization types chosen. Choosing default daltonization types instead: "+str(settings.daltonization_types))
         daltonization_types = settings.daltonization_types
     
-    if options.has_key('coldef_types'):
+    if 'coldef_types' in options:
         coldef_types = options['coldef_types']
     else:
-        print "Caution: No color deficiency types chose. Choosing default color deficiencies instead "+str(settings.coldef_types)
+        print("Caution: No color deficiency types chose. Choosing default color deficiencies instead "+str(settings.coldef_types))
         coldef_types = settings.coldef_types
     
     # Get number of all files to be computed in the source folder and its subdirectories for the counter
@@ -582,7 +582,7 @@ def test16(options):
     # Get all subdirectories of the source path
     subdirs = [x[0] for x in os.walk(os.path.join(path_in,'images'))] 
     
-    print "Starting with the computation of the "+str(len(coldef_types))+"x"+str(len(daltonization_types))+" daltonization for the "+str(n_files)+" image(s) ..."
+    print("Starting with the computation of the "+str(len(coldef_types))+"x"+str(len(daltonization_types))+" daltonization for the "+str(n_files)+" image(s) ...")
     i = 0 # Counter for counting the files in the source folder
     first = 1
     for subdir in subdirs:
@@ -655,7 +655,7 @@ def test16(options):
                                         path_out_tmp = os.path.join(path_out,'images',subdir_rel,filename_out_tmp)
                                         img_dalt.save(path_out_tmp)
                                     except:
-                                        print "Error: Could not simulate file: " + str(file) + " with " + str(daltonization_type)
+                                        print("Error: Could not simulate file: " + str(file) + " with " + str(daltonization_type))
                                         pass
                                 
                     else:
@@ -664,7 +664,7 @@ def test16(options):
                         
                     sys.stdout.write(".. OK\n")
                     
-    print "... finishing the computation of the daltonizations for the images."
+    print("... finishing the computation of the daltonizations for the images.")
 
 #path_in = '/Users/thomas/Dropbox/00_NZT/01_PhD/03_Experiments/00_Color-Deficiency-Evaluation-Experiments-Sessions/Session-1/01_experiments/visual-search/'
 #path_out = "."      
@@ -684,45 +684,45 @@ def test15(options):
     """
     
     
-    if options.has_key('path_in'):
+    if 'path_in' in options:
         path_in = options['path_in'] # Should be specified as absolute path
     else:
-        print "Error: No Source folder with images specified. Please call the function with the necessary location as path_in."  
+        print("Error: No Source folder with images specified. Please call the function with the necessary location as path_in.")  
         return
     
-    if options.has_key('extension'):
+    if 'extension' in options:
         ext = options['extension']
     else:
-        print "Caution: No extension specified for the files in the source folder. Taking the default extension png"
+        print("Caution: No extension specified for the files in the source folder. Taking the default extension png")
         ext = '.png'
     
-    if options.has_key('path_out'):
+    if 'path_out' in options:
         path_out = options['path_out']
     else:
-        print "Caution: No destination folder specified. Taking the same directory as the source folder: "+ path_in
+        print("Caution: No destination folder specified. Taking the same directory as the source folder: "+ path_in)
         path_out = path_in
     try:
         os.stat(os.path.join(path_out,'images'))
     except:
         os.mkdir(os.path.join(path_out,'images')) 
     
-    if options.has_key('simulation_types'):
+    if 'simulation_types' in options:
         simulation_types = options['simulation_types']
     else:
-        print "Caution: No simulation types chosen. Choosing default color deficiencies instead: "+str(settings.simulation_types)
+        print("Caution: No simulation types chosen. Choosing default color deficiencies instead: "+str(settings.simulation_types))
         simulation_types = settings.simulation_types
     
-    if options.has_key('coldef_types'):
+    if 'coldef_types' in options:
         coldef_types = options['coldef_types']
     else:
-        print "Caution: No color deficicion types chose. Choosing default color deficiencies instead " + str(settings.coldef_types)
+        print("Caution: No color deficicion types chose. Choosing default color deficiencies instead " + str(settings.coldef_types))
         coldef_types = settings.coldef_types
     
     # Retrieve all image files in the source folder for further computation
     files = getAllXXXinPath(os.path.join(path_in,'images'),ext)#+= [each for each in os.listdir(path_in) if each.endswith(ext)]
     n_files = len(files)
     
-    print "Starting with the computation of the "+str(len(coldef_types))+"x"+str(len(simulation_types))+" simulations for the "+str(n_files)+" image(s) ..."
+    print("Starting with the computation of the "+str(len(coldef_types))+"x"+str(len(simulation_types))+" simulations for the "+str(n_files)+" image(s) ...")
     i = 0 # Counter for counting the files in the source folder
     for file in files:
         i += 1
@@ -782,7 +782,7 @@ def test15(options):
                             path_out_tmp = os.path.join(path_out,'images',filename_out_tmp)
                             img_sim.save(path_out_tmp)
                         except:
-                            print "Error: Could not simulate file: " + str(file) + " with " + str(simulation_type)
+                            print("Error: Could not simulate file: " + str(file) + " with " + str(simulation_type))
                             pass
                     
         else:
@@ -791,11 +791,11 @@ def test15(options):
           
         sys.stdout.write(".. OK\n")
    
-    print "... finishing the computation of the simulations for the images."
+    print("... finishing the computation of the simulations for the images.")
 
 def test17():
     
-    print "Starting simulations"
+    print("Starting simulations")
     options = {'path_in': os.path.join('/Users/thomas/Desktop/test/source/','exp1'),
                'path_out': '/Users/thomas/Dropbox/00_NZT/01_PhD/03_Experiments/00_Color-Deficiency-Evaluation-Experiments-Sessions/00_Session/01_experiments/sample-2-match/',
                'coldef_types': ['p','d']}
@@ -811,7 +811,7 @@ def test17():
         makeXLSXForExperiment(options)
         pass
     except:
-        print "Error: Problems with the making of the XLSX file for experiment 1."
+        print("Error: Problems with the making of the XLSX file for experiment 1.")
     
     options = {'path_in': os.path.join('/Users/thomas/Desktop/test/source/','exp2'),
                'path_out': '/Users/thomas/Dropbox/00_NZT/01_PhD/03_Experiments/00_Color-Deficiency-Evaluation-Experiments-Sessions/00_Session/01_experiments/visual-search/',
@@ -827,7 +827,7 @@ def test17():
         makeXLSXForExperiment(options)
         pass
     except:
-        print "Error: Problems with the making of the XLSX file for experiment 2."
+        print("Error: Problems with the making of the XLSX file for experiment 2.")
     
 def test18():
     path = '/Users/thomas/Dropbox/00_NZT/01_PhD/03_Experiments/00_Color-Deficiency-Evaluation-Experiments-Sessions/00_Session/01_experiments/visual-search/'
@@ -839,7 +839,7 @@ def test18():
         files_tmp = getAllXXXinPath(subdir,'.png')
         files_tmp = [os.path.join(subdir,file) for file in files_tmp]
         files = numpy.hstack([files,files_tmp])
-    print files
+    print(files)
     
     size = 900,900
         
@@ -851,7 +851,7 @@ def test18():
             img_in.thumbnail(size,Image.ANTIALIAS)
         img_tmp.save(file)
         
-    print 'Done'
+    print('Done')
     
 #test17()
 
@@ -883,21 +883,21 @@ def test13():
     img_out_1 = convertToLuminanceImage(img_in)
     #img_out_1.show()    
     elapsed = time.time() - t
-    print elapsed
+    print(elapsed)
      
     t = time.time()
     img_out_2 = img_in.copy()
     img_out_2 = img_out_2.convert('LA')#convertToLuminanceImage(img_in)
     #img_out_2.show() 
     elapsed = time.time() - t
-    print elapsed
+    print(elapsed)
     
     diff_arr = colour.metric.dE_00(colour.data.Data(colour.space.srgb, img_out_1.convert('RGB')), colour.data.Data(colour.space.srgb, img_out_2.convert('RGB')))
     img_dif = Image.fromarray(diff_arr)
     
     m,n = numpy.shape(diff_arr)
     diff_vect = numpy.reshape(diff_arr, m*n)
-    print mean_confidence_interval(diff_vect)
+    print(mean_confidence_interval(diff_vect))
     img_dif.show()
     import matplotlib.pyplot as pyplot
     pyplot.boxplot( diff_vect)
@@ -907,7 +907,7 @@ def test11():
     
     #os.system("./stress -i ./images/example13.png")
     os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
-    print os.environ['PATH']
+    print(os.environ['PATH'])
     os.system("./stress -i ./images/example13.jpg -o ./test13.png -g -ns 1 -ni 200")
     #subprocess.call("./stress -i ./images/example11.jpg -o ./test1.png -g -ns 1 -ni 200")
 
@@ -939,10 +939,10 @@ def test10():
     #name = "images/example1.jpg"
     #name = "images/database/wrest30.jpg"
     for name in names:
-        print name
+        print(name)
         img_in = Image.open(name)
         for daltonization_type in daltonization_types:
-            print daltonization_type
+            print(daltonization_type)
             for enhance in enhances:
                 for coldef_type in coldef_types:
                     img_in.thumbnail(size)
@@ -1027,7 +1027,7 @@ def test8(options):
            -c: coldef_types - Types of color deficiencies being simulated. Protanopia by default.
            -u: simulation_types - Types of simulations used for simulation. Brettel by default.
     """
-    if options.has_key('size'):
+    if 'size' in options:
         s = int(options['size'])
     
         if s == 0:
@@ -1037,28 +1037,28 @@ def test8(options):
         elif s == 2:        
             size = 256,256#1024,1024#512,512
     else:
-        print "Caution: No size chosen. Chose default 1024x1024 instead."
+        print("Caution: No size chosen. Chose default 1024x1024 instead.")
         size == 1024,1024
     
-    if options.has_key('inputfiles'):
+    if 'inputfiles' in options:
         inputfiles = options['inputfiles']
         fileList = inputfiles.split(',')
     else:
-        print "Error: No inputfile(s) chosen. Function can not be called."
+        print("Error: No inputfile(s) chosen. Function can not be called.")
     
-    print "Started [Size:%sx%s]" % size
+    print("Started [Size:%sx%s]" % size)
     
-    if options.has_key('coldef_types'):
+    if 'coldef_types' in options:
         coldef_types = options['coldef_types']
     else:
         coldef_types = ['p']
     
-    if options.has_key('simulation_types'):
+    if 'simulation_types' in options:
         simulation_types = options['simulation_types']
     else:
         simulation_types = ['brettel']        
     
-    if options.has_key('path'):
+    if 'path' in options:
         folder = options['path']
     else:
         folder = "images/database/02_eksperiment_vis-sear/Natur/00_top/ber3/"
@@ -1086,7 +1086,7 @@ def test8(options):
                 sys.stdout.write(str(i) + "/"+str(n_files[0])+" --- Error: Could not load image: \'" + name + "\'\n")
                 
                 pass
-    print "Finished!"
+    print("Finished!")
     pylab.show()
 
 def test7():
@@ -1120,11 +1120,11 @@ def test6():
     
     #import pylab
     for b in best:
-        print 1
+        print(1)
         for simulation_type in simulation_types:
-            print 2
+            print(2)
             for coldef_type in coldef_types:
-                print "starting with " + coldef_type
+                print("starting with " + coldef_type)
                 #pylab.figure()
                 name_tmp = name+str(b)
                 
@@ -1228,20 +1228,20 @@ def test3():
         
         t = time.time()
         img_lut = lookup(img_in, input_tab, output_tab)
-        print time.time()-t
+        print(time.time()-t)
         img_lut.show()
         
         sRGB_lut = colour.data.Data(colour.space.srgb,numpy.asarray(img_lut)/255.)
     
         t = time.time()
         img_sim = simulate(simulation_type,img_in,coldef_type)
-        print time.time()-t
+        print(time.time()-t)
         img_sim.show()
         
         sRGB_sim = colour.data.Data(colour.space.srgb,numpy.asarray(img_sim)/255.)
         
         diff = colour.metric.dE_E(sRGB_in, sRGB_lut)
-        print diff
+        print(diff)
         #print numpy.shape(diff)
         
         import pylab
@@ -1259,7 +1259,7 @@ def test3():
             for file in files:
                 if file.endswith('.jpg'):
                     dir = os.path.join(directory,file)
-                    print dir
+                    print(dir)
                     img_in = Image.open(dir)        
                     t = time.time()
                     img_lut = lookup(img_in, input_tab, output_tab)
@@ -1301,7 +1301,7 @@ def test1():
         im_sim = simulate(simulation_type,im,coldef_type,coldef_strength)
         #im_sim.show()
         im_sim.save(name+"-"+simulation_type+"-"+coldef_type+".jpg")
-        print coldef_type + " simulation done"
+        print(coldef_type + " simulation done")
 
 #####
 # All tools for gradient space daltonization methods
@@ -1314,7 +1314,7 @@ def dxp1(im,im0,dict={}):
     """
     sh = shape(im); m = sh[0]; n = sh[1]
     
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    boundary = dict['boundary'] if 'boundary' in dict else 0
     im_shift = im[r_[arange(1, m), m - 1], ...]
     if boundary==1: im_shift[-1, ...] = im[-1, ...] + im0[-1, ...] - im0[-2, ...] # gradu[-1] = gradu0[-1]
     gradx = im_shift - im
@@ -1328,7 +1328,7 @@ def dxm1(im,im0,dict={}):
     """
     sh = shape(im); m = sh[0]; n = sh[1]
     
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    boundary = dict['boundary'] if 'boundary' in dict else 0
     im_shift = im[r_[0, arange(0, m-1)], ...]
     if boundary==1: im_shift[0, ...] = im[0, ...] +  im0[1, ...] - im0[0, ...] # gradu[0] = gradu0[1]
     gradx = im - im_shift
@@ -1342,7 +1342,7 @@ def dyp1(im,im0,dict={}):
     """
     sh = shape(im); m = sh[0]; n = sh[1]
     
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    boundary = dict['boundary'] if 'boundary' in dict else 0
     im_shift = im[:, r_[arange(1, n), n - 1], ...]
     if boundary==1: im_shift[:, -1, ...] = im[:, -1, ...] + im0[:, -2, ...] - im0[:, -1, ...] # gradu[-1] = gradu0[-1]
     grady = im_shift - im
@@ -1356,7 +1356,7 @@ def dym1(im,im0,dict={}):
     """
     sh = shape(im); m = sh[0]; n = sh[1]
     
-    boundary = dict['boundary'] if dict.has_key('boundary') else 0
+    boundary = dict['boundary'] if 'boundary' in dict else 0
     im_shift = im[:, r_[0, arange(0, n - 1)], ...]
     if boundary==1: im_shift[:, 0, ...] = im[:, 0, ...] +  im0[:, 1, ...] - im0[:, 0, ...] # gradu[0] = gradu0[1]
     grady =  im - im_shift
@@ -1366,11 +1366,11 @@ def dym1(im,im0,dict={}):
 def computeDaltonizationUnitVectors(im,im_sim,dict):
     
     m,n,d = numpy.shape(im)
-    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
-    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1 
+    ms_first=dict['ms_first'] if 'ms_first' in dict else 0
+    global_unit_vectors = dict['global_unit_vectors'] if 'global_unit_vectors' in dict else 1 
     # For global unit vectors, all unit vectors have a size of 1x3. For individual unit vectors, all unit vectors have a size of m*nx2
-    constant_lightness = dict['constant_lightness'] if dict.has_key('constant_lightness') else 1
-    ed_orthogonalization = dict['ed_orthogonalization'] if dict.has_key('ed_orthogonalization') else 0
+    constant_lightness = dict['constant_lightness'] if 'constant_lightness' in dict else 1
+    ed_orthogonalization = dict['ed_orthogonalization'] if 'ed_orthogonalization' in dict else 0
     
     ### Direction of lightness
     if constant_lightness:
@@ -1433,16 +1433,16 @@ def computeDaltonizationUnitVectors(im,im_sim,dict):
 
 def computeChiAndLambda(gradx0_arr,grady0_arr,gradx0s_arr,grady0s_arr,ed,el,ec,dict={}):
     
-    ms_first=dict['ms_first'] if dict.has_key('ms_first') else 0
+    ms_first=dict['ms_first'] if 'ms_first' in dict else 0
     eps = .000001
     mn,d =  numpy.shape(gradx0_arr)
     
-    global_unit_vectors = dict['global_unit_vectors'] if dict.has_key('global_unit_vectors') else 1
+    global_unit_vectors = dict['global_unit_vectors'] if 'global_unit_vectors' in dict else 1
     if global_unit_vectors: k_x = numpy.dot(gradx0_arr,ed); k_y = numpy.dot(grady0_arr,ed)
     else: k_x = numpy.sum(gradx0_arr*ed, axis=1); k_y = numpy.sum(grady0_arr*ed, axis=1)
     gradx0dot_arr = numpy.array([k_x,]*d).transpose(); grady0dot_arr = numpy.array([k_y,]*d).transpose()  
     
-    chi_computations = dict['chi_computations'] if dict.has_key('chi_computations') else 1
+    chi_computations = dict['chi_computations'] if 'chi_computations' in dict else 1
     if chi_computations == 1:
         if ms_first: sys.stdout.write("Chi computations 1. ")
         a = numpy.sum((gradx0dot_arr*ec)**2 + \
@@ -1473,7 +1473,7 @@ def anisotropicG(gradx0,grady0,dict):
     g_xx = gradx0*gradx0; g_xy = gradx0*grady0; g_yy = grady0*grady0#; g_yx = grady0*gradx0
     eig_pos = (g_xy+g_yy+numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.; eig_neg = (g_xy+g_yy-numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.
     
-    anisotropic = dict['anisotropic'] if dict.has_key('anisotropic') else 0
+    anisotropic = dict['anisotropic'] if 'anisotropic' in dict else 0
     if anisotropic/3 < 3: f = numpy.sqrt(eig_pos-eig_neg)
     elif anisotropic/3 >= 3: f = numpy.sqrt(eig_pos)
         
@@ -1487,7 +1487,7 @@ def RMSE(u_old,u_new):
     """
     RMSe of two images
     """
-    if numpy.shape(u_old) != numpy.shape(u_new): print "Error: Both images have to be the same size"
+    if numpy.shape(u_old) != numpy.shape(u_new): print("Error: Both images have to be the same size")
     m,n,d = numpy.shape(u_old)
     rmse = numpy.sum(numpy.sqrt(numpy.sum((u_new-u_old)**2,axis=2))) / (m*n)
     
@@ -1500,7 +1500,7 @@ def GRMSE(grad_uold,grad_unew):
     gradx_uold = grad_uold['gradx']; gradx_unew = grad_unew['gradx']
     grady_uold = grad_uold['grady']; grady_unew = grad_unew['grady'] 
     if (numpy.shape(gradx_uold) != numpy.shape(gradx_unew)) or (numpy.shape(grady_uold) != numpy.shape(grady_unew)):
-        print "Error: Both images have to be the same size"  
+        print("Error: Both images have to be the same size")  
     #m,n,d = numpy.shape(gradx_uold)
     #print m*n, numpy.size(gradx_uold)/3
     mn = numpy.size(gradx_uold)/3
@@ -1518,8 +1518,8 @@ def GRMSE(grad_uold,grad_unew):
 def multiscaling(im,func,dict={}):
     
     min_size = 2**5
-    interp = dict['interp'] if dict.has_key('interp') else 'bilinear'
-    mode = dict['mode'] if dict.has_key('mode') else 'RGB'
+    interp = dict['interp'] if 'interp' in dict else 'bilinear'
+    mode = dict['mode'] if 'mode' in dict else 'RGB'
     m,n,d = numpy.shape(im); size = numpy.array((m,n))
     #print m,n,d
     
@@ -1556,7 +1556,7 @@ def smoothing(im,sigma,func,dict={}):
         im_new = func(im_updated,dict)
         return im_new
     """
-    print sigma
+    print(sigma)
     im_blurred = gaussian_filter(im,(sigma,sigma,0))
     #dict.update({'im0': im_blurred.copy()})
     #data = dict['data'] if dict.has_key('data') else None

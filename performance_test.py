@@ -14,7 +14,7 @@ if 1:
         im_sim.show()
 else:
     for dalt_type in settings.daltonization_types:
-        print dalt_type
+        print(dalt_type)
         if 1:#(dalt_type == 'kuhn'): 
             options = {'daltonization_type':dalt_type, 'coldef_type': 'p', 'alpha': 1.0, 'beta': 0.25}
             im_dalt = daltonize(img_in,options)

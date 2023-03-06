@@ -56,8 +56,8 @@ def organizeArray(dataArray,whatArray,howArray=[]):
 
 def writePandastoLatex(pandasArr,path,dict={}):
     
-    tabularx = dict['tabularx'] if dict.has_key('tabularx') else 0
-    header_table = dict['header_table'] if dict.has_key('header_table') else 0
+    tabularx = dict['tabularx'] if 'tabularx' in dict else 0
+    header_table = dict['header_table'] if 'header_table' in dict else 0
     
     columns =  pandasArr.columns
     num_columns = numpy.shape(columns)[0]
@@ -111,22 +111,20 @@ def writePandastoLatex(pandasArr,path,dict={}):
         # Loop thru cells
         for i in range_columns:
             cell = ''
-            #print row[i]
-            #print type(row[i]) == unicode
-            if (type(row[i]) == str) or (type(row[i]) == unicode):
+            if (type(row[i]) == str) or (type(row[i]) == str):
                 cell = row[i]
                 
             elif (type(row[i]) == float) or (type(row[i])==numpy.float64):
                 scientific_notation = True
                 
-                if dict.has_key('scientific_notation'):
+                if 'scientific_notation' in dict:
                     scientific_notation = dict['scientific_notation']
                     
                 if scientific_notation:
                     numerals = 2
                     value = float(row[i])
                     
-                    if dict.has_key('numerals'):
+                    if 'numerals' in dict:
                         numerals = int(dict['numerals']) 
                     
                     if value < 0.01:
@@ -135,15 +133,15 @@ def writePandastoLatex(pandasArr,path,dict={}):
                         cell = ("%."+str(numerals)+"f")%(value)
                         
                     p_values = False
-                    if dict.has_key('p_values'):
+                    if 'p_values' in dict:
                         p_values = dict['p_values']
                     if p_values:
                         if value <= 0.05:
                             bkgcolor = "red"
-                            if dict.has_key('bkgcolor'):
+                            if 'bkgcolor' in dict:
                                 bkgcolor = dict['bkgcolor']
                             textcolor = "white"
-                            if dict.has_key('textcolor'):
+                            if 'textcolor' in dict:
                                 textcolor = dict['textcolor']
                             cell = "\\cellcolor{"+bkgcolor+"}\\textbf{\\textcolor{"+textcolor+"}{"+cell+"}}"
                     
@@ -242,13 +240,13 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
                               Optional are: ** path_out: Path to the folder, where the text file containing the meta data should be stored.
     """
     
-    if dict.has_key('exp_type'):
+    if 'exp_type' in dict:
         exp_type = dict['exp_type']
     else:
-        print "Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM."
+        print("Error: No experiment type has been chosen. Choose either ViSDEM or SaMSEM.")
         return
   
-    if dict.has_key('filename'):
+    if 'filename' in dict:
         filename = dict['filename']
     else:
         filename = 'meta-data'
@@ -292,7 +290,7 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
         observers_deut = sorted(set(experimentData[experimentData['observer_coldef_type']==2]['observer_id']))
         f.write("...... # of deutan observers: "+str(len(observers_deut))+' ; '+str(observers_deut)+'\n')
     else:
-        print "Error: No valid experiment format has been chosen. Choose either visdem or samsem."
+        print("Error: No valid experiment format has been chosen. Choose either visdem or samsem.")
         return
 
 
@@ -305,10 +303,10 @@ def writeMetaDataOfExperiments(experimentData,path,dict):
 
 def preparePandas4AccuracyPlots(pandas_dict,order_dict,c=1.96,type="normal", dict={}):
     
-    #print "Type of computation for confidence intervals: "+ str(type)
-    #print "Length of confidence interval c: " + str(c)
+    #print("Type of computation for confidence intervals: "+ str(type))
+    #print("Length of confidence interval c: " + str(c))
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     accuracies = {}
     observations = []
     
@@ -321,7 +319,7 @@ def preparePandas4AccuracyPlots(pandas_dict,order_dict,c=1.96,type="normal", dic
         observations.append(numpy.array(obs_tmp).astype(int))
     
     observations = numpy.transpose(observations)
-    if telleoevelse: print "ACC plots "+dict['filename']+":\n" + str(observations)
+    if telleoevelse: print("ACC plots "+dict['filename']+":\n" + str(observations))
         
     return accuracies
 
@@ -365,17 +363,17 @@ def getAccuracy(data,c,type):
 
 def plotAccuracyGraphs(accData,path,dict,order=[]):
     
-    result_id = dict['result_id'] if dict.has_key('result_id') else ''
+    result_id = dict['result_id'] if 'result_id' in dict else ''
         
-    multiple_graphs = dict['multiple_graphs'] if dict.has_key('multiple_graphs') else 0
-    figsize = dict['figsize'] if dict.has_key('figsize') else [8., 6.]
+    multiple_graphs = dict['multiple_graphs'] if 'multiple_graphs' in dict else 0
+    figsize = dict['figsize'] if 'figsize' in dict else [8., 6.]
     
-    xlabel = dict['xlabel'] if dict.has_key('xlabel') else ''
-    ylabel = dict['ylabel'] if dict.has_key('ylabel') else 'Accuracy'
-    y_lim = dict['y_lim_ACC'] if dict.has_key('y_lim_ACC') else [.5,1.]
-    fmt = dict['fmt'] if dict.has_key('fmt') else 'or'
-    color = dict['color'] if dict.has_key('color') else 'red'
-    fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
+    xlabel = dict['xlabel'] if 'xlabel' in dict else ''
+    ylabel = dict['ylabel'] if 'ylabel' in dict else 'Accuracy'
+    y_lim = dict['y_lim_ACC'] if 'y_lim_ACC' in dict else [.5,1.]
+    fmt = dict['fmt'] if 'fmt' in dict else 'or'
+    color = dict['color'] if 'color' in dict else 'red'
+    fontsize = dict['fontsize'] if 'fontsize' in dict else 12
       
     if not multiple_graphs: 
         plt.figure() 
@@ -387,7 +385,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
      
     acc_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[]; howMany=[]; counter=1
     if not order:
-        for key,value in accData.iteritems():
+        for key,value in accData.items():
             acc_plots.append(value[0])
             lower_bound.append(value[1])
             upper_bound.append(value[2])
@@ -410,7 +408,7 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
     plt.errorbar(howMany,acc_plots,bounds,fmt=fmt, color=color)
     plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
     title_default = ''
-    if dict.has_key('obs_title'):
+    if 'obs_title' in dict:
         if dict['obs_title']:        
             title = dict['obs_title']
         else:
@@ -434,15 +432,15 @@ def plotAccuracyGraphs(accData,path,dict,order=[]):
 
 def plotZScoreGraphs(zs_data,path,dict,order=[]):
         
-    multiple_graphs = dict['multiple_graphs'] if dict.has_key('multiple_graphs') else 0
-    figsize = dict['figsize'] if dict.has_key('figsize') else [8., 6.]
+    multiple_graphs = dict['multiple_graphs'] if 'multiple_graphs' in dict else 0
+    figsize = dict['figsize'] if 'figsize' in dict else [8., 6.]
     
-    xlabel = dict['xlabel'] if dict.has_key('xlabel') else ''
-    ylabel = dict['ylabel'] if dict.has_key('ylabel') else 'ZScores'
-    y_lim = dict['y_lim_ZS'] if dict.has_key('y_lim_ZS') else [-1.,1.]
-    fmt = dict['fmt'] if dict.has_key('fmt') else 'or'
-    color = dict['color'] if dict.has_key('color') else 'red'
-    fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
+    xlabel = dict['xlabel'] if 'xlabel' in dict else ''
+    ylabel = dict['ylabel'] if 'ylabel' in dict else 'ZScores'
+    y_lim = dict['y_lim_ZS'] if 'y_lim_ZS' in dict else [-1.,1.]
+    fmt = dict['fmt'] if 'fmt' in dict else 'or'
+    color = dict['color'] if 'color' in dict else 'red'
+    fontsize = dict['fontsize'] if 'fontsize' in dict else 12
       
     if not multiple_graphs: plt.figure() 
         
@@ -453,7 +451,7 @@ def plotZScoreGraphs(zs_data,path,dict,order=[]):
      
     zs_plots = []; lower_bound = []; upper_bound = []; labels_tmp=[]; howMany=[]; counter=1
     if not order:
-        for key,value in zs_data.iteritems():
+        for key,value in zs_data.items():
             zs_plots.append(value[0])
             lower_bound.append(value[1])
             upper_bound.append(value[2])
@@ -476,7 +474,7 @@ def plotZScoreGraphs(zs_data,path,dict,order=[]):
     plt.errorbar(howMany,zs_plots,bounds,fmt=fmt, color=color)
     plt.xticks(howMany,labels_tmp,fontsize=fontsize); 
     title_default = ''
-    if dict.has_key('obs_title'):
+    if 'obs_title' in dict:
         if dict['obs_title']: title = dict['obs_title']
         else: title = title_default
     else: title = title_default 
@@ -488,7 +486,7 @@ def plotZScoreGraphs(zs_data,path,dict,order=[]):
     
     if not multiple_graphs:
         plt.close()
-    print zs_plots    
+    print(zs_plots)    
     data = {'l-bounds': zs_plots-lower_bound,'zs': zs_plots, 'u-bounds': zs_plots+upper_bound}
     a = pandas.DataFrame(data, index=labels_tmp, columns=['l-bounds','zs', 'u-bounds'])
     a.to_csv(os.path.join(path,dict['filename']+"-ZS-bounds.csv"),sep=';')
@@ -547,27 +545,27 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
     Veit ikkje om detter her stemmer eller gir mening.
     """
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     num_methods = numpy.shape(methods)[0]
-    range_methods = range(num_methods)
+    range_methods = list(range(num_methods))
     num_columns = numpy.shape(data)[1]
     if telleoevelse: "ACC Chi2 "+dict['filename']+":\n"+str(data)
     
     if not num_methods == num_columns:
-        print "Error: Number of columns does not match the labels for Pearson Chi2 test."
+        print("Error: Number of columns does not match the labels for Pearson Chi2 test.")
         return
     
-    if dict.has_key('filename'):
+    if 'filename' in dict:
         filename_csv = dict['filename']+"-chi2.csv"
         filename_tex = dict['filename']+"-chi2.tex"
     else:
         filename_csv = "-chi2.csv"
         filename_tex = "-chi2.tex"
     
-    numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
-    textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
-    bkgcolor = dict['bkgcolor'] if dict.has_key('bkgcolor') else 'red'
+    numerals = int(dict['numerals']) if 'numerals' in dict else 2
+    textcolor = dict['textcolor'] if 'textcolor' in dict else 'white'
+    bkgcolor = dict['bkgcolor'] if 'bkgcolor' in dict else 'red'
         
     method_counter = copy.copy(range_methods)
     result_array_template = numpy.chararray(num_methods)
@@ -589,7 +587,7 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
                 #print curr_distr
                 try:
                     chi2, p, dof, ex = stats.chi2_contingency(curr_distr,correction=False,lambda_="pearson") # Compare only two methods
-                except Exception,e:
+                except Exception as e:
                     p = float('NaN')
                 curr_row[methods[to_method]] = p
                 
@@ -612,7 +610,7 @@ def makePearsonChi2Contingency2x2Test(data,path,methods,dict):
 
 def preparePandas4RTPlots(pandas_dict,order_dict,dict={}):
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     boxes = []; labels = []
     for i in range(len(order_dict)):
@@ -622,23 +620,23 @@ def preparePandas4RTPlots(pandas_dict,order_dict,dict={}):
         labels.append(key) if values_tmp.size else labels.append(key + ' - No data'); 
         boxes.append(values_tmp)
         
-    if telleoevelse: print "RT boxplots "+dict['filename']+": "+str([numpy.shape(i) for i in boxes])    
+    if telleoevelse: print("RT boxplots "+dict['filename']+": "+str([numpy.shape(i) for i in boxes]))    
     return boxes, labels
 
 def plotRTGraphs(boxes,labels,path,dict,order=[]):
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
-    obs_title = dict['obs_title'] if dict.has_key('obs_title') else ""
-    y_lim = dict['y_lim_RT'] if dict.has_key('y_lim_RT') else [.0,1750]
-    fontsize = dict['fontsize'] if dict.has_key('fontsize') else 12
+    obs_title = dict['obs_title'] if 'obs_title' in dict else ""
+    y_lim = dict['y_lim_RT'] if 'y_lim_RT' in dict else [.0,1750]
+    fontsize = dict['fontsize'] if 'fontsize' in dict else 12
         
-    if dict.has_key('result_id'): save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
-    if dict.has_key('filename'): save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
+    if 'result_id' in dict: save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-RT.pdf")
+    if 'filename' in dict: save_to_file = os.path.join(path,dict['filename']+"-RT.pdf")
     
-    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
+    counter = numpy.array(list(range(1,numpy.shape(boxes)[0]+1)))
     
-    if telleoevelse: print "RT boxplots "+dict['filename']+": " + str([numpy.shape(i) for i in boxes])
+    if telleoevelse: print("RT boxplots "+dict['filename']+": " + str([numpy.shape(i) for i in boxes]))
     
     plt.figure();
     
@@ -699,9 +697,9 @@ def makePairedRTDataArray(data_RT_paired, methods,id_label):
 
 def plotQQPlot(distribution,path,dict):
     
-    if dict.has_key('filename') and dict.has_key('result_id'):
+    if 'filename' in dict and 'result_id' in dict:
         save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-QQ.pdf") # This is only for samsemPlots35Thru37. Please remove it
-    elif dict.has_key('filename'): 
+    elif 'filename' in dict: 
         save_to_file = os.path.join(path,dict['filename']+"-QQ.pdf")
     
     stats.probplot(distribution, dist="norm", plot=plt)
@@ -808,28 +806,28 @@ def makeMedianTest(data,path,methods,dict):
     Output
     """
     
-    RT_difference = dict['RT_difference'] if dict.has_key('RT_difference') else 0
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    RT_difference = dict['RT_difference'] if 'RT_difference' in dict else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     if telleoevelse:
-        print "RT median test "+dict['filename']+": "+str([numpy.size(i) for i in data])  
+        print("RT median test "+dict['filename']+": "+str([numpy.size(i) for i in data]))  
     
     num_methods = numpy.shape(methods)[0]
-    range_methods = range(num_methods)
+    range_methods = list(range(num_methods))
     num_columns = numpy.shape(data)[0]
     if not num_methods == num_columns:
-        print "Error: Number of columns does not match the labels for the median test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns)
+        print("Error: Number of columns does not match the labels for the median test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns))
         return
     
-    if dict.has_key('filename'):
+    if 'filename' in dict:
         filename_csv = dict['filename']+"-median.csv"
         filename_latex = dict['filename']+"-median.tex"
     else:
         filename_csv = "-median.csv"
     
-    numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
-    textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
-    bkgcolor = dict['bkgcolor'] if dict.has_key('bkgcolor') else 'red'
+    numerals = int(dict['numerals']) if 'numerals' in dict else 2
+    textcolor = dict['textcolor'] if 'textcolor' in dict else 'white'
+    bkgcolor = dict['bkgcolor'] if 'bkgcolor' in dict else 'red'
 
     method_counter = copy.copy(range_methods)
     result_array_template = numpy.chararray(num_methods)
@@ -888,29 +886,29 @@ def makePairwiseStudentTTest(data,path,methods,dict):
     Output
     """
     
-    ACC_difference = dict['ACC_difference'] if dict.has_key('ACC_difference') else 0
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    ACC_difference = dict['ACC_difference'] if 'ACC_difference' in dict else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     if telleoevelse:
-        print "ACC student t "+dict['filename']+": "+str([numpy.size(i) for i in data])  
+        print("ACC student t "+dict['filename']+": "+str([numpy.size(i) for i in data]))  
     
     num_methods = numpy.shape(methods)[0]
-    range_methods = range(num_methods)
+    range_methods = list(range(num_methods))
     num_columns = numpy.shape(data)[0]
     if not num_methods == num_columns:
-        print "Error: Number of columns does not match the labels for the student t test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns)
+        print("Error: Number of columns does not match the labels for the student t test. " + "Expected columns: %i, actual columns %i" % (num_methods, num_columns))
         return
     
-    if dict.has_key('filename'):
+    if 'filename' in dict:
         filename_csv = dict['filename']+"-student-t.csv"
         filename_latex = dict['filename']+"-student-t.tex"
     else:
         filename_csv = "-student-t.csv"
         filename_latex = "-student-t.tex"
     
-    numerals = int(dict['numerals']) if dict.has_key('numerals') else 2
-    textcolor = dict['textcolor'] if dict.has_key('textcolor') else 'white'
-    bkgcolor = dict['bkgcolor'] if dict.has_key('bkgcolor') else 'red'
+    numerals = int(dict['numerals']) if 'numerals' in dict else 2
+    textcolor = dict['textcolor'] if 'textcolor' in dict else 'white'
+    bkgcolor = dict['bkgcolor'] if 'bkgcolor' in dict else 'red'
 
     method_counter = copy.copy(range_methods)
     result_array_template = numpy.chararray(num_methods)
@@ -979,14 +977,14 @@ def getCIAverage(data):
 
 def plotCIAverageGraphs(meanData,path,dict,order=[]):
     
-    path_res = os.path.join(path,str(dict['result_id'])) if dict.has_key('result_id') else path      
+    path_res = os.path.join(path,str(dict['result_id'])) if 'result_id' in dict else path      
     
-    y_lim = dict['y_lim_RT'] if dict.has_key('y_lim_RT') else [.0,1750.]
+    y_lim = dict['y_lim_RT'] if 'y_lim_RT' in dict else [.0,1750.]
     
     
     mean_plots = [];labels_tmp=[];se=[];howMany=[];counter=0
     if not order:
-        for key,value in meanData.iteritems():
+        for key,value in meanData.items():
             mean_plots.append(value[0])
             se.append(value[1])
             labels_tmp.append(value[2])
@@ -1008,7 +1006,7 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
     se = 1.96*numpy.array(se)
     plt.errorbar(howMany,mean_plots,se,fmt='or')
     plt.xticks(howMany,labels_tmp); 
-    if dict.has_key('obs_title'):
+    if 'obs_title' in dict:
         plt.title(dict['obs_title']+' - CI mean');
     else:
         plt.title('')  
@@ -1019,13 +1017,13 @@ def plotCIAverageGraphs(meanData,path,dict,order=[]):
 
 def plotHistogram(distribution,path,dict):
     
-    bins = dict['bins'] if dict.has_key('bins') else 20
-    x_lim = dict['x_lim_hist'] if dict.has_key('x_lim_hist') else [.0,1750.]
-    obs_title = dict['obs_title'] if dict.has_key('obs_title') else dict['filename']
+    bins = dict['bins'] if 'bins' in dict else 20
+    x_lim = dict['x_lim_hist'] if 'x_lim_hist' in dict else [.0,1750.]
+    obs_title = dict['obs_title'] if 'obs_title' in dict else dict['filename']
         
-    if dict.has_key('filename') and dict.has_key('result_id'):
+    if 'filename' in dict and 'result_id' in dict:
         save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
-    elif dict.has_key('filename'): 
+    elif 'filename' in dict: 
         save_to_file = os.path.join(path,dict['filename']+"-HIST.pdf")
     
     plt.figure(); plt.hist(distribution, bins = bins);
@@ -1035,23 +1033,23 @@ def plotHistogram(distribution,path,dict):
 
 def plotResidualPlots(boxes,labels,path,dict):
     
-    if dict.has_key('y_lim_RES'):
+    if 'y_lim_RES' in dict:
         y_lim = dict['y_lim_RES']
     else:
         y_lim = [-1750.,1750.]
     
-    if dict.has_key('filename') and dict.has_key('result_id'):
+    if 'filename' in dict and 'result_id' in dict:
         save_to_file = os.path.join(path,str(dict['result_id']),dict['filename']+"-HIST.pdf") # This is only for samsemPlots35Thru37. Please remove it
-    elif dict.has_key('filename'): 
+    elif 'filename' in dict: 
         save_to_file = os.path.join(path,dict['filename']+"-RES.pdf")
     
     
-    if dict.has_key('obs_title'):
+    if 'obs_title' in dict:
         obs_title = dict['obs_title']
     else:
         obs_title = dict['filename']
     
-    counter = numpy.array(range(1,numpy.shape(boxes)[0]+1))
+    counter = numpy.array(list(range(1,numpy.shape(boxes)[0]+1)))
     res_boxes = []
     i=1
     for box in boxes:
@@ -1075,7 +1073,7 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
     else:
         folder_name = "new-normality-check"
         project = "New normality check"
-    print "* Start checking normality of \'"+str(project)+"\'"
+    print("* Start checking normality of \'"+str(project)+"\'")
     
     # 1. Check that dimensions of distribtions and labels are the same
     distr_size = numpy.shape(distributions)
@@ -1083,14 +1081,14 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
     try:
         pass
     except:
-        print "Error: Dimensions of labels and distributions have to match."
+        print("Error: Dimensions of labels and distributions have to match.")
         return
     
     # 2. Check that all plot types are accepted
     try:
         plot_types_acc = plot_types
     except:
-        print "Caution: Plot type has to be one of the following: \'q-q\', \'hist\', \'boxplot\' or \'residuals\'"
+        print("Caution: Plot type has to be one of the following: \'q-q\', \'hist\', \'boxplot\' or \'residuals\'")
     
     # 4. Create folder if necessary
     save_to_path = os.path.join(path,folder_name)
@@ -1149,4 +1147,4 @@ def checkNormality(distributions,labels,path,options,project_str="",plot_types={
         plotResidualPlots(distributions, labels, save_to_tmp, options)
         sys.stdout.write('\n')
     
-    print "* Stop checking normality"
+    print("* Stop checking normality")

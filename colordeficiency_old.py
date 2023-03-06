@@ -99,7 +99,7 @@ def makeLMSDeficientMatrix(rgb2lms, coldef_type):
         s_t = (-1.)/( gamma ) * numpy.array([alpha,beta,0])
         s = s_t
     else:
-        print "Error: unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print("Error: unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes.")
    
     matrix = numpy.array([l,m,s])
     #print matrix
@@ -240,7 +240,7 @@ def makeLMSDeficientMatrix_brettel(constantHues_LMS, whitepoint_LMS, coldef_type
         matrix['c485'] = matrix_c485
         
     else:
-        print "Error: unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print("Error: unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes.")
 
     return matrix
 
@@ -269,7 +269,7 @@ def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
     """
     
     if not (coldef_type == "p" or coldef_type == "d"):
-        print "Error: unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes."
+        print("Error: unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes.")
         
         img_out = crossOut(img_in)
         return img_out
@@ -325,7 +325,7 @@ def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
     """
     
     if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print("Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes.")
         return img_in
     
     img_in = img_in.convert('RGB')
@@ -374,7 +374,7 @@ def simulation_kotera(img_in, coldef_type, coldef_strength=1.0):
     """
     
     if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print("Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes.")
         return img_in
     
     img_in = img_in.convert('RGB')
@@ -401,7 +401,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     
     # Check if correct color deficiency has been chosen
     if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print("Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes.")
         return img_in
     
     data = numpy.genfromtxt('data/ciexyz31.csv', delimiter=',')
@@ -588,7 +588,7 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
 
 def daltonization_huan(img_in,options):
     
-    print "Caution: Please do not use this function for serious bussiness.\nIt is horrible implementation, mixing up Matlab snippets in the Python code."
+    print("Caution: Please do not use this function for serious bussiness.\nIt is horrible implementation, mixing up Matlab snippets in the Python code.")
     
     """
     if not dict.has_key('img_in'):
@@ -597,8 +597,8 @@ def daltonization_huan(img_in,options):
     img_in = dict['img_in']
     """
     
-    if not options.has_key('coldef_type'):
-        print 'Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type']
+    if 'coldef_type' not in options:
+        print('Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type'])
         dict['coldef_type'] = settings.default['coldef_type']
         
     coldef_type = options['coldef_type']
@@ -615,8 +615,8 @@ def daltonization_huan(img_in,options):
         img_out = Image.open(path_tmp)
         #img_out.show()
         #os.remove(path_tmp)
-    except Exception,e:
-        print "Error: Something went wrong. " + str(e)
+    except Exception as e:
+        print("Error: Something went wrong. " + str(e))
         img_out = crossOut(img_in)
     #mlab.stop()
     return img_out
@@ -627,7 +627,7 @@ def daltonization_huan(img_in,options):
 def runcvdKuhn2008ExeThread(dict):
     commando = "wine ./c++/cvdKuhn/cvdKuhn2008.exe "+dict['filepath_orig_tmp']+" "+str(coldefType2Int(dict['coldef_type'])-1)+ " "+str(dict['exagerated'])+" "+str(dict['max_num_quant'])
     # -1 because Kuhn starts to count color deficiency types at 0.
-    print commando
+    print(commando)
     os.popen(commando)
 
 def c2g_alsam(img_in):
@@ -651,8 +651,8 @@ def c2g_alsam(img_in):
         #img_gray_array = numpy.asarray(img_gray,dtype=float)/255.
         #img_out.show()
         #os.remove(path_tmp)
-    except Exception,e:
-        print "Error: Something went wrong. " + str(e)
+    except Exception as e:
+        print("Error: Something went wrong. " + str(e))
         img_out = crossOut(img_in)
     mlab.stop()
     
@@ -662,8 +662,8 @@ def c2g_alsam(img_in):
 
 def daltonization_yoshi_alsam(img_in,options):
     
-    if not options.has_key('coldef_type'):
-        print 'Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type']
+    if 'coldef_type' not in options:
+        print('Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type'])
         options['coldef_type'] = settings.default['coldef_type']
     
     # 1.step: convert original image to IPT
@@ -695,18 +695,18 @@ def daltonization_yoshi_alsam(img_in,options):
 
 def daltonization_yoshi_alsam_extra(img_in,options):
     
-    if not options.has_key('coldef_type'):
-        print 'Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type']
+    if 'coldef_type' not in options:
+        print('Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type'])
         options['coldef_type'] = settings.default['coldef_type']
     coldef_type = options['coldef_type']    
     
-    if options.has_key('alpha'):
+    if 'alpha' in options:
         alpha = options['alpha']
     else:
         sys.stdout.write(' Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
         
-    if options.has_key('beta'):
+    if 'beta' in options:
         beta = options['beta']
     else:
         sys.stdout.write(' Caution: No beta has been chosen. Using default value of 0.0.')
@@ -772,18 +772,18 @@ img_gray.show()
     
 def daltonization_kuhn(img_in,options):
     
-    print "Caution: Please do not use this function for serious bussiness. It is horrible implementation!!"
+    print("Caution: Please do not use this function for serious bussiness. It is horrible implementation!!")
     
-    if not options.has_key('coldef_type'):
-        print 'Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type']
+    if 'coldef_type' not in options:
+        print('Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type'])
         options['coldef_type'] = settings.default['coldef_type']
         
-    if not options.has_key('max_num_quant'):
-        print 'Caution: No max number for quantization chosen. Choosing default value: 128.'
+    if 'max_num_quant' not in options:
+        print('Caution: No max number for quantization chosen. Choosing default value: 128.')
         options['max_num_quant'] = 128  
         
-    if not options.has_key('exagerated'):
-        print 'Caution: No attribute chosen for whether the contrast should be exagerated or not. Choosing default value: 0.'
+    if 'exagerated' not in options:
+        print('Caution: No attribute chosen for whether the contrast should be exagerated or not. Choosing default value: 0.')
         options['exagerated'] = 0
     
     path_tmp = "./images/tmp/" # we have to think from the c++ folder
@@ -809,14 +809,14 @@ def daltonization_kuhn(img_in,options):
                 #img_sim = Image.open(filepath_sim_tmp)
                 try: 
                     img_out.show()
-                except Exception,e:
-                    print "EH eh EH eh!"
-                    print "Error: Saving not done yet."
-            except Exception,e:
-                print "Error: Computation not done yet."
+                except Exception as e:
+                    print("EH eh EH eh!")
+                    print("Error: Saving not done yet.")
+            except Exception as e:
+                print("Error: Computation not done yet.")
             
             if not e:    
-                print "Success: Computation done. Juchee!!"
+                print("Success: Computation done. Juchee!!")
                 recolor_img_does_not_exist = False
     #print "Resting litt"
     time.sleep(1)        
@@ -830,7 +830,7 @@ def daltonization_kuhn(img_in,options):
     os.remove(filepath_recolor_tmp)
     os.remove(filepath_sim_tmp)
     
-    print 'and moving on ...'
+    print('and moving on ...')
     return img_out
 
 #daltonization_kuhn({'coldef_type':p,'max_num_quant':256, 'img_in':img_in})
@@ -911,7 +911,7 @@ def simulate( simulation_type, img_in, coldef_type, coldef_strength=1.0):
         options = {}
         img_out = convertToLuminanceImage(img_in,options)
     else:
-        print 'Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(settings.simulation_types)+'".'
+        print('Error: Simulation type does not exist. Choose either one of the following - "'+'" , "'.join(settings.simulation_types)+'".')
         img_out = crossOut(img_in)
     return img_out
 
@@ -922,7 +922,7 @@ def daltonization_anagnostopoulos(img_in,options):
     coldef_type = options['coldef_type']
     
     if not (coldef_type == "p" or coldef_type == "d"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes."
+        print("Error: Unknown color deficiency chosen. Chose either p for protanopes, or d for deuteranopes.")
         
         img_out = crossOut(img_in)
         return img_out
@@ -1024,12 +1024,12 @@ def costKotera(shiftImage_vector,deltaCDic_vector,rlms,rdic):
 def daltonization_kotera(img_in, options):
     """
     """
-    if not options.has_key('coldef_type'):
-        print 'Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type']
+    if 'coldef_type' not in options:
+        print('Caution: No color deficiency type chosen. Choosing default value: '+settings.default['coldef_type'])
         dict['coldef_type'] = settings.default['coldef_type']
     coldef_type = options['coldef_type']
     if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
-        print "Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes."
+        print("Error: Unknown color deficiency chosen. Chose either p for protanopes, d for deuteranopes, or t for tritanopes.")
         return img_in
     
     img_in = img_in.convert('RGB')
@@ -1144,12 +1144,12 @@ def daltonization_yoshi_c2g_only(img_in, options):
     
     # 2.step: Enhance luminance channel
     # Make gray image of original RGB image
-    if options.has_key('its'):
+    if 'its' in options:
         its = options['its']
     else:
         its = settings.its_default # number of iterations (ni) should be >100
     
-    if options.has_key('pts'):
+    if 'pts' in options:
         pts = options['pts']
     else:
         pts =  settings.pts_default # number of sample points (ns) should be between 2 and 10, where 2 means local adjustments and 10 means mainly global adjustments
@@ -1162,7 +1162,7 @@ def daltonization_yoshi_c2g_only(img_in, options):
         
     if not ":/usr/local/bin" in os.environ['PATH']:
         os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
-        print os.environ['PATH']
+        print(os.environ['PATH'])
     os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
     img_gray = Image.open(name_out_tmp)
@@ -1185,19 +1185,19 @@ def daltonization_yoshi_c2g_only(img_in, options):
 
 def daltonization_yoshi_c2g(img_in,options):
         
-    if options.has_key('coldef_type'):
+    if 'coldef_type' in options:
         coldef_type = options['coldef_type']
     else:
         sys.stdout.write(' Error: No coldef_type. You have to choose a valid color deficiency type.')
         return img_in
     
-    if options.has_key('alpha'):
+    if 'alpha' in options:
         alpha = options['alpha']
     else:
         sys.stdout.write(' Caution: No alpha has been chosen. Using default value of 1.0.')
         alpha = 1.0
         
-    if options.has_key('beta'):
+    if 'beta' in options:
         beta = options['beta']
     else:
         sys.stdout.write(' Caution: No beta has been chosen. Using default value of 0.0.')
@@ -1213,7 +1213,7 @@ def daltonization_yoshi_c2g(img_in,options):
     # 2.step: Enhance luminance channel if wanted.
     
     # Check if user wants to use enhanced gray channel. False by default
-    if options.has_key('enhance'): 
+    if 'enhance' in options: 
         enhance = options['enhance']
     else:
         sys.stdout.write(" Caution: No value for enhancement chosen. Chose default: True")
@@ -1221,12 +1221,12 @@ def daltonization_yoshi_c2g(img_in,options):
         
     if enhance:
         # Make gray image of original RGB image
-        if options.has_key('its'):
+        if 'its' in options:
             its = options['its']
         else:
             its = settings.its_default # number of iterations (ni) should be >100
         
-        if options.has_key('pts'):
+        if 'pts' in options:
             pts = options['pts']
         else:
             pts =  settings.pts_default # number of sample points (ns) should be between 2 and 10, where 2 means local adjustments and 10 means mainly global adjustments
@@ -1239,7 +1239,7 @@ def daltonization_yoshi_c2g(img_in,options):
         
         if not ":/usr/local/bin" in os.environ['PATH']:
             os.environ['PATH'] = os.environ['PATH'] + ":/usr/local/bin"
-            print os.environ['PATH']
+            print(os.environ['PATH'])
         os.system("./stress -i "+name_in_tmp+" -o "+name_out_tmp+" -g -ns "+str(pts)+" -ni "+str(its)) # Run the c2g C++ script in a shell
         
         img_gray = Image.open(name_out_tmp)
@@ -1283,13 +1283,13 @@ def daltonize(img_in,options):
     
     img_in = img_in.convert('RGB')
     
-    if not options.has_key('daltonization_type'):
-        print "Caution: No daltonization_type chosen. Default value will be chosen: " + settings.default['daltonization_type']
+    if 'daltonization_type' not in options:
+        print("Caution: No daltonization_type chosen. Default value will be chosen: " + settings.default['daltonization_type'])
         options['daltonization_type'] = settings.default['daltonization_type']
     daltonization_type = options['daltonization_type']
     
-    if not options.has_key('coldef_type'):
-        print 'Caution: No coldef_type chosen. Default value will be chosen: '+settings.default['coldef_type']
+    if 'coldef_type' not in options:
+        print('Caution: No coldef_type chosen. Default value will be chosen: '+settings.default['coldef_type'])
         options['coldef_type'] = settings.default['coldef_type']    
     #dict = {'img_in': img_in, 'coldef_type': coldef_type}
     
@@ -1316,7 +1316,7 @@ def daltonize(img_in,options):
         #elif daltonization_type == "yoshi_c2g_only":
         #    img_out = daltonization_yoshi_c2g_only(img_in,options)
     else:
-        print 'Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(settings.daltonization_types)+'".'
+        print('Error: Daltonization type does not exist. Choose either one of the following - "'+'" , "'.join(settings.daltonization_types)+'".')
         return img_in
     return img_out
 

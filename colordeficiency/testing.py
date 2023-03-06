@@ -1,7 +1,7 @@
 from pylab import *
 import os
 
-from colordeficiency import *
+from .colordeficiency import *
 
 def griddata_boundaries(points, values, xi, method='linear', fill_value=nan, rescale=False):
     
@@ -127,13 +127,13 @@ def gradientd(im,dir,type="forward"):
     
     dir = dir
     if not dir in['x','y']:
-        print "You either have to choose the x or y axis."
+        print("You either have to choose the x or y axis.")
         return
     
     type = type
     #print type
     if not type in ['forward','backward']:
-        print "You either have to choose forward or backward."
+        print("You either have to choose forward or backward.")
         return
     
     m,n = numpy.shape(im)
@@ -234,7 +234,7 @@ def total_variation_dalt_3D():
     
     m,n,d =numpy.shape(im)
     im_zero = numpy.zeros((m,n,d))
-    print numpy.shape(im)
+    print(numpy.shape(im))
     def s(im):
         #return griddata_boundaries(lut_1D_in, lut_1D_out, im, 'linear')
         #return im/3. + .6
@@ -398,7 +398,7 @@ def tvdalt_colortv_anisotropic():
     eig_pos = (g_xy+g_yy+numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.
     eig_neg = (g_xy+g_yy-numpy.sqrt((g_xx-g_yy)**2+4*(g_xy)**2))/2.
         
-    print numpy.min((g_xx-g_yy)**2+4*g_xy)
+    print(numpy.min((g_xx-g_yy)**2+4*g_xy))
     #f = numpy.sqrt(eig_pos-eig_neg)
     f = numpy.sqrt(eig_pos)
     #f = eig_neg/eig_pos
@@ -660,7 +660,7 @@ def tvdalt_completenormbtwgradient_onoriginal():
     delta_u = 0.1
     while True:
         
-        print "Next round"
+        print("Next round")
         
         gradx = dxp1(s(im) - im0)
         grady = dyp1(s(im) - im0)
@@ -728,7 +728,7 @@ def tvdalt_completenormbtwabsoutegradient_onoriginal():
     m,n,d = numpy.shape(im)
     while True:
         
-        print "Next round"
+        print("Next round")
         
         gradx = dxp1(s(im))
         grady = dyp1(s(im))
@@ -833,7 +833,7 @@ def tvdalt_engineeredgradient():
     for image in images:
         
         im_name = image[0]
-        print im_name
+        print(im_name)
         im = imread(os.path.join('../colordeficiency-images/',im_name+'.png'))
         im = im[...,0:3]
         im0 = im.copy()
@@ -983,17 +983,17 @@ def tvdalt_engineeredgradient():
             
             if not os.path.isdir(dict_i['path_out']):
                 os.makedirs(dict_i['path_out'])
-                print "Caution: Created directory ["+dict_i['path_out']+']'
+                print("Caution: Created directory ["+dict_i['path_out']+']')
             
             if 1:
-                print "Saving '"+dict_i['im_name']+"' image: "+dict_i['test_name']
-                print dict_i['path_out']
+                print("Saving '"+dict_i['im_name']+"' image: "+dict_i['test_name'])
+                print(dict_i['path_out'])
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+'_orig'+'.png'), im)
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+'_orig-sim'+'.png'), simulate(simulation_type,im,coldef_type))
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_dalt'+'.png'), im_dalt.copy())
                 imsave(os.path.join(dict_i['path_out'],dict_i['im_name']+'_'+dict_i['test_name']+'_dalt-sim'+'.png'), simulate(simulation_type,im_dalt.copy(),coldef_type))  
         
-    print "Ferdig"
+    print("Ferdig")
     
 #tvdalt_engineeredgradient()
 #tvdalt_colortv_anisotropic()

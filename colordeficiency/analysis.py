@@ -8,12 +8,12 @@ import copy, json, matplotlib.pyplot as plt, numpy, operator, os, pandas, sys
 
 from scipy import stats
 
-from colordeficiency import settings
-from colordeficiency_tools import getAllXXXinPath, getStatsFromFilename, getSetFromScene, keys2values, getColDefTypeForObserver
-from analysis_tools import writeMetaDataOfExperiments, extractExperimentData, writePandastoLatex, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
-from analysis_tools import preparePandas4AccuracyPlots, preparePandas4Chi2, preparePandas4RTPlots
-from analysis_tools import makeMedianTest, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, makePairwiseStudentTTest
-from analysis_tools import makePairedRTDataArray
+from .colordeficiency import settings
+from .colordeficiency_tools import getAllXXXinPath, getStatsFromFilename, getSetFromScene, keys2values, getColDefTypeForObserver
+from .analysis_tools import writeMetaDataOfExperiments, extractExperimentData, writePandastoLatex, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, plotQQPlot, plotResidualPlots, plotHistogram, plotAccuracyGraphs, plotCIAverageGraphs, plotRTGraphs, getAccuracy, getCIAverage, organizeArray, extractDataFromPsychoPyXLSX
+from .analysis_tools import preparePandas4AccuracyPlots, preparePandas4Chi2, preparePandas4RTPlots
+from .analysis_tools import makeMedianTest, makePearsonChi2Contingency, makePearsonChi2Contingency2x2Test, makePairwiseStudentTTest
+from .analysis_tools import makePairedRTDataArray
 
 from PyPDF2 import PdfFileReader, PdfFileMerger
 
@@ -23,17 +23,17 @@ def analyzeSaMSEMData(dict):
     Before: analyzeSample2MatchData
     """
     
-    if dict.has_key('path_in'):
+    if 'path_in' in dict:
         path_in = dict['path_in']
     else:
-        print "Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in"    
+        print("Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in")    
         return
     
     path_out_default = '../colordeficiency-data/'    
-    if dict.has_key('path_out'):
+    if 'path_out' in dict:
         path_out = dict['path_out']
     else:
-        print "Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default)
+        print("Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default))
         path_out = path_out_default
     
     
@@ -52,17 +52,17 @@ def analyzeSaMSEMData(dict):
             sys.stdout.write(xlsx_file)
             dataArray_tmp, testArray, extraDataDict = extractExperimentData(os.path.join(path_in,xlsx_file))
             
-            experiment_type = extraDataDict['expName'] if extraDataDict.has_key('expName') else 'none'
+            experiment_type = extraDataDict['expName'] if 'expName' in extraDataDict else 'none'
             if experiment_type == "sample-2-match":
                 newDataArray = dataArray_tmp[['sim_id','coldef_type','resp.corr_raw','resp.rt_raw','origFile']]
                 
-            if extraDataDict.has_key('0. Participant ID'):
+            if '0. Participant ID' in extraDataDict:
                 obsID = int(extraDataDict['0. Participant ID'])
                 newDataArray['observer_id'] = obsID
                 obs_coldef_type = obs_ids_sheet.loc[obs_ids_sheet['observer_id']==obsID,['observer_coldef_type']]
                 newDataArray['observer_coldef_type'] = int(obs_coldef_type['observer_coldef_type'])
             
-            if extraDataDict.has_key("2. Session"):
+            if "2. Session" in extraDataDict:
                 sessionID = int(extraDataDict['2. Session'])
                 newDataArray['session_id'] = sessionID
             
@@ -115,7 +115,7 @@ def analyzeSaMSEMData(dict):
         else:
             sys.stdout.write("Caution: No data saved.")
     except Exception as e:
-        print e 
+        print(e) 
 
 
 def analyzeViSDEMData(dict):
@@ -125,23 +125,23 @@ def analyzeViSDEMData(dict):
     
     """
     
-    if dict.has_key('path_in'):
+    if 'path_in' in dict:
         path_in = dict['path_in']
     else:
-        print "Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in"    
+        print("Caution: No path for input folder containing the data has been defined. Please define path to folder by dict['path_in']=path_in")    
         return
     
     path_out_default = '../colordeficiency-data/'    
-    if dict.has_key('path_out'):
+    if 'path_out' in dict:
         path_out = dict['path_out']
     else:
-        print "Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default)
+        print("Caution: No path for output folder where the data should be stored has been defined. Using default output path instead: "+str(path_out_default))
         path_out = path_out_default
     
-    if dict.has_key('round'):
+    if 'round' in dict:
         round = dict['round']
     else:
-        print "Error: You have to chose a round first."
+        print("Error: You have to chose a round first.")
     
     path = os.path.join(os.path.dirname(os.path.abspath(os.path.join(__file__,os.pardir))),'colordeficiency-data')
         
@@ -167,15 +167,15 @@ def analyzeViSDEMData(dict):
         
         newDataArray = dataArray_tmp[['dalt_id','coldef_type','resp.corr_raw','resp.rt_raw','stimFile']]
         
-        if extraDataDict.has_key("2. Session"):
+        if "2. Session" in extraDataDict:
             sessionID = int(extraDataDict['2. Session'])
         newDataArray['session_id'] = sessionID
         
-        if extraDataDict.has_key('group'):
+        if 'group' in extraDataDict:
             obsGroup = str(extraDataDict['group'])
         newDataArray['obsGroup'] = obsGroup
             
-        if extraDataDict.has_key('0. Participant ID'):
+        if '0. Participant ID' in extraDataDict:
             obsID = int(extraDataDict['0. Participant ID'])
             
         newDataArray['observer_id'] = obsID
@@ -232,7 +232,7 @@ def analyzeViSDEMData(dict):
         dataArray.to_csv(os.path.join(path_out, 'visdem-data.csv'),sep=";")
         sys.stdout.write("Success: ViSDEM data successfully saved in '"+str(path_out)+"'.\n")
     except Exception as e:
-        print e  
+        print(e)  
 
 
 
@@ -265,11 +265,11 @@ def samsemPlots1thru4(samsem_data,path,dict):
     Before: s2mplots29and30
     """
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     # Defining the subfolder for the results
     path_res = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -279,13 +279,13 @@ def samsemPlots1thru4(samsem_data,path,dict):
     dict.update({'investigated-item': 'simulation method'})
     filename_orig = dict['filename']
     
-    if dict.has_key('method_ids'):
+    if 'method_ids' in dict:
         method_ids = dict['method_ids']
     else:
         method_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
     method_ids = sorted(method_ids) # IDs of the methods that need to be plotted
     
-    print "Starting SAMSEM_RES#01+04: Analyzing data for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+"."
+    print("Starting SAMSEM_RES#01+04: Analyzing data for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+".")
     
     pandas_dict = {}; i = 0; order_dict = {}; sim_names = []
     # Retrieving data for each of the algorithms algorithm
@@ -303,14 +303,14 @@ def samsemPlots1thru4(samsem_data,path,dict):
         sim_names.append(sim_method)
     
     # Plot response time data as boxplots
-    if telleoevelse: print "Observations RT plots"
+    if telleoevelse: print("Observations RT plots")
     boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
     plotRTGraphs(boxes,labels,path_res,dict,order_dict)
         
     # Plot accuracy data with confidence intervals
     c = 1.96; type = 'wilson-score';
     
-    if telleoevelse: print "Observations ACC plots"
+    if telleoevelse: print("Observations ACC plots")
     accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
     plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
         
@@ -344,11 +344,11 @@ def samsemPlots1thru4(samsem_data,path,dict):
 def samsemPlots1thru4Paired(samsem_data,path,dict):
     
     compute_paired_data = 1
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     # Defining the subfolder for the results
     path_res = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -358,13 +358,13 @@ def samsemPlots1thru4Paired(samsem_data,path,dict):
     dict.update({'investigated-item': 'simulation method'})
     filename_orig = dict['filename']
     
-    if dict.has_key('method_ids'):
+    if 'method_ids' in dict:
         method_ids = dict['method_ids']
     else:
         method_ids = sorted(set(samsem_data['sim_id'].values.astype(int)))
     method_ids = sorted(method_ids) # IDs of the methods that need to be plotted
     
-    print "Starting SAMSEM_RES#01+04-paired: "+filename_orig+": Individual methods - ACC paired student-t test, RT paired median test."
+    print("Starting SAMSEM_RES#01+04-paired: "+filename_orig+": Individual methods - ACC paired student-t test, RT paired median test.")
     
     if compute_paired_data:
         makePairedDataForSaMSEM(samsem_data, dict['path_data'], dict)
@@ -430,15 +430,15 @@ def samsemPlots17thru20(samsem_data, path, dict):
     
     path_res = path
     
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
     
     coldef_type = dict['coldef_type']
-    print "Starting SAMSEM_RES#17+20: Analyzing data of all images for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods."
+    print("Starting SAMSEM_RES#17+20: Analyzing data of all images for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods.")
     
-    if dict.has_key('plot_types'):
+    if 'plot_types' in dict:
         plot_types = dict['plot_types']
     else:
         plot_types = ['RT_boxplots', 'RT_means', 'ACC_CIs', 'median']
@@ -517,11 +517,11 @@ def samsemPlots29and30(samsem_data,path,dict):
     Before: s2mplots29and30
     """
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
         
     # Retrieving input data for the analysis
     path_res = path    
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -531,9 +531,9 @@ def samsemPlots29and30(samsem_data,path,dict):
     observer_groups = dict['observer_groups']
     dict.update({'investigated-item': 'observer groups'})
     
-    method_ids = dict['method_ids'] if dict.has_key('method_ids') else sorted(set(samsem_data['sim_id'].values.astype(int)))
+    method_ids = dict['method_ids'] if 'method_ids' in dict else sorted(set(samsem_data['sim_id'].values.astype(int)))
     
-    print "Starting SAMSEM_RES#29+30: Analyzing data of observer groups "+ str(keys2values(observer_groups,settings.id2ColDefShort))+" for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+"."
+    print("Starting SAMSEM_RES#29+30: Analyzing data of observer groups "+ str(keys2values(observer_groups,settings.id2ColDefShort))+" for " + str(settings.id2ColDefLong[dict['coldef_type']]) + " simulation methods: "+str(keys2values(method_ids,settings.id2Sim))+".")
     
     # Restricting input data to only include the simulation methods that have been chosen for the analysis
     rel_data = pandas.DataFrame()
@@ -559,13 +559,13 @@ def samsemPlots29and30(samsem_data,path,dict):
         order_dict.update({i:observer_coldef_type_short}) ; i += 1
     
     # Plot response time data as boxplots
-    if telleoevelse: print "Observations RT plots"
+    if telleoevelse: print("Observations RT plots")
     boxes, labels = preparePandas4RTPlots(pandas_dict, order_dict)
     plotRTGraphs(boxes,labels,path_res, dict)
     
     # Plot accuracy with confidence intervals
     c = 1.96; type = 'wilson-score'
-    if telleoevelse: print "Observations ACC plots"
+    if telleoevelse: print("Observations ACC plots")
     accuracies = preparePandas4AccuracyPlots(pandas_dict,order_dict,c,type)
     plotAccuracyGraphs(accuracies,path_res,dict,order_dict)
         
@@ -714,11 +714,11 @@ def samsemPlots35and36(samsem_data,path,dict):
     """
     
     path_res = path
-    if dict.has_key('result_id'):
+    if 'result_id' in dict:
         result_id = dict['result_id']   
         if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
     
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -726,11 +726,11 @@ def samsemPlots35and36(samsem_data,path,dict):
     #intro_string = result_id if result_id else dict['filename']  # filename does not make any sense at this point
     #sys.stdout.write("Starting Res#"+str(intro_string)+'.') 
     coldef_type = dict['coldef_type']
-    if dict.has_key('plot_types'):
+    if 'plot_types' in dict:
         plot_types = dict['plot_types']
     else:
         plot_types = ['histogramm', 'residual', 'q-q']
-    print "Starting SaMSEM_RES#35+36: Computing normality plot ("+str(plot_types)+") for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods."
+    print("Starting SaMSEM_RES#35+36: Computing normality plot ("+str(plot_types)+") for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods.")
     
     boxes = []; labels = []
     
@@ -785,11 +785,11 @@ def samsemPlots37and38(samsem_data,path,dict):
     """
     
     path_res = path
-    if dict.has_key('result_id'):
+    if 'result_id' in dict:
         result_id = dict['result_id']   
         if not os.path.exists(os.path.join(path,str(result_id))): os.makedirs(os.path.join(path,str(result_id)))
     
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -797,13 +797,13 @@ def samsemPlots37and38(samsem_data,path,dict):
     #intro_string = result_id if result_id else dict['filename']  # filename does not make any sense at this point
     #sys.stdout.write("Starting Res#"+str(intro_string)+'.') 
     coldef_type = dict['coldef_type']
-    if dict.has_key('plot_types'):
+    if 'plot_types' in dict:
         plot_types = dict['plot_types']
     else:
         plot_types = ['histogramm', 'q-q']
-    print "Starting SaMSEM_RES#37+38: Computing normality plot ("+str(plot_types)+") of observer groups for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods."
+    print("Starting SaMSEM_RES#37+38: Computing normality plot ("+str(plot_types)+") of observer groups for "+str(settings.id2ColDefLong[coldef_type])+" simulation methods.")
     
-    if dict.has_key('filename'):
+    if 'filename' in dict:
         filename = dict['filename']
     else:
         filename = "test-pupsi"
@@ -885,9 +885,9 @@ def samsemPlots41and42(samsem_data,path,dict):
     Making pearson chi2-contingency test for all algorithms samsem data.
     """
     coldef_type = dict['coldef_type']
-    print "Starting SAMSEM_RES#41+42: Computing of Chi2 for simulation methods of " + str(settings.id2ColDefLong[coldef_type])+"."
+    print("Starting SAMSEM_RES#41+42: Computing of Chi2 for simulation methods of " + str(settings.id2ColDefLong[coldef_type])+".")
     
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -939,10 +939,10 @@ def samsemPlots43and44(samsem_data,path,dict):
     """
     
     coldef_type = dict['coldef_type']
-    print "Starting SAMSEM_RES#43+44: Computing of Chi2 for observer groups for " + str(settings.id2ColDefLong[coldef_type]) + " simulation methods."
+    print("Starting SAMSEM_RES#43+44: Computing of Chi2 for observer groups for " + str(settings.id2ColDefLong[coldef_type]) + " simulation methods.")
     
     
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -1057,19 +1057,19 @@ def vsplots5thru8(visual_search_data,path,dict):
 
 def visdemPlots53thru60(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#53-60 - "+dict['filename']+": Individual methods - ACC plots, ACC Chi2 tests, RT boxplots, RT median test, and Q-Q/Q-Q-log normality check."
+    print("   Starting ViSDEM_RES#53-60 - "+dict['filename']+": Individual methods - ACC plots, ACC Chi2 tests, RT boxplots, RT median test, and Q-Q/Q-Q-log normality check.")
     
     dict.update({'RT_difference':0})
     
     path_res = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
     filename_orig = dict['filename']
     
     dict.update({'investigated-item': 'daltonization method'})
-    set_ids = dict['sets'] if dict.has_key('sets') else sorted(set(visdem_data['set_id'].values.astype(int))) 
+    set_ids = dict['sets'] if 'sets' in dict else sorted(set(visdem_data['set_id'].values.astype(int))) 
         
     #Retrieving data    
     visdem_data_adj = pandas.DataFrame()
@@ -1087,7 +1087,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
         dalt_method = settings.id2Dalt[dalt_method_id]
         obs_groups = dict['obs_groups']
         relevant_data_tmp = pandas.DataFrame()
-        for obs_group, coldef_type in obs_groups.iteritems():
+        for obs_group, coldef_type in obs_groups.items():
             
             whatArray = [['dalt_id', operator.eq, dalt_method_id],['variant_id',operator.eq,1],['observer_coldef_type',operator.eq,obs_group]]
             if (dalt_method_id != 0)  and (dalt_method_id != 99):
@@ -1125,7 +1125,7 @@ def visdemPlots53thru60(visdem_data,path,dict):
     makePearsonChi2Contingency2x2Test(obs_array, path_res, labels, dict)
     
     # 7. Make normality plots
-    qq_plots = dict['qq_plots'] if dict.has_key('qq_plots') else 0
+    qq_plots = dict['qq_plots'] if 'qq_plots' in dict else 0
     if qq_plots:
         for i in range(numpy.shape(boxes)[0]):
             distribution_tmp = boxes[i]
@@ -1142,18 +1142,18 @@ def visdemPlots53thru60(visdem_data,path,dict):
 
 def visdemPlots53thru60Paired(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#53-60-paired - "+dict['filename']+": Individual methods - ACC paired student-t test, ACC Chi2 tests, RT paired median test."
+    print("   Starting ViSDEM_RES#53-60-paired - "+dict['filename']+": Individual methods - ACC paired student-t test, ACC Chi2 tests, RT paired median test.")
     
     compute_paired_data = 1
     
     path_res = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
     filename_orig = dict['filename']
 
-    set_ids = dict['sets'] if dict.has_key('sets') else sorted(set(visdem_data['set_id'].values.astype(int)))
+    set_ids = dict['sets'] if 'sets' in dict else sorted(set(visdem_data['set_id'].values.astype(int)))
 
     visdem_data_adj = pandas.DataFrame()
     for set_id in set_ids:
@@ -1205,12 +1205,12 @@ def visdemPlots53thru60Paired(visdem_data,path,dict):
     
 def visdemPlots67thru70(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#67-70: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for observer group " + dict['filename']+"."
+    print("   Starting ViSDEM_RES#67-70: Plotting of ACC and RT data, and computying of Chi2 of ACC and median test of RT for observer group " + dict['filename']+".")
     
-    telleoevelse = dict['telleoevelse'] if dict.has_key('telleoevelse') else 0
+    telleoevelse = dict['telleoevelse'] if 'telleoevelse' in dict else 0
     
     path_res = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
         if not os.path.exists(path_res): os.makedirs(path_res)
@@ -1218,7 +1218,7 @@ def visdemPlots67thru70(visdem_data,path,dict):
     dict.update({'investigated-item': 'daltonization method'})
     
     #DCData = pandas.DataFrame(); CCData = pandas.DataFrame(); SCData = pandas.DataFrame()
-    if dict.has_key('sets'):
+    if 'sets' in dict:
         set_ids = dict['sets']
     else:
         set_ids = sorted(set(visdem_data['set_id'].values.astype(int)))
@@ -1288,7 +1288,7 @@ def vsplots71thru74(visual_search_data,path,dict):
     sys.stdout.write("Starting Res#"+str(intro_string)+' -> ')    
     if not os.path.exists(os.path.join(path,str(dict['result_id']))): os.makedirs(os.path.join(path,str(dict['result_id'])))
     
-    if dict.has_key('sets'):
+    if 'sets' in dict:
         set_ids = dict['sets']
     else:
         set_ids = []
@@ -1329,32 +1329,32 @@ def vsplots71thru74(visual_search_data,path,dict):
 
 def visdemPlot75(visual_search_data,path,dict):
     
-    if dict.has_key('filename'):
+    if 'filename' in dict:
         filename = dict['filename']
     else:    
         filename = "visdem-normal-deutan-observers"
     
-    if dict.has_key('obs_title'):
+    if 'obs_title' in dict:
         obs_title = dict['obs_title']
     else:
         obs_title = ''
     
-    if dict.has_key('fontsize'):
+    if 'fontsize' in dict:
         fontsize = dict['fontsize']
     else:
         fontsize = 18
         
-    if dict.has_key('y_lim_ACC'):
+    if 'y_lim_ACC' in dict:
         y_lim_ACC = dict['y_lim_ACC']
     else:
         y_lim_ACC = [.0,1.] 
         
-    if dict.has_key('y_lim_RT'):
+    if 'y_lim_RT' in dict:
         y_lim_RT = dict['y_lim_RT']
     else:
         y_lim_RT = [0,3000]
     
-    if dict.has_key('result_id'):
+    if 'result_id' in dict:
         result_id = dict['result_id']
     else:
         result_id = ''
@@ -1365,7 +1365,7 @@ def visdemPlot75(visual_search_data,path,dict):
     
     Data_norm = pandas.DataFrame()
     Data_deut = pandas.DataFrame()
-    if dict.has_key('sets'):
+    if 'sets' in dict:
         set_ids = dict['sets']
     else:
         set_ids = []
@@ -1407,7 +1407,7 @@ def visdemPlot75(visual_search_data,path,dict):
     test_array.append(Data_norm_values)
     test_array.append(Data_deut_values)
     test_array = numpy.array(test_array)
-    print
+    print()
     makeMedianTest(test_array,path,labels_tmp,dict)
      
     # 4. Accuracy plots
@@ -1432,7 +1432,7 @@ def visdemPlot76(visual_search_data,path,dict):
     filename_norm = "visdem-normal-observers"
     filename_deut = "visdem-deutan-observers"
     filename_norm_deut = "visdem-normal-deutan-observers"
-    if dict.has_key('fontsize'):
+    if 'fontsize' in dict:
         fontsize = dict['fontsize']
     else:
         fontsize = 18
@@ -1444,7 +1444,7 @@ def visdemPlot76(visual_search_data,path,dict):
     
     DNData_norm = pandas.DataFrame(); DCData_norm = pandas.DataFrame()
     DNData_deut = pandas.DataFrame(); DCData_deut = pandas.DataFrame()
-    if dict.has_key('sets'):
+    if 'sets' in dict:
         set_ids = dict['sets']
     else:
         set_ids = []
@@ -1526,10 +1526,10 @@ def visdemPlot76(visual_search_data,path,dict):
 
 def visdemPlots77thru80(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#77-80 - "+dict['filename']+": Individual "+dict['investigated-item']+"s - ACC plots and ACC Chi2 tests."
+    print("   Starting ViSDEM_RES#77-80 - "+dict['filename']+": Individual "+dict['investigated-item']+"s - ACC plots and ACC Chi2 tests.")
     
     path_res_orig = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res_orig = os.path.join(path,subfolder)
         if not os.path.exists(path_res_orig): os.makedirs(path_res_orig)
@@ -1538,8 +1538,8 @@ def visdemPlots77thru80(visdem_data,path,dict):
     
     coldef_type = dict['coldef_type']
     
-    item_ids = dict[item] if dict.has_key(item) else sorted(set(visdem_data[item+'_id'].values.astype(int)))
-    dalt_ids = dict['dalt_ids'] if dict.has_key('dalt_ids') else sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    item_ids = dict[item] if item in dict else sorted(set(visdem_data[item+'_id'].values.astype(int)))
+    dalt_ids = dict['dalt_ids'] if 'dalt_ids' in dict else sorted(set(visdem_data['dalt_id'].values.astype(int)))
     
     visdem_data_adj = pandas.DataFrame()
     for item_id in item_ids:
@@ -1687,10 +1687,10 @@ def visdemPlots77thru80(visdem_data,path,dict):
 
 def visdemPlots81thru82(visdem_data,path,dict):
     
-    print "   Starting ViSDEM_RES#81-82 - "+dict['filename']+": Natural vs. Ishihara sets - ACC plots and ACC Chi2 tests."
+    print("   Starting ViSDEM_RES#81-82 - "+dict['filename']+": Natural vs. Ishihara sets - ACC plots and ACC Chi2 tests.")
     
     path_res = path
-    if dict.has_key('subfolder'):
+    if 'subfolder' in dict:
         subfolder = dict['subfolder']
         path_res = os.path.join(path,subfolder)
     if not os.path.exists(path_res): os.makedirs(path_res)
@@ -1700,7 +1700,7 @@ def visdemPlots81thru82(visdem_data,path,dict):
     coldef_type = dict['coldef_type']
     
     #item_ids = dict[item] if dict.has_key(item) else sorted(set(visdem_data[item+'_id'].values.astype(int)))
-    dalt_ids = dict['dalt_ids'] if dict.has_key('dalt_ids') else sorted(set(visdem_data['dalt_id'].values.astype(int)))
+    dalt_ids = dict['dalt_ids'] if 'dalt_ids' in dict else sorted(set(visdem_data['dalt_id'].values.astype(int)))
     
     natural_sets = [1,2,3,4,5,6,7,8,9,10]
     natural_visdem_data = pandas.DataFrame()
@@ -1877,7 +1877,7 @@ def makePairedDataForViSDEM(visdem_data,path,dict):
     
     
     visdem_data_restr = pandas.DataFrame()
-    for group_coldef_type, value in obs_groups.iteritems():
+    for group_coldef_type, value in obs_groups.items():
         whatArr_tmp = [['observer_coldef_type',operator.eq,group_coldef_type],['variant_id',operator.eq,1]]
         visdem_data_restr_tmp = organizeArray(visdem_data,whatArr_tmp)
         visdem_data_restr = pandas.concat([visdem_data_restr_tmp,visdem_data_restr])
