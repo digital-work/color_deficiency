@@ -1,6 +1,7 @@
 /.project
 /.pydevproject
 .settings/*
+*.py.bak
 org.eclipse.core.resources.prefs
 
 *.ahu
