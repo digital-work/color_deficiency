@@ -42,10 +42,13 @@ def convertToLuminanceImage(img_in, options):
     img_in = img_in.convert('RGB')
     img_in_array = numpy.asarray(img_in, dtype=float)
     
+    # Start of simulation_dummy_arr
     
     img_out_array = numpy.dot(img_in_array[...,:3], [0.299, 0.587, 0.144])
     img_out_array[img_out_array<0.0] = 0.0
     img_out_array[img_out_array>255.0] = 255.0
+    
+    # End of simulation_dummy_arr
     
     img_out = Image.fromarray(numpy.uint8(img_out_array))
     
@@ -286,7 +289,10 @@ def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
         return img_out
     
     img_in = img_in.convert('RGB')
-    img_array = (numpy.asarray(img_in, dtype=float)/255.)**2.2
+    img_array = numpy.asarray(img_in, dtype=float)
+    
+    # Start of simulation_vienot_arr
+    img_array = (img_array/255.)**2.2
     m,n,dim = numpy.shape(img_array)
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
@@ -319,8 +325,9 @@ def simulation_vienot(img_in, coldef_type,coldef_strength=1.0):
     rgbVienot_arr[rgbVienot_arr>1] = 1
     
     vienotRGBSimulated_arr = (rgbVienot_arr**(1/2.2))*255.
-    img_array = numpy.uint8(vienotRGBSimulated_arr)
+    # End of simulation_vienot_arr
     
+    img_array = numpy.uint8(vienotRGBSimulated_arr)
     img_out = Image.fromarray(img_array)
     
     return img_out
@@ -340,7 +347,10 @@ def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
         return img_in
     
     img_in = img_in.convert('RGB')
-    img_array = numpy.asarray(img_in, dtype=float)/255.
+    img_array = numpy.asarray(img_in, dtype=float)
+    
+    # Start of simulation_vienot_adjusted_arr
+    img_array = img_array/255.
     m,n,dim = numpy.shape(img_array)
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
@@ -367,6 +377,8 @@ def simulation_vienot_adjusted(img_in, coldef_type,coldef_strength=1.0):
     
     # We propose this gamut clipping instead for hte one proposed by vienot
     sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)*255.
+    # End of simulation_vienot__adjusted_arr
+    
     img_array = numpy.uint8(sRGBSimulated_arr)
     img_out = Image.fromarray(img_array)
     
@@ -389,7 +401,10 @@ def simulation_kotera(img_in, coldef_type, coldef_strength=1.):
         return img_in
     
     img_in = img_in.convert('RGB')
-    img_array = numpy.asarray(img_in, dtype=float)/255.
+    img_array = numpy.asarray(img_in, dtype=float)
+    
+    # Start of simulation_kotera_arr
+    img_array = img_array/255.
     
     sRGBOriginal_arr = colour.data.Data(colour.space.srgb,img_array)
     iptOriginal_arr = sRGBOriginal_arr.get(colour.space.ipt)
@@ -401,6 +416,7 @@ def simulation_kotera(img_in, coldef_type, coldef_strength=1.):
         iptSimulated_arr[:,:,2] = iptOriginal_arr[:,:,2]*(1.0-coldef_strength)
     iptSimulated_arr = colour.data.Data(colour.space.ipt,iptSimulated_arr)
     sRGBSimulated_arr = iptSimulated_arr.get(colour.space.srgb)*255.
+    # End of of simulation_kotera_arr
     
     img_array = numpy.uint8(sRGBSimulated_arr)
     img_out = Image.fromarray(img_array)
@@ -409,7 +425,6 @@ def simulation_kotera(img_in, coldef_type, coldef_strength=1.):
     
 
 def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
-    
     
     # Check if correct color deficiency has been chosen
     if not (coldef_type == "p" or coldef_type == "d" or coldef_type == "t"):
@@ -421,9 +436,10 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     #    print "Note: This is a numpy array."
     #else:
     #    print "Note: This is a PIL Image."
-        
+    if is_numpy_array: img_array = img_in
+    else: img_in = img_in.convert('RGB'); img_array = numpy.asarray(img_in, dtype=float)/255.
     
-    #print settings.data_path
+    # Start of simulation_brettel_arr
     data = numpy.genfromtxt(os.path.join(settings.data_path,'ciexyz31.csv'), delimiter=',')
     # LMS space based on Smith and Pokorny
     xyz2lms = numpy.array([[.15514, .54312, -.03286],
@@ -451,8 +467,6 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     c485_XYZ =  data[data[:,0]==485.][0,1:4]
     c485_LMS = numpy.dot(xyz2lms,c485_XYZ)
     
-    if is_numpy_array: img_array = img_in
-    else: img_in = img_in.convert('RGB'); img_array = numpy.asarray(img_in, dtype=float)/255.
     m,n,dim = numpy.shape(img_array)
     
     # Modified RGB space based on ITU-R BT.709 primaries - same as sRGB - and Judd-Vos colorimetric modification
@@ -572,40 +586,17 @@ def simulation_brettel(img_in, coldef_type, coldef_strength=1.0):
     # We propose this gamut clipping instead for the one proposed by vienot
     sRGBSimulated_arr = lmsSimulated_arr.get(colour.space.srgb)
     
+    # End of simulation_brettel_arr
+    
     if is_numpy_array: img_out = sRGBSimulated_arr
-    else: img_array = numpy.uint8(sRGBSimulated_arr*255.); img_out = Image.fromarray(img_array)
+    else: img_array = numpy.uint8(sRGBSimulated_arr*255.); 
+    img_out = Image.fromarray(img_array)
     
     #showLMSSpace()
     
     #img_out = crossOut(img_in)
     
     return img_out
-
-#wech
-# class StoppableThread(threading.Thread):
-#     """Thread class with a stop() method. The thread itself has to performance_test
-#     regularly for the stopped() condition."""
-# 
-#     def __init__(self):
-#         super(StoppableThread, self).__init__()
-#         self._stop = threading.Event()
-# 
-#     def stop(self):
-#         self._stop.set()
-# 
-#     def stopped(self):
-#         return self._stop.isSet()
-
-#wech
-# def counting():
-#     i = 0
-#     while True:
-#         time.sleep(.1)
-#         i += 1
-#         print i
-
-
-#print module_path"""
 
 def daltonization_huan(img_in,options):
     
